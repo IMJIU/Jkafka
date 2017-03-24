@@ -7,6 +7,7 @@ package kafka.message;/**
  * @create 2017-03-22 20:27
  **/
 public enum CompressionCodec {
+    DefaultCompressionCodec(1, "gzip"),
     NoCompressionCodec(0, "none"),
     GZIPCompressionCodec(1, "gzip"),
     SnappyCompressionCodec(2, "snappy"),

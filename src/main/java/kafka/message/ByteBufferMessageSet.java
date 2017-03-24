@@ -5,7 +5,9 @@ package kafka.message;/**
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.nio.channels.GatheringByteChannel;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -61,25 +63,31 @@ public class ByteBufferMessageSet extends MessageSet {
         }
     }
 
-    def decompress(message:Message):ByteBufferMessageSet =
-
-    {
-        val outputStream:ByteArrayOutputStream = new ByteArrayOutputStream
-        val inputStream:InputStream = new ByteBufferBackedInputStream(message.payload)
-        val intermediateBuffer = new Array[Byte] (1024)
-        val compressed = CompressionFactory(message.compressionCodec, inputStream)
+    public ByteBufferMessageSet decompress(Message message) {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        InputStream inputStream = new ByteBufferBackedInputStream(message.payload());
+        byte[] intermediateBuffer = new byte[1024];
+        InputStream compressed = CompressionFactory.apply(message.compressionCodec(), inputStream);
         try {
-            Stream.continually(compressed.read(intermediateBuffer)).takeWhile(_ > 0).foreach {
-                dataRead =>
-                outputStream.write(intermediateBuffer, 0, dataRead)
+            try {
+                int len;
+                while ((len = compressed.read(intermediateBuffer)) > 0) {
+                    outputStream.write(intermediateBuffer, 0, len);
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
             }
         } finally {
-            compressed.close()
+            try {
+                compressed.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
-        val outputBuffer = ByteBuffer.allocate(outputStream.size)
-        outputBuffer.put(outputStream.toByteArray)
-        outputBuffer.rewind
-        new ByteBufferMessageSet(outputBuffer)
+        ByteBuffer outputBuffer = ByteBuffer.allocate(outputStream.size());
+        outputBuffer.put(outputStream.toByteArray());
+        outputBuffer.rewind();
+        return new ByteBufferMessageSet(outputBuffer);
     }
 
     private static void writeMessage(ByteBuffer buffer, Message message, Long offset) {
@@ -89,37 +97,33 @@ public class ByteBufferMessageSet extends MessageSet {
         message.buffer.rewind();
     }
 
-/**
- * A sequence of messages stored in a byte buffer
- *
- * There are two ways to create a ByteBufferMessageSet
- *
- * Option 1: From a ByteBuffer which already contains the serialized message set. Consumers will use this method.
- *
- * Option 2: Give it a list of messages along with instructions relating to serialization format. Producers will use this method.
- *
- */
+    /**
+     * A sequence of messages stored in a byte buffer
+     * <p>
+     * There are two ways to create a ByteBufferMessageSet
+     * <p>
+     * Option 1: From a ByteBuffer which already contains the serialized message set. Consumers will use this method.
+     * <p>
+     * Option 2: Give it a list of messages along with instructions relating to serialization format. Producers will use this method.
+     */
 
 
-    def this(compressionCodec:CompressionCodec,messages:Message*)
-
-    {
-        this(ByteBufferMessageSet.create(new AtomicLong(0), compressionCodec, messages:_ *))
+    public ByteBufferMessageSet(CompressionCodec compressionCodec, Message... messages) {
+        this(ByteBufferMessageSet.create(new AtomicLong(0), compressionCodec, messages));
     }
 
-    def this(compressionCodec:CompressionCodec,offsetCounter:AtomicLong,messages:Message*)
-
-    {
-        this(ByteBufferMessageSet.create(offsetCounter, compressionCodec, messages:_ *))
+    public ByteBufferMessageSet(CompressionCodec compressionCodec, AtomicLong offsetCounter, Message... messages) {
+        this(ByteBufferMessageSet.create(offsetCounter, compressionCodec, messages));
     }
 
-    def this(messages:Message*)
 
-    {
-        this(NoCompressionCodec, new AtomicLong(0), messages:_ *)
+    public ByteBufferMessageSet(Message... messages) {
+        this(CompressionCodec.NoCompressionCodec, new AtomicLong(0), messages);
     }
 
-    def getBuffer = buffer
+    public ByteBuffer getBuffer() {
+        return buffer;
+    }
 
     private def shallowValidBytes:Int =
 
@@ -139,23 +143,28 @@ public class ByteBufferMessageSet extends MessageSet {
     /**
      * Write the messages in this set to the given channel
      */
-    def writeTo(channel:GatheringByteChannel, offset:Long, size:Int):Int =
-
-    {
+    public int writeTo(GatheringByteChannel channel, Long offset, int size) {
         // Ignore offset and size from input. We just want to write the whole buffer to the channel.
-        buffer.mark()
-        var written = 0
-        while (written < sizeInBytes)
-            written += channel.write(buffer)
-        buffer.reset()
-        written
+        buffer.mark();
+        int written = 0;
+        try {
+            while (written < sizeInBytes()) {
+                written += channel.write(buffer);
+            }
+            buffer.reset();
+            return written;
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
     }
 
     /**
      * default iterator that iterates over decompressed messages
      */
     override def
-    iterator:Iterator[MessageAndOffset]=
+    iterator:
+    Iterator[MessageAndOffset]=
 
     internalIterator()
 
@@ -282,5 +291,6 @@ public class ByteBufferMessageSet extends MessageSet {
     }
 
     override def
-    hashCode:Int =buffer.hashCode
+    hashCode:
+    Int =buffer.hashCode
 }
