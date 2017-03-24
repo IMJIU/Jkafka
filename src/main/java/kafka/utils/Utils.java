@@ -3,6 +3,7 @@ package kafka.utils;/**
  */
 
 import java.nio.ByteBuffer;
+import java.util.zip.CRC32;
 
 /**
  * General helper functions!
@@ -292,15 +293,16 @@ public class Utils extends Logging{
          * @param index The position in the buffer at which to begin writing
          * @param value The value to write
          */
-        def writeUnsignedInt(buffer: ByteBuffer, index: Int, value: Long): Unit =
-                buffer.putInt(index, (value & 0xffffffffL).asInstanceOf[Int])
+        public static void writeUnsignedInt(ByteBuffer buffer ,int index,Long value){
+            buffer.putInt(index, (int)(value & 0xffffffffL));
+        }
 
         /**
          * Compute the CRC32 of the byte array
          * @param bytes The array to compute the checksum for
          * @return The CRC32
          */
-        public static Long crc32(Byte[] bytes) {
+        public static Long crc32(byte[] bytes) {
             return crc32(bytes, 0,bytes.length);
         }
 
@@ -313,10 +315,10 @@ public class Utils extends Logging{
          * @param size the number of bytes to checksum
          * @return The CRC32
          */
-        def crc32(bytes: Array[Byte], offset: Int, size: Int): Long = {
-                val crc = new Crc32()
-                crc.update(bytes, offset, size)
-                crc.getValue()
+        public static Long crc32(byte[] bytes, int offset, int size) {
+            CRC32 crc = new CRC32();
+            crc.update(bytes, offset, size);
+            return crc.getValue();
         }
 
         /**

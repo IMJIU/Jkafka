@@ -2,16 +2,96 @@ package kafka.message;/**
  * Created by zhoulf on 2017/3/22.
  */
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.GatheringByteChannel;
+import java.util.Iterator;
 
 /**
- * @author
- * @create 2017-03-22 20:00
- **/
-public abstract  class MessageSet {
-    public static int MessageSizeLength = 4;
-    public static int OffsetLength = 8;
-    public static int LogOverhead = MessageSizeLength + OffsetLength;
-    public MessageSet Empty = new ByteBufferMessageSet(ByteBuffer.allocate(0));
+ * Message set helper functions
+ */
+public abstract class MessageSet implements Iterable<MessageAndOffset> {
+    public static final int MessageSizeLength = 4;
+    public static final int OffsetLength = 8;
+    public static final int LogOverhead = MessageSizeLength + OffsetLength;
+    public static final ByteBufferMessageSet Empty = new ByteBufferMessageSet(ByteBuffer.allocate(0));
+
+    /**
+     * The size of a message set containing the given messages
+     */
+    public static Integer messageSetSize(Message... messages) {
+        int total = 0;
+        for (Message m : messages) {
+            total += entrySize(m);
+        }
+        return total;
+    }
+
+    /**
+     * The size of a list of messages
+     */
+    public static Integer messageSetSize(Iterator<Message> it) {
+        int size = 0;
+        while (it.hasNext()) {
+            size += entrySize(it.next());
+        }
+        return size;
+    }
+
+    /**
+     * The size of a size-delimited entry in a message set
+     */
+    public static Integer entrySize(Message message) {
+        return LogOverhead + message.size();
+    }
+
+
+    /**
+     * A set of messages with offsets. A message set has a fixed serialized form, though the container
+     * for the bytes could be either in-memory or on disk. The format of each message is
+     * as follows:
+     * 8 byte message offset number
+     * 4 byte size containing an integer N
+     * N message bytes as described in the Message class
+     * <p>
+     * /** Write the messages in this set to the given channel starting at the given offset byte.
+     * Less than the complete amount may be written, but no more than maxSize can be. The number
+     * of bytes written is returned
+     */
+    public abstract Integer writeTo(GatheringByteChannel channel, Long offset, Integer maxSize) throws IOException;
+
+    /**
+     * Provides an iterator over the message/offset pairs in this set
+     */
+    public abstract Iterator<MessageAndOffset> iterator();
+
+    /**
+     * Gives the total size of this message set in bytes
+     */
+    public abstract Integer sizeInBytes();
+
+    /**
+     * Print this message set's contents. If the message set has more than 100 messages, just
+     * print the first 100.
+     */
+    @Override
+    public String toString() {
+        StringBuilder builder = new StringBuilder();
+        builder.append(getClass().getSimpleName() + "(");
+        Iterator<MessageAndOffset> iter = this.iterator();
+        int i = 0;
+        while (iter.hasNext() && i < 100) {
+            MessageAndOffset message = iter.next();
+            builder.append(message);
+            if (iter.hasNext())
+                builder.append(", ");
+            i += 1;
+        }
+        if (iter.hasNext())
+            builder.append("...");
+        builder.append(")");
+        return builder.toString();
+    }
+
 
 }

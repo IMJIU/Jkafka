@@ -12,24 +12,24 @@ import java.nio.ByteBuffer;
  * @create 2017-03-22 20:03
  **/
 public class Message {
-    public static int CrcLength = 4;
-    public static int MagicLength = 1;
-    public static int AttributesLength = 1;
-    public static int KeySizeLength = 4;
-    public static int ValueSizeLength = 4;
+    public static final int CrcLength = 4;
+    public static final int MagicLength = 1;
+    public static final int AttributesLength = 1;
+    public static final int KeySizeLength = 4;
+    public static final int ValueSizeLength = 4;
 
-    public static int CrcOffset = 0;
-    public static int MagicOffset = CrcOffset + CrcLength;
-    public static int AttributesOffset = MagicOffset + MagicLength;
-    public static int KeySizeOffset = AttributesOffset + AttributesLength;
-    public static int KeyOffset = KeySizeOffset + KeySizeLength;
+    public static final int CrcOffset = 0;
+    public static final int MagicOffset = CrcOffset + CrcLength;
+    public static final int AttributesOffset = MagicOffset + MagicLength;
+    public static final int KeySizeOffset = AttributesOffset + AttributesLength;
+    public static final int KeyOffset = KeySizeOffset + KeySizeLength;
 
-    public static int MessageOverhead = KeyOffset + ValueSizeLength;
-    public static int MinHeaderSize = CrcLength + MagicLength + AttributesLength + KeySizeLength + ValueSizeLength;
-    public static byte CurrentMagicValue = 0;
+    public static final int MessageOverhead = KeyOffset + ValueSizeLength;
+    public static final int MinHeaderSize = CrcLength + MagicLength + AttributesLength + KeySizeLength + ValueSizeLength;
+    public static final byte CurrentMagicValue = 0;
 
-    public static int CompressionCodeMask = 0x07;//0111
-    public static int NoCompression = 0;
+    public static final int CompressionCodeMask = 0x07;//0111
+    public static final int NoCompression = 0;
 
     public ByteBuffer buffer;
 
@@ -242,11 +242,24 @@ public class Message {
     }
 
     public boolean equals(Object any) {
-        if (any != null && any instanceof Message) {
+        if (any instanceof Message) {
             return this.buffer.equals(any);
         }
         return false;
     }
+
+//    @Override
+//    public boolean equals(Object obj) {
+//        if (obj instanceof Message) {
+//            Message m = (Message) obj;
+//            return getSizeInBytes() == m.getSizeInBytes()//
+//                    && attributes() == m.attributes()//
+//                    && checksum() == m.checksum()//
+//                    && payload() == m.payload()//
+//                    && magic() == m.magic();
+//        }
+//        return false;
+//    }
 
     public int hashCode() {
         return buffer.hashCode();
