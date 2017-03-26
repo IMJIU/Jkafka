@@ -75,18 +75,18 @@ public final class KafkaLZ4BlockInputStream extends FilterInputStream {
             throw new IOException(PREMATURE_EOS);
         }
 
-        if (MAGIC != Utils.readUnsignedIntLE(header, bufferOffset-6)) {
+        if (MAGIC != Utils.readUnsignedIntLE(header, bufferOffset - 6)) {
             throw new IOException(NOT_SUPPORTED);
         }
-        flg = FLG.fromByte(header[bufferOffset-2]);
-        bd = BD.fromByte(header[bufferOffset-1]);
+        flg = FLG.fromByte(header[bufferOffset - 2]);
+        bd = BD.fromByte(header[bufferOffset - 1]);
         // TODO read uncompressed content size, update flg.validate()
         // TODO read dictionary id, update flg.validate()
 
         // check stream descriptor hash
         byte hash = (byte) ((checksum.hash(header, 0, bufferOffset, 0) >> 8) & 0xFF);
         header[bufferOffset++] = (byte) in.read();
-        if (hash != header[bufferOffset-1]) {
+        if (hash != header[bufferOffset - 1]) {
             throw new IOException(DESCRIPTOR_HASH_MISMATCH);
         }
     }
@@ -132,7 +132,9 @@ public final class KafkaLZ4BlockInputStream extends FilterInputStream {
             try {
                 bufferSize = decompressor.decompress(compressedBuffer, 0, blockSize, buffer, 0, maxBlockSize);
             } catch (LZ4Exception e) {
-                throw new IOException(e);
+                e.printStackTrace();
+//                throw new IOException(e);
+                throw new IOException(e.getMessage());
             }
         }
 

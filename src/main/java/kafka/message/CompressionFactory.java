@@ -19,8 +19,6 @@ public class CompressionFactory {
     public static OutputStream apply(CompressionCodec compressionCodec, OutputStream stream) {
         try {
             switch (compressionCodec) {
-                case DefaultCompressionCodec:
-                    return new GZIPOutputStream(stream);
                 case GZIPCompressionCodec:
                     return new GZIPOutputStream(stream);
                 case SnappyCompressionCodec:
@@ -39,8 +37,6 @@ public class CompressionFactory {
     public static InputStream apply(CompressionCodec compressionCodec, InputStream stream) {
         try {
             switch (compressionCodec) {
-                case DefaultCompressionCodec:
-                    return new GZIPInputStream(stream);
                 case GZIPCompressionCodec:
                     return new GZIPInputStream(stream);
                 case SnappyCompressionCodec:
