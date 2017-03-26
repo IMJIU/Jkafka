@@ -184,7 +184,7 @@ public class ByteBufferMessageSet extends MessageSet {
      * When flag isShallow is set to be true, we do a shallow iteration: just traverse the first level of messages.
      **/
     @SuppressWarnings("unchecked")
-    private Iterator<MessageAndOffset> internalIterator(boolean isShallow) {
+    private Iterator<MessageAndOffset> internalIterator(final boolean isShallow) {
         return new IteratorTemplate<MessageAndOffset>() {
             ByteBuffer topIter = buffer.slice();
             Iterator<MessageAndOffset> innerIter = null;

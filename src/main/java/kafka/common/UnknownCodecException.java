@@ -8,6 +8,6 @@ package kafka.common;/**
  **/
 public class UnknownCodecException extends RuntimeException {
     public UnknownCodecException(String msg){
-        super((msg);
+        super(msg);
     }
 }

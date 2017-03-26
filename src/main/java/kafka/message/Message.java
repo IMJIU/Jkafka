@@ -184,7 +184,7 @@ public class Message {
     /**
      * The magic version of this message
      */
-    public Byte magic() {
+    public byte magic() {
         return buffer.get(MagicOffset);
     }
 
@@ -238,7 +238,7 @@ public class Message {
 
     public String toString() {
         return "Message(magic = %d, attributes = %d, crc = %d, key = %s, payload = %s)".
-                format(magic().toString(), attributes().toString(), checksum(), key(), payload());
+                format(""+magic(), attributes().toString(), checksum(), key(), payload());
     }
 
     public boolean equals(Object any) {
