@@ -160,14 +160,14 @@ public class ByteBufferMessageSetTest extends BaseMessageSetTest {
 
     public void verifyShallowIterator(ByteBufferMessageSet messageSet) {
         //make sure the offsets returned by a shallow iterator is a subset of that of a deep iterator
-        Iterator<MessageAndOffset>it1 = messageSet.shallowIterator();
-        List<Long>shallowOffsets = Lists.newArrayList();
-        while(it1.hasNext()){
+        Iterator<MessageAndOffset> it1 = messageSet.shallowIterator();
+        List<Long> shallowOffsets = Lists.newArrayList();
+        while (it1.hasNext()) {
             shallowOffsets.add(it1.next().offset);
         }
-        Iterator<MessageAndOffset>it2 = messageSet.iterator();
-        List<Long>deepOffsets = Lists.newArrayList();
-        while(it2.hasNext()){
+        Iterator<MessageAndOffset> it2 = messageSet.iterator();
+        List<Long> deepOffsets = Lists.newArrayList();
+        while (it2.hasNext()) {
             deepOffsets.add(it2.next().offset);
         }
         Assert.assertTrue(deepOffsets.containsAll(shallowOffsets));

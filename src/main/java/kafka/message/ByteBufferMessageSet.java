@@ -143,9 +143,9 @@ public class ByteBufferMessageSet extends MessageSet {
     private Integer shallowValidBytes() {
         if (shallowValidByteCount < 0) {
             int bytes = 0;
-            Iterator<MessageAndOffset> iter = this.internalIterator(true);
-            while (iter.hasNext()) {
-                MessageAndOffset messageAndOffset = iter.next();
+            Iterator<MessageAndOffset> it = this.internalIterator(true);
+            while (it.hasNext()) {
+                MessageAndOffset messageAndOffset = it.next();
                 bytes += MessageSet.entrySize(messageAndOffset.message);
             }
             this.shallowValidByteCount = bytes;
