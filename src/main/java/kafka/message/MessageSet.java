@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.GatheringByteChannel;
 import java.util.Iterator;
+import java.util.List;
 
 /**
  * Message set helper functions
@@ -20,6 +21,13 @@ public abstract class MessageSet implements Iterable<MessageAndOffset> {
      * The size of a message set containing the given messages
      */
     public static Integer messageSetSize(Message... messages) {
+        int total = 0;
+        for (Message m : messages) {
+            total += entrySize(m);
+        }
+        return total;
+    }
+    public static Integer messageSetSize(List<Message> messages) {
         int total = 0;
         for (Message m : messages) {
             total += entrySize(m);

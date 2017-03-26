@@ -2,6 +2,7 @@ package kafka.message;/**
  * Created by zhoulf on 2017/3/23.
  */
 
+import com.google.common.collect.Lists;
 import kafka.utils.IteratorTemplate;
 
 import java.io.ByteArrayOutputStream;
@@ -26,9 +27,12 @@ public class ByteBufferMessageSet extends MessageSet {
     public ByteBufferMessageSet(ByteBuffer buffer) {
         this.buffer = buffer;
     }
+    private static ByteBuffer create(AtomicLong offsetCounter, CompressionCodec compressionCodec, List<Message> messages) {
+        return create0(offsetCounter, compressionCodec, messages);
+    }
 
-    private static ByteBuffer create(AtomicLong offsetCounter, CompressionCodec compressionCodec, Message... messages) {
-        if (messages.length == 0) {
+    private static ByteBuffer create0(AtomicLong offsetCounter, CompressionCodec compressionCodec, List<Message> messages) {
+        if (messages.size() == 0) {
             return MessageSet.Empty.buffer;
         } else if (compressionCodec == CompressionCodec.NoCompressionCodec) {
             ByteBuffer buffer = ByteBuffer.allocate(MessageSet.messageSetSize(messages));
@@ -66,6 +70,10 @@ public class ByteBufferMessageSet extends MessageSet {
             buffer.rewind();
             return buffer;
         }
+    }
+
+    private static ByteBuffer create(AtomicLong offsetCounter, CompressionCodec compressionCodec, Message... messages) {
+        return create0(offsetCounter, compressionCodec, Lists.newArrayList(messages));
     }
 
     public static ByteBufferMessageSet decompress(Message message) {
@@ -116,7 +124,9 @@ public class ByteBufferMessageSet extends MessageSet {
     public ByteBufferMessageSet(CompressionCodec compressionCodec, Message... messages) {
         this(ByteBufferMessageSet.create(new AtomicLong(0), compressionCodec, messages));
     }
-
+    public ByteBufferMessageSet(CompressionCodec compressionCodec, List<Message> messages) {
+        this(ByteBufferMessageSet.create(new AtomicLong(0), compressionCodec, messages));
+    }
     public ByteBufferMessageSet(CompressionCodec compressionCodec, AtomicLong offsetCounter, Message... messages) {
         this(ByteBufferMessageSet.create(offsetCounter, compressionCodec, messages));
     }
@@ -176,7 +186,7 @@ public class ByteBufferMessageSet extends MessageSet {
     /**
      * iterator over compressed messages without decompressing
      */
-    private Iterator<MessageAndOffset> shallowIterator() {
+    public Iterator<MessageAndOffset> shallowIterator() {
         return internalIterator(true);
     }
 
@@ -298,5 +308,14 @@ public class ByteBufferMessageSet extends MessageSet {
     @Override
     public int hashCode() {
         return buffer.hashCode();
+    }
+
+    public List<Message> toMessageList(){
+        Iterator<MessageAndOffset> it = iterator();
+        List<Message> list = Lists.newArrayList();
+        while(it.hasNext()){
+            list.add(it.next().message);
+        }
+        return list;
     }
 }

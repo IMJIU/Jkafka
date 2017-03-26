@@ -10,9 +10,9 @@ public class MessageAndOffset {
 
     public final Message message;
 
-    public final long offset;
+    public final Long offset;
 
-    public MessageAndOffset(Message message, long offset) {
+    public MessageAndOffset(Message message, Long offset) {
         this.message = message;
         this.offset = offset;
     }

@@ -243,7 +243,7 @@ public class Message {
 
     public boolean equals(Object any) {
         if (any instanceof Message) {
-            return this.buffer.equals(any);
+            return this.buffer.equals(((Message) any).buffer);
         }
         return false;
     }
