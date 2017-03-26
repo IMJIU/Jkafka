@@ -1,17 +1,18 @@
 package kafka.message;
 
 
-import static org.apache.kafka.common.message.KafkaLZ4BlockOutputStream.LZ4_FRAME_INCOMPRESSIBLE_MASK;
-import static org.apache.kafka.common.message.KafkaLZ4BlockOutputStream.LZ4_MAX_HEADER_LENGTH;
-import static org.apache.kafka.common.message.KafkaLZ4BlockOutputStream.MAGIC;
+import static kafka.message.KafkaLZ4BlockOutputStream.LZ4_FRAME_INCOMPRESSIBLE_MASK;
+import static kafka.message.KafkaLZ4BlockOutputStream.LZ4_MAX_HEADER_LENGTH;
+import static kafka.message.KafkaLZ4BlockOutputStream.MAGIC;
 
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
-import org.apache.kafka.common.message.KafkaLZ4BlockOutputStream.BD;
-import org.apache.kafka.common.message.KafkaLZ4BlockOutputStream.FLG;
+import kafka.message.KafkaLZ4BlockOutputStream.BD;
+import kafka.message.KafkaLZ4BlockOutputStream.FLG;
 
+import kafka.utils.Utils;
 import net.jpountz.lz4.LZ4Exception;
 import net.jpountz.lz4.LZ4Factory;
 import net.jpountz.lz4.LZ4SafeDecompressor;

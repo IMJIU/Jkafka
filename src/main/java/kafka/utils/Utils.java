@@ -3,6 +3,7 @@ package kafka.utils;/**
  */
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.zip.CRC32;
@@ -684,4 +685,43 @@ public class Utils extends Logging {
         buffer[offset++] = (byte) (value >>> 8*2);
         buffer[offset]   = (byte) (value >>> 8*3);
     }
+    /**
+     * Read an unsigned integer from the given position without modifying the buffers position
+     *
+     * @param buffer the buffer to read from
+     * @param index the index from which to read the integer
+     * @return The integer read, as a long to avoid signedness
+     */
+    public static long readUnsignedInt(ByteBuffer buffer, int index) {
+        return buffer.getInt(index) & 0xffffffffL;
+    }
+
+    /**
+     * Read an unsigned integer stored in little-endian format from the {@link InputStream}.
+     *
+     * @param in The stream to read from
+     * @return The integer read (MUST BE TREATED WITH SPECIAL CARE TO AVOID SIGNEDNESS)
+     */
+    public static int readUnsignedIntLE(InputStream in) throws IOException {
+        return (in.read() << 8*0)
+                | (in.read() << 8*1)
+                | (in.read() << 8*2)
+                | (in.read() << 8*3);
+    }
+
+    /**
+     * Read an unsigned integer stored in little-endian format from a byte array
+     * at a given offset.
+     *
+     * @param buffer The byte array to read from
+     * @param offset The position in buffer to read from
+     * @return The integer read (MUST BE TREATED WITH SPECIAL CARE TO AVOID SIGNEDNESS)
+     */
+    public static int readUnsignedIntLE(byte[] buffer, int offset) {
+        return (buffer[offset++] << 8*0)
+                | (buffer[offset++] << 8*1)
+                | (buffer[offset++] << 8*2)
+                | (buffer[offset]   << 8*3);
+    }
+
 }
