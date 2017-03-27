@@ -136,6 +136,9 @@ public class ByteBufferMessageSet extends MessageSet {
     public ByteBufferMessageSet(Message... messages) {
         this(CompressionCodec.NoCompressionCodec, new AtomicLong(0), messages);
     }
+    public ByteBufferMessageSet(List<Message>messages) {
+        this(CompressionCodec.NoCompressionCodec, messages);
+    }
 
     public ByteBuffer getBuffer() {
         return buffer;
@@ -197,7 +200,7 @@ public class ByteBufferMessageSet extends MessageSet {
     @SuppressWarnings("unchecked")
     private Iterator<MessageAndOffset> internalIterator(final boolean isShallow) {
         return new IteratorTemplate<MessageAndOffset>() {
-            ByteBuffer topIterator = buffer.slice();
+            ByteBuffer topItBuffer = buffer.slice();
             Iterator<MessageAndOffset> innerIterator = null;
 
             @Override
@@ -218,21 +221,21 @@ public class ByteBufferMessageSet extends MessageSet {
 
             public MessageAndOffset makeNextOuter() {
                 // if there isn't at least an offset and size, we are done
-                if (topIterator.remaining() < 12)
+                if (topItBuffer.remaining() < 12)
                     return allDone();
-                long offset = topIterator.getLong();
-                int size = topIterator.getInt();
+                long offset = topItBuffer.getLong();
+                int size = topItBuffer.getInt();
                 if (size < Message.MinHeaderSize)
                     throw new InvalidMessageException("Message found with corrupt size (" + size + ")");
 
                 // we have an incomplete message
-                if (topIterator.remaining() < size)
+                if (topItBuffer.remaining() < size)
                     return allDone();
 
                 // read the current message and check correctness
-                ByteBuffer message = topIterator.slice();
+                ByteBuffer message = topItBuffer.slice();
                 message.limit(size);
-                topIterator.position(topIterator.position() + size);
+                topItBuffer.position(topItBuffer.position() + size);
                 Message newMessage = new Message(message);
 
                 if (isShallow) {
@@ -321,7 +324,4 @@ public class ByteBufferMessageSet extends MessageSet {
         return list;
     }
 
-    public static void main(String[] args) {
-        System.out.println("why");
-    }
 }

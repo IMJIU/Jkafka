@@ -42,10 +42,6 @@ public class Message {
                    CompressionCodec codec,
                    int payloadOffset,
                    int payloadSize) {
-        init(bytes, key, codec, payloadOffset, payloadSize);
-    }
-
-    private void init(byte[] bytes, byte[] key, CompressionCodec codec, int payloadOffset, int payloadSize) {
         int playloadSize;
         if (bytes == null) {
             playloadSize = 0;
@@ -93,19 +89,19 @@ public class Message {
     }
 
     public Message(byte[] bytes, byte[] key, CompressionCodec codec) {
-        init(bytes, key, codec, 0, -1);
+        this(bytes, key, codec, 0, -1);
     }
 
     public Message(byte[] bytes, CompressionCodec codec) {
-        init(bytes, null, codec, 0, -1);
+        this(bytes, null, codec, 0, -1);
     }
 
     public Message(byte[] bytes, byte[] key) {
-        init(bytes, key, CompressionCodec.NoCompressionCodec, 0, -1);
+        this(bytes, key, CompressionCodec.NoCompressionCodec, 0, -1);
     }
 
     public Message(byte[] bytes) {
-        init(bytes, null, CompressionCodec.NoCompressionCodec, 0, -1);
+        this(bytes, null, CompressionCodec.NoCompressionCodec, 0, -1);
     }
 
     /**
