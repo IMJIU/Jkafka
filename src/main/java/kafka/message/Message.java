@@ -37,18 +37,18 @@ public class Message {
         this.buffer = buffer;
     }
 
-    public Message(byte[] bytes,
+    public Message(byte[] content,
                    byte[] key,
                    CompressionCodec codec,
                    int payloadOffset,
                    int payloadSize) {
         int playloadSize;
-        if (bytes == null) {
+        if (content == null) {
             playloadSize = 0;
         } else if (payloadSize >= 0) {
             playloadSize = payloadSize;
         } else {
-            playloadSize = bytes.length - payloadOffset;
+            playloadSize = content.length - payloadOffset;
         }
         buffer = ByteBuffer.allocate(Message.CrcLength +
                 Message.MagicLength +
@@ -71,16 +71,16 @@ public class Message {
             buffer.put(key, 0, key.length);
         }
         int size;
-        if (bytes == null) {
+        if (content == null) {
             size = -1;
         } else if (payloadSize >= 0) {
             size = payloadSize;
         } else {
-            size = bytes.length - payloadOffset;
+            size = content.length - payloadOffset;
         }
         buffer.putInt(size);
-        if (bytes != null) {
-            buffer.put(bytes, payloadOffset, size);
+        if (content != null) {
+            buffer.put(content, payloadOffset, size);
         }
         buffer.rewind();
 
