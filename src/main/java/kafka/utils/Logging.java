@@ -16,16 +16,21 @@ public abstract class Logging {
 
     // Force initialization to register Log4jControllerMBean
     private Log4jController log4jController;
-//
-//    private def msgWithLogIdent(msg:String) =
-//            if(logIdent ==null)msg else logIdent +msg
-//
-//    def trace(msg:=>String):Unit =
-//
-//    {
-//        if (logger.isTraceEnabled())
-//            logger.trace(msgWithLogIdent(msg))
-//    }
+
+    //
+    private String msgWithLogIdent(String msg) {
+        if (logIdent == null) {
+            return msg;
+        } else {
+            return logIdent + msg;
+        }
+    }
+
+    //
+    public void trace(String msg) {
+        if (logger.isTraceEnabled())
+            logger.trace(msgWithLogIdent(msg));
+    }
 //
 //    def trace(e:=>Throwable):Any =
 //

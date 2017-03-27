@@ -2,6 +2,8 @@ package kafka.message;/**
  * Created by zhoulf on 2017/3/22.
  */
 
+import kafka.utils.Logging;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.GatheringByteChannel;
@@ -11,7 +13,7 @@ import java.util.List;
 /**
  * Message set helper functions
  */
-public abstract class MessageSet implements Iterable<MessageAndOffset> {
+public abstract class MessageSet extends Logging implements Iterable<MessageAndOffset> {
     public static final int MessageSizeLength = 4;
     public static final int OffsetLength = 8;
     public static final int LogOverhead = MessageSizeLength + OffsetLength;

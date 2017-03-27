@@ -2,10 +2,9 @@ package kafka.utils;/**
  * Created by zhoulf on 2017/3/22.
  */
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.util.zip.CRC32;
 
 /**
@@ -128,15 +127,16 @@ public class Utils extends Logging {
 //        props
 //   }
 //
-//        /**
-//         * Open a channel for the given file
-//         */
-//        def openChannel(file: File, mutable: Boolean): FileChannel = {
-//        if(mutable)
-//            new RandomAccessFile(file, "rw").getChannel()
-//        else
-//            new FileInputStream(file).getChannel()
-//  }
+
+    /**
+     * Open a channel for the given file
+     */
+    public static FileChannel openChannel(File file, Boolean mutable) throws FileNotFoundException {
+        if (mutable)
+            return new RandomAccessFile(file, "rw").getChannel();
+        else
+            return new FileInputStream(file).getChannel();
+    }
 //
 //        /**
 //         * Do the given action and log any exceptions thrown without rethrowing them
@@ -651,8 +651,8 @@ public class Utils extends Logging {
      * Write the given long value as a 4 byte unsigned integer. Overflow is ignored.
      *
      * @param buffer The buffer to write to
-     * @param index The position in the buffer at which to begin writing
-     * @param value The value to write
+     * @param index  The position in the buffer at which to begin writing
+     * @param value  The value to write
      */
     public static void writeUnsignedInt(ByteBuffer buffer, int index, long value) {
         buffer.putInt(index, (int) (value & 0xffffffffL));
@@ -661,14 +661,14 @@ public class Utils extends Logging {
     /**
      * Write an unsigned integer in little-endian format to the {@link OutputStream}.
      *
-     * @param out The stream to write to
+     * @param out   The stream to write to
      * @param value The value to write
      */
     public static void writeUnsignedIntLE(OutputStream out, int value) throws IOException {
-        out.write(value >>> 8*0);
-        out.write(value >>> 8*1);
-        out.write(value >>> 8*2);
-        out.write(value >>> 8*3);
+        out.write(value >>> 8 * 0);
+        out.write(value >>> 8 * 1);
+        out.write(value >>> 8 * 2);
+        out.write(value >>> 8 * 3);
     }
 
     /**
@@ -677,19 +677,20 @@ public class Utils extends Logging {
      *
      * @param buffer The byte array to write to
      * @param offset The position in buffer to write to
-     * @param value The value to write
+     * @param value  The value to write
      */
     public static void writeUnsignedIntLE(byte[] buffer, int offset, int value) {
-        buffer[offset++] = (byte) (value >>> 8*0);
-        buffer[offset++] = (byte) (value >>> 8*1);
-        buffer[offset++] = (byte) (value >>> 8*2);
-        buffer[offset]   = (byte) (value >>> 8*3);
+        buffer[offset++] = (byte) (value >>> 8 * 0);
+        buffer[offset++] = (byte) (value >>> 8 * 1);
+        buffer[offset++] = (byte) (value >>> 8 * 2);
+        buffer[offset] = (byte) (value >>> 8 * 3);
     }
+
     /**
      * Read an unsigned integer from the given position without modifying the buffers position
      *
      * @param buffer the buffer to read from
-     * @param index the index from which to read the integer
+     * @param index  the index from which to read the integer
      * @return The integer read, as a long to avoid signedness
      */
     public static long readUnsignedInt(ByteBuffer buffer, int index) {
@@ -703,10 +704,10 @@ public class Utils extends Logging {
      * @return The integer read (MUST BE TREATED WITH SPECIAL CARE TO AVOID SIGNEDNESS)
      */
     public static int readUnsignedIntLE(InputStream in) throws IOException {
-        return (in.read() << 8*0)
-                | (in.read() << 8*1)
-                | (in.read() << 8*2)
-                | (in.read() << 8*3);
+        return (in.read() << 8 * 0)
+                | (in.read() << 8 * 1)
+                | (in.read() << 8 * 2)
+                | (in.read() << 8 * 3);
     }
 
     /**
@@ -718,10 +719,10 @@ public class Utils extends Logging {
      * @return The integer read (MUST BE TREATED WITH SPECIAL CARE TO AVOID SIGNEDNESS)
      */
     public static int readUnsignedIntLE(byte[] buffer, int offset) {
-        return (buffer[offset++] << 8*0)
-                | (buffer[offset++] << 8*1)
-                | (buffer[offset++] << 8*2)
-                | (buffer[offset]   << 8*3);
+        return (buffer[offset++] << 8 * 0)
+                | (buffer[offset++] << 8 * 1)
+                | (buffer[offset++] << 8 * 2)
+                | (buffer[offset] << 8 * 3);
     }
 
 }
