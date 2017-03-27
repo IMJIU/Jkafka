@@ -18,6 +18,18 @@ public class MessageAndOffset {
     }
 
     @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof MessageAndOffset) {
+            MessageAndOffset m = ((MessageAndOffset) obj);
+            if (m.offset.equals(offset) && m.message.equals(message)) {
+                return true;
+            }
+            return false;
+        }
+        return super.equals(obj);
+    }
+
+    @Override
     public String toString() {
         return String.format("MessageAndOffset [offset=%s, message=%s]", offset, message);
     }

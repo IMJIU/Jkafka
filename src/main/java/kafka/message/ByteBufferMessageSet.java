@@ -4,6 +4,7 @@ package kafka.message;/**
 
 import com.google.common.collect.Lists;
 import kafka.utils.IteratorTemplate;
+import org.apache.commons.collections.CollectionUtils;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
@@ -32,7 +33,7 @@ public class ByteBufferMessageSet extends MessageSet {
     }
 
     private static ByteBuffer create0(AtomicLong offsetCounter, CompressionCodec compressionCodec, List<Message> messages) {
-        if (messages.size() == 0) {
+        if (CollectionUtils.isEmpty(messages)) {
             return MessageSet.Empty.buffer;
         } else if (compressionCodec == CompressionCodec.NoCompressionCodec) {
             ByteBuffer buffer = ByteBuffer.allocate(MessageSet.messageSetSize(messages));
@@ -196,8 +197,8 @@ public class ByteBufferMessageSet extends MessageSet {
     @SuppressWarnings("unchecked")
     private Iterator<MessageAndOffset> internalIterator(final boolean isShallow) {
         return new IteratorTemplate<MessageAndOffset>() {
-            ByteBuffer topIter = buffer.slice();
-            Iterator<MessageAndOffset> innerIter = null;
+            ByteBuffer topIterator = buffer.slice();
+            Iterator<MessageAndOffset> innerIterator = null;
 
             @Override
             protected MessageAndOffset makeNext() {
@@ -207,31 +208,31 @@ public class ByteBufferMessageSet extends MessageSet {
                     if (innerDone())
                         return makeNextOuter();
                     else
-                        return innerIter.next();
+                        return innerIterator.next();
                 }
             }
 
             public boolean innerDone() {
-                return (innerIter == null || !innerIter.hasNext());
+                return (innerIterator == null || !innerIterator.hasNext());
             }
 
             public MessageAndOffset makeNextOuter() {
                 // if there isn't at least an offset and size, we are done
-                if (topIter.remaining() < 12)
+                if (topIterator.remaining() < 12)
                     return allDone();
-                long offset = topIter.getLong();
-                int size = topIter.getInt();
+                long offset = topIterator.getLong();
+                int size = topIterator.getInt();
                 if (size < Message.MinHeaderSize)
                     throw new InvalidMessageException("Message found with corrupt size (" + size + ")");
 
                 // we have an incomplete message
-                if (topIter.remaining() < size)
+                if (topIterator.remaining() < size)
                     return allDone();
 
                 // read the current message and check correctness
-                ByteBuffer message = topIter.slice();
+                ByteBuffer message = topIterator.slice();
                 message.limit(size);
-                topIter.position(topIter.position() + size);
+                topIterator.position(topIterator.position() + size);
                 Message newMessage = new Message(message);
 
                 if (isShallow) {
@@ -239,12 +240,12 @@ public class ByteBufferMessageSet extends MessageSet {
                 } else {
                     switch (newMessage.compressionCodec()) {
                         case NoCompressionCodec:
-                            innerIter = null;
+                            innerIterator = null;
                             return new MessageAndOffset(newMessage, offset);
                         default:
-                            innerIter = ByteBufferMessageSet.decompress(newMessage).internalIterator(false);
-                            if (!innerIter.hasNext())
-                                innerIter = null;
+                            innerIterator = ByteBufferMessageSet.decompress(newMessage).internalIterator(false);
+                            if (!innerIterator.hasNext())
+                                innerIterator = null;
                             return makeNext();
                     }
                 }
@@ -298,7 +299,8 @@ public class ByteBufferMessageSet extends MessageSet {
     /**
      * Two message sets are equal if their respective byte buffers are equal
      */
-    public boolean eqauls(Object other) {
+    @Override
+    public boolean equals(Object other) {
         if (other instanceof ByteBufferMessageSet) {
             return buffer.equals(((ByteBufferMessageSet) other).buffer);
         }
@@ -317,5 +319,9 @@ public class ByteBufferMessageSet extends MessageSet {
             list.add(it.next().message);
         }
         return list;
+    }
+
+    public static void main(String[] args) {
+        System.out.println("why");
     }
 }
