@@ -19,10 +19,10 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class FileMessageSet extends MessageSet {
     public volatile File file;
-    FileChannel channel;
-    Integer start;
-    Integer end;
-    Boolean isSlice;
+    public FileChannel channel;
+    public Integer start;
+    public Integer end;
+    public Boolean isSlice;
 
     public FileMessageSet(File file, FileChannel channel, Integer start, Integer end, Boolean isSlice) {
         this.file = file;

@@ -315,13 +315,6 @@ public class ByteBufferMessageSet extends MessageSet {
         return buffer.hashCode();
     }
 
-    public List<Message> toMessageList(){
-        Iterator<MessageAndOffset> it = iterator();
-        List<Message> list = Lists.newArrayList();
-        while(it.hasNext()){
-            list.add(it.next().message);
-        }
-        return list;
-    }
+
 
 }

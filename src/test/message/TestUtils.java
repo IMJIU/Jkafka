@@ -1,5 +1,7 @@
 package message;
 
+import kafka.message.ByteBufferMessageSet;
+import kafka.message.CompressionCodec;
 import kafka.message.Message;
 import kafka.message.MessageAndOffset;
 import kafka.utils.IteratorTemplate;
@@ -77,5 +79,10 @@ public class TestUtils {
                     return allDone();
             }
         };
+    }
+
+    public static ByteBufferMessageSet singleMessageSet(byte[] payload) {
+        byte[] key = null;
+        return new ByteBufferMessageSet(CompressionCodec.NoCompressionCodec, new Message(payload, key));
     }
 }

@@ -2,6 +2,7 @@ package kafka.message;/**
  * Created by zhoulf on 2017/3/22.
  */
 
+import com.google.common.collect.Lists;
 import kafka.utils.Logging;
 
 import java.io.IOException;
@@ -103,5 +104,12 @@ public abstract class MessageSet extends Logging implements Iterable<MessageAndO
         return builder.toString();
     }
 
-
+    public List<Message> toMessageList(){
+        Iterator<MessageAndOffset> it = iterator();
+        List<Message> list = Lists.newArrayList();
+        while(it.hasNext()){
+            list.add(it.next().message);
+        }
+        return list;
+    }
 }
