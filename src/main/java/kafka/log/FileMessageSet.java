@@ -1,7 +1,7 @@
-package kafka.message;
+package kafka.log;
 
 import kafka.common.KafkaException;
-import kafka.log.OffsetPosition;
+import kafka.message.*;
 import kafka.utils.IteratorTemplate;
 import kafka.utils.Utils;
 
@@ -210,7 +210,7 @@ public class FileMessageSet extends MessageSet {
 
                     // increment the location and return the item
                     location += size + 12;
-                    new MessageAndOffset(new Message(buffer), offset);
+                    return new MessageAndOffset(new Message(buffer), offset);
                 } catch (IOException e) {
                     e.printStackTrace();
                 }

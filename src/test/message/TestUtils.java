@@ -44,6 +44,8 @@ public class TestUtils {
         int length = 0;
         while (expected.hasNext() && actual.hasNext()) {
             length += 1;
+//            System.out.println(expected.next());
+//            System.out.println(actual.next());
             Assert.assertEquals(expected.next(), actual.next());
         }
 

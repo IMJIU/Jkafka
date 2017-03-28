@@ -11,4 +11,15 @@ public class OffsetPosition {
         this.offset = offset;
         this.position = position;
     }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof OffsetPosition) {
+            OffsetPosition other = (OffsetPosition) obj;
+            if (position.equals(other.position) && offset.equals(other.offset)) {
+                return true;
+            }
+        }
+        return false;
+    }
 }

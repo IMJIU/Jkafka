@@ -1,7 +1,6 @@
 package message;
 
 import com.google.common.collect.Lists;
-import kafka.message.FileMessageSet;
 import kafka.message.Message;
 import kafka.message.MessageAndOffset;
 import kafka.message.MessageSet;
