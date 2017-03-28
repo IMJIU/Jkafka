@@ -33,8 +33,8 @@ public abstract class BaseMessageSetTest {
     public void testWrittenEqualsRead() {
         MessageSet messageSet = createMessageSet(messages);
         Iterator<MessageAndOffset> it = messageSet.iterator();
-        List<Message>list = Lists.newArrayList();
-        while(it.hasNext()){
+        List<Message> list = Lists.newArrayList();
+        while (it.hasNext()) {
             list.add(it.next().message);
         }
         checkEquals(messages.iterator(), list.iterator());

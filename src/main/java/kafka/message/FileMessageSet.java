@@ -33,7 +33,7 @@ public class FileMessageSet extends MessageSet {
         init();
     }
 
-    public void init() {
+    private void init() {
         try {
             if (isSlice) {
                 _size = new AtomicInteger(end - start); // don't check the file size if this is just a slice view
@@ -72,7 +72,7 @@ public class FileMessageSet extends MessageSet {
     /**
      * Create a file message set with mutable option
      */
-    public FileMessageSet(File file, boolean mutable) throws FileNotFoundException  {
+    public FileMessageSet(File file, boolean mutable) throws FileNotFoundException {
         this(file, Utils.openChannel(file, mutable));
     }
 

@@ -2,7 +2,6 @@ package kafka.message;/**
  * Created by zhoulf on 2017/3/22.
  */
 
-import kafka.Scala;
 import kafka.utils.Utils;
 
 import java.nio.ByteBuffer;
@@ -158,7 +157,7 @@ public class Message {
      * The position where the payload size is stored
      */
     private int payloadSizeOffset() {
-        return Message.KeyOffset + Scala.max(0, keySize());
+        return Message.KeyOffset + Math.max(0, keySize());
     }
 
     ;

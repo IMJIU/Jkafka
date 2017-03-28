@@ -120,8 +120,6 @@ public class ByteBufferMessageSet extends MessageSet {
      * <p>
      * Option 2: Give it a list of messages along with instructions relating to serialization format. Producers will use this method.
      */
-
-
     public ByteBufferMessageSet(CompressionCodec compressionCodec, Message... messages) {
         this(ByteBufferMessageSet.create(new AtomicLong(0), compressionCodec, messages));
     }

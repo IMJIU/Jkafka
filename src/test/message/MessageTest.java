@@ -74,7 +74,7 @@ public class MessageTest {
             Assert.assertFalse("Should not equal null", v.message.equals(null));
             Assert.assertFalse("Should not equal a random string", v.message.equals("asdf"));
             Assert.assertTrue("Should equal itself", v.message.equals(v.message));
-            Message copy = new Message(v.payload,v.key, v.codec);
+            Message copy = new Message(v.payload, v.key, v.codec);
             Assert.assertTrue("Should equal another message with the same content.", v.message.equals(copy));
         }
     }
@@ -82,56 +82,11 @@ public class MessageTest {
     @Test
     public void testIsHashable() {
         // this is silly, but why not
-        Map<Message,Message> m = new HashMap<kafka.message.Message, kafka.message.Message>();
-        for (MessageTestVal v:messages)
+        Map<Message, Message> m = new HashMap<kafka.message.Message, kafka.message.Message>();
+        for (MessageTestVal v : messages)
             m.put(v.message, v.message);
-        for (MessageTestVal v:messages)
+        for (MessageTestVal v : messages)
             Assert.assertEquals(v.message, m.get(v.message));
     }
 }
 
-class MessageTestVal {
-    public byte[] key;
-    public byte[] payload;
-    public CompressionCodec codec;
-    public Message message;
-
-    public MessageTestVal(byte[] key, byte[] payload, CompressionCodec codec, Message message) {
-        this.key = key;
-        this.payload = payload;
-        this.codec = codec;
-        this.message = message;
-    }
-
-    public byte[] getKey() {
-        return key;
-    }
-
-    public void setKey(byte[] key) {
-        this.key = key;
-    }
-
-    public byte[] getPayload() {
-        return payload;
-    }
-
-    public void setPayload(byte[] payload) {
-        this.payload = payload;
-    }
-
-    public CompressionCodec getCodec() {
-        return codec;
-    }
-
-    public void setCodec(CompressionCodec codec) {
-        this.codec = codec;
-    }
-
-    public Message getMessage() {
-        return message;
-    }
-
-    public void setMessage(Message message) {
-        this.message = message;
-    }
-}
