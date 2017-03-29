@@ -49,6 +49,12 @@ public class OffsetIndex extends Logging {
     public Long baseOffset;
     public Integer maxIndexSize = -1;
 
+    public OffsetIndex(File file, Long baseOffset, Integer maxIndexSize) {
+        this.file = file;
+        this.baseOffset = baseOffset;
+        this.maxIndexSize = maxIndexSize;
+    }
+
     private ReentrantLock lock = new ReentrantLock();
     private MappedByteBuffer mmap;
     /* the number of eight-byte entries currently in the index */
@@ -267,9 +273,7 @@ public class OffsetIndex extends Logging {
      * the file.
      */
     public void trimToValidSize() {
-        Utils.inLock(lock, () -> {
-            resize(entries() * 8);
-        });
+        Utils.inLock(lock, () ->  resize(entries() * 8));
     }
 
     /**
