@@ -10,6 +10,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.GatheringByteChannel;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Message set helper functions
@@ -30,6 +31,7 @@ public abstract class MessageSet extends Logging implements Iterable<MessageAndO
         }
         return total;
     }
+
     public static Integer messageSetSize(List<Message> messages) {
         int total = 0;
         for (Message m : messages) {
@@ -104,12 +106,29 @@ public abstract class MessageSet extends Logging implements Iterable<MessageAndO
         return builder.toString();
     }
 
-    public List<Message> toMessageList(){
+    public List<Message> toMessageList() {
         Iterator<MessageAndOffset> it = iterator();
         List<Message> list = Lists.newArrayList();
-        while(it.hasNext()){
+        while (it.hasNext()) {
             list.add(it.next().message);
         }
         return list;
+    }
+
+    public MessageAndOffset head() {
+        Iterator<MessageAndOffset> it = iterator();
+        if (it.hasNext()) {
+            return it.next();
+        }
+        return null;
+    }
+
+    public Optional<MessageAndOffset> last() {
+        Iterator<MessageAndOffset> it = iterator();
+        MessageAndOffset last = null;
+        while (it.hasNext()) {
+            last = it.next();
+        }
+        return Optional.of(last);
     }
 }

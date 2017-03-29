@@ -1,11 +1,16 @@
 package kafka.log;
 
-import kafka.message.ByteBufferMessageSet;
+import kafka.message.*;
+import kafka.server.FetchDataInfo;
+import kafka.server.LogOffsetMetadata;
 import kafka.utils.Logging;
 import kafka.utils.Time;
+import kafka.utils.Utils;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.util.Iterator;
 import java.util.Optional;
 
 /**
@@ -102,164 +107,171 @@ public class LogSegment extends Logging {
         return log.searchFor(offset, Math.max(mapping.position, startingFilePosition));
     }
 //
-        /**
-         * Read a message set from this segment beginning with the first offset >= startOffset. The message set will include
-         * no more than maxSize bytes and will end before maxOffset if a maxOffset is specified.
-         *
-         * @param startOffset A lower bound on the first offset to include in the message set we read
-         * @param maxSize The maximum number of bytes to include in the message set we read
-         * @param maxOffset An optional maximum offset for the message set we read
-         *
-         * @return The fetched data and the offset metadata of the first message whose offset is >= startOffset,
-         *         or null if the startOffset is larger than the largest offset in this log
-         */
+
+    /**
+     * Read a message set from this segment beginning with the first offset >= startOffset. The message set will include
+     * no more than maxSize bytes and will end before maxOffset if a maxOffset is specified.
+     *
+     * @param startOffset A lower bound on the first offset to include in the message set we read
+     * @param maxSize     The maximum number of bytes to include in the message set we read
+     * @param maxOffset   An optional maximum offset for the message set we read
+     * @return The fetched data and the offset metadata of the first message whose offset is >= startOffset,
+     * or null if the startOffset is larger than the largest offset in this log
+     */
 
 //        @threadsafe;
-//        public FetchDataInfo  read(Long startOffset, Optional<Long> maxOffset, Integer maxSize) {
-//        if(maxSize < 0)
-//            throw new IllegalArgumentException("Invalid max size for log read (%d)".format(maxSize));
+    public FetchDataInfo read(Long startOffset, Optional<Long> maxOffset, Integer maxSize) {
+        if (maxSize < 0)
+            throw new IllegalArgumentException(String.format("Invalid max size for log read (%d)", maxSize));
+
+        Integer logSize = log.sizeInBytes(); // this may change, need to save a consistent copy;
+        OffsetPosition startPosition = translateOffset(startOffset, 0);
+
+        // if the start position is already off the end of the log, return null;
+        if (startPosition == null)
+            return null;
+
+        LogOffsetMetadata offsetMetadata = new LogOffsetMetadata(startOffset, this.baseOffset, startPosition.position);
+
+        // if the size is zero, still return a log segment but with zero size;
+        if (maxSize == 0)
+            return new FetchDataInfo(offsetMetadata, MessageSet.Empty);
+
+        // calculate the length of the message set to read based on whether or not they gave us a maxOffset;
+        Integer length = 0;
+        if (maxOffset.isPresent()) {
+            length = maxSize;
+        } else {
+            Long offset = maxOffset.get();
+            if (offset < startOffset)
+                throw new IllegalArgumentException(String.format("Attempt to read with a maximum offset (%d) less than the start offset (%d).", offset, startOffset));
+            OffsetPosition mapping = translateOffset(offset, startPosition.position);
+            Integer endPosition;
+            if (mapping == null)
+                endPosition = logSize; // the max offset is off the end of the log, use the end of the file;
+            else
+                endPosition = mapping.position;
+            Math.min(endPosition - startPosition.position, maxSize);
+        }
+        return new FetchDataInfo(offsetMetadata, log.read(startPosition.position, length));
+    }
 //
-//        val logSize = log.sizeInBytes // this may change, need to save a consistent copy;
-//        val startPosition = translateOffset(startOffset);
+
+    /**
+     * Run recovery on the given segment. This will rebuild the index from the log file and lop off any invalid bytes from the end of the log and index.
+     *
+     * @param maxMessageSize A bound the memory allocation in the case of a corrupt message size--we will assume any message larger than this
+     *                       is corrupt.
+     * @return The number of bytes truncated from the log
+     */
+//  @nonthreadsafe;
+    public Integer recover(Integer maxMessageSize) throws IOException {
+        index.truncate();
+        index.resize(index.maxIndexSize);
+        Integer validBytes = 0;
+        Integer lastIndexEntry = 0;
+        Iterator<MessageAndOffset> iter = log.iterator(maxMessageSize);
+        try {
+            while (iter.hasNext()) {
+                MessageAndOffset entry = iter.next();
+                entry.message.ensureValid();
+                if (validBytes - lastIndexEntry > indexIntervalBytes) {
+                    // we need to decompress the message, if required, to get the offset of the first uncompressed message;
+                    Long startOffset = 0L;
+                    if (entry.message.compressionCodec() == CompressionCodec.NoCompressionCodec) {
+                        startOffset = entry.offset;
+                    } else {
+                        startOffset = ByteBufferMessageSet.decompress(entry.message).head().offset;
+                    }
+                    index.append(startOffset, validBytes);
+                    lastIndexEntry = validBytes;
+                }
+                validBytes += MessageSet.entrySize(entry.message);
+            }
+        } catch (InvalidMessageException e) {
+            logger.warn(String.format("Found invalid messages in log segment %s at byte offset %d: %s.", log.file.getAbsolutePath(), validBytes, e.getMessage()));
+        }
+
+        Integer truncated = log.sizeInBytes() - validBytes;
+        log.truncateTo(validBytes);
+        index.trimToValidSize();
+        return truncated;
+    }
+
+    @Override
+    public String toString() {
+        return "LogSegment(baseOffset=" + baseOffset + ", size=" + size() + ")";
+    }
+    //
+
+    /**
+     * Truncate off all index and log entries with offsets >= the given offset.
+     * If the given offset is larger than the largest message in this segment, do nothing.
+     *
+     * @param offset The offset to truncate to
+     * @return The number of log bytes truncated
+     */
+    // truncateTo(offset)就是把end到offset的起始位置;
+//  @nonthreadsafe;
+    public Integer truncateTo(Long offset) throws IOException {
+        OffsetPosition mapping = translateOffset(offset, 0);
+        if (mapping == null)
+            return 0;
+        index.truncateTo(offset);
+        // after truncation, reset and allocate more space for the (new currently  active) index;
+        index.resize(index.maxIndexSize);
+        Integer bytesTruncated = log.truncateTo(mapping.position);
+        if (log.sizeInBytes() == 0)
+            created = time.milliseconds();
+        bytesSinceLastIndexEntry = 0;
+        return bytesTruncated;
+    }
+
+    /**
+     * Calculate the offset that would be used for the next message to be append to this segment.
+     * Note that this is expensive.
+     */
+//    @threadsafe;
+    public Long nextOffset() {
+        FetchDataInfo ms = read(index.lastOffset, Optional.empty(), log.sizeInBytes());
+        if (ms == null) {
+            return baseOffset;
+        } else {
+            Optional<MessageAndOffset> optional = ms.messageSet.last();
+            if (optional.isPresent()) {
+                return optional.get().nextOffset();
+            }
+            return baseOffset;
+        }
+    }
 //
-//        // if the start position is already off the end of the log, return null;
-//        if(startPosition == null)
-//            return null;
-//
-//        val offsetMetadata = new LogOffsetMetadata(startOffset, this.baseOffset, startPosition.position);
-//
-//        // if the size is zero, still return a log segment but with zero size;
-//        if(maxSize == 0)
-//            return FetchDataInfo(offsetMetadata, MessageSet.Empty);
-//
-//        // calculate the length of the message set to read based on whether or not they gave us a maxOffset;
-//        val length =
-//                maxOffset match {
-//            case None =>
-//                // no max offset, just use the max size they gave unmolested;
-//                maxSize;
-//            case Some(offset) => {
-//                // there is a max offset, translate it to a file position and use that to calculate the max read size;
-//                if(offset < startOffset)
-//                    throw new IllegalArgumentException("Attempt to read with a maximum offset (%d) less than the start offset (%d).".format(offset, startOffset));
-//                val mapping = translateOffset(offset, startPosition.position);
-//                val endPosition =
-//                if(mapping == null)
-//                    logSize // the max offset is off the end of the log, use the end of the file;
-//                else;
-//                    mapping.position;
-//                min(endPosition - startPosition.position, maxSize);
-//            }
-//        }
-//        FetchDataInfo(offsetMetadata, log.read(startPosition.position, length));
-//        }
-//
-//        /**
-//         * Run recovery on the given segment. This will rebuild the index from the log file and lop off any invalid bytes from the end of the log and index.
-//         *
-//         * @param maxMessageSize A bound the memory allocation in the case of a corrupt message size--we will assume any message larger than this
-//         * is corrupt.
-//         *
-//         * @return The number of bytes truncated from the log
-//         */
-//        @nonthreadsafe;
-//        public Integer  recover(Int maxMessageSize) {
-//                index.truncate();
-//                index.resize(index.maxIndexSize);
-//                var validBytes = 0;
-//                var lastIndexEntry = 0;
-//                val iter = log.iterator(maxMessageSize);
-//        try {
-//            while(iter.hasNext) {
-//                val entry = iter.next;
-//                entry.message.ensureValid();
-//                if(validBytes - lastIndexEntry > indexIntervalBytes) {
-//                    // we need to decompress the message, if required, to get the offset of the first uncompressed message;
-//                    val startOffset =
-//                            entry.message.compressionCodec match {
-//                        case NoCompressionCodec =>
-//                            entry.offset;
-//                        case _ =>
-//                            ByteBufferMessageSet.decompress(entry.message).head.offset;
-//                    }
-//                    index.append(startOffset, validBytes);
-//                    lastIndexEntry = validBytes;
-//                }
-//                validBytes += MessageSet.entrySize(entry.message);
-//            }
-//        } catch {
-//            case InvalidMessageException e =>
-//                logger.warn("Found invalid messages in log segment %s at byte offset %d: %s.".format(log.file.getAbsolutePath, validBytes, e.getMessage));
-//        }
-//        val truncated = log.sizeInBytes - validBytes;
-//        log.truncateTo(validBytes);
-//        index.trimToValidSize();
-//        truncated;
-//        }
-//
-//        override def toString() = "LogSegment(baseOffset=" + baseOffset + ", size=" + size + ")";
-//
-//        /**
-//         * Truncate off all index and log entries with offsets >= the given offset.
-//         * If the given offset is larger than the largest message in this segment, do nothing.
-//         * @param offset The offset to truncate to
-//         * @return The number of log bytes truncated
-//         */
-//        // truncateTo(offset)就是把end到offset的起始位置;
-//        @nonthreadsafe;
-//        public Integer  truncateTo(Long offset) {
-//                val mapping = translateOffset(offset);
-//        if(mapping == null)
-//            return 0;
-//        index.truncateTo(offset);
-//        // after truncation, reset and allocate more space for the (new currently  active) index;
-//        index.resize(index.maxIndexSize);
-//        val bytesTruncated = log.truncateTo(mapping.position);
-//        if(log.sizeInBytes == 0)
-//            created = time.milliseconds;
-//        bytesSinceLastIndexEntry = 0;
-//        bytesTruncated;
-//        }
-//
-//        /**
-//         * Calculate the offset that would be used for the next message to be append to this segment.
-//         * Note that this is expensive.
-//         */
+        /**
+         * Flush this log segment to disk
+         */
 //        @threadsafe;
-//        public Long  nextOffset() {
-//                val ms = read(index.lastOffset, None, log.sizeInBytes);
-//        if(ms == null) {
-//            baseOffset;
-//        } else {
-//            ms.messageSet.lastOption match {
-//                case None => baseOffset;
-//                case Some(last) => last.nextOffset;
-//            }
-//        }
-//        }
-//
-//        /**
-//         * Flush this log segment to disk
-//         */
-//        @threadsafe;
-//        def flush() {
-//            LogFlushStats.logFlushTimer.time {
-//                log.flush();
-//                index.flush();
-//            }
-//        }
+        public void flush() {
+            LogFlushStats.logFlushTimer.time(()->{
+                try {
+                    log.flush();
+                    index.flush();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                return 0;
+            });
+        }
 //
 //        /**
 //         * Change the suffix for the index and log file for this log segment
 //         */
-//        def changeFileSuffixes(String oldSuffix, String newSuffix) {
-//            val logRenamed = log.renameTo(new File(Utils.replaceSuffix(log.file.getPath, oldSuffix, newSuffix)));
-//            if(!logRenamed)
-//                throw new KafkaStorageException("Failed to change the log file suffix from %s to %s for log segment %d".format(oldSuffix, newSuffix, baseOffset));
-//            val indexRenamed = index.renameTo(new File(Utils.replaceSuffix(index.file.getPath, oldSuffix, newSuffix)));
-//            if(!indexRenamed)
-//                throw new KafkaStorageException("Failed to change the index file suffix from %s to %s for log segment %d".format(oldSuffix, newSuffix, baseOffset));
-//        }
+        public void changeFileSuffixes(String oldSuffix, String newSuffix) {
+            Boolean logRenamed = log.renameTo(new File(Utils.replaceSuffix(log.file.getPath(), oldSuffix, newSuffix)));
+            if(!logRenamed)
+                throw new KafkaStorageException(String.format("Failed to change the log file suffix from %s to %s for log segment %d",oldSuffix, newSuffix, baseOffset));
+            Long indexRenamed = index.renameTo(new File(Utils.replaceSuffix(index.file.getPath(), oldSuffix, newSuffix)));
+            if(!indexRenamed)
+                throw new KafkaStorageException(String.format("Failed to change the index file suffix from %s to %s for log segment %d",oldSuffix, newSuffix, baseOffset));
+        }
 //
 //        /**
 //         * Close this log segment
@@ -274,8 +286,8 @@ public class LogSegment extends Logging {
 //         * @throws KafkaStorageException if the delete fails.
 //         */
 //        def delete() {
-//            val deletedLog = log.delete();
-//            val deletedIndex = index.delete();
+//            Long deletedLog = log.delete();
+//            Long deletedIndex = index.delete();
 //            if(!deletedLog && log.file.exists)
 //                throw new KafkaStorageException("Delete of log " + log.file.getName + " failed.");
 //            if(!deletedIndex && index.file.exists)

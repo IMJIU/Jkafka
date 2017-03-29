@@ -290,6 +290,7 @@ public class ByteBufferMessageSet extends MessageSet {
         return buffer.limit();
     }
 
+
     /**
      * The total number of bytes in this message set not including any partial, trailing messages
      */

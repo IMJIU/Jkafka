@@ -17,6 +17,10 @@ public class MessageAndOffset {
         this.offset = offset;
     }
 
+    public Long nextOffset(){
+        return offset + 1;
+    }
+
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof MessageAndOffset) {
