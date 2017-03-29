@@ -1,5 +1,8 @@
 package kafka.log;
 
+import kafka.utils.Logging;
+import kafka.utils.Time;
+
 /**
  * A segment of the log. Each segment has two components: a log and an index. The log is a FileMessageSet containing
  * the actual messages. The index is an OffsetIndex that maps from logical offsets to physical file positions. Each
@@ -15,13 +18,14 @@ package kafka.log;
  * @param time The time instance
  */
 //@nonthreadsafe
-public class LogSegment {
-//    (val log: FileMessageSet,
-//    val index: OffsetIndex,
-//    val baseOffset: Long,
-//    val indexIntervalBytes: Int,
-//    val rollJitterMs: Long,
-//    time: Time) extends Logging {
+public class LogSegment extends Logging {
+    public FileMessageSet log;
+    public OffsetIndex index;
+    public Long baseOffset;
+    public Integer indexIntervalBytes;
+    public Long rollJitterMs;
+    public Time time;
+
 //
 //        var created = time.milliseconds
 //

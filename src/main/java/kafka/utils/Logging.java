@@ -31,7 +31,8 @@ public abstract class Logging {
         if (logger.isTraceEnabled())
             logger.trace(msgWithLogIdent(msg));
     }
-//
+
+    //
 //    def trace(e:=>Throwable):Any =
 //
 //    {
@@ -50,13 +51,12 @@ public abstract class Logging {
 //        Utils.swallow(logger.trace, action)
 //    }
 //
-//    def debug(msg:=>String):Unit =
-//
-//    {
-//        if (logger.isDebugEnabled())
-//            logger.debug(msgWithLogIdent(msg))
-//    }
-//
+    public void debug(String msg) {
+        if (logger.isDebugEnabled())
+            logger.debug(msgWithLogIdent(msg));
+    }
+
+    //
 //    def debug(e:=>Throwable):Any =
 //
 //    {
@@ -75,13 +75,12 @@ public abstract class Logging {
 //        Utils.swallow(logger.debug, action)
 //    }
 //
-//    def info(msg:=>String):Unit =
-//
-//    {
-//        if (logger.isInfoEnabled())
-//            logger.info(msgWithLogIdent(msg))
-//    }
-//
+    public void info(String msg) {
+        if (logger.isInfoEnabled())
+            logger.info(msgWithLogIdent(msg));
+    }
+
+    //
 //    def info(e:=>Throwable):Any =
 //
 //    {
@@ -100,23 +99,20 @@ public abstract class Logging {
 //        Utils.swallow(logger.info, action)
 //    }
 //
-//    def warn(msg:=>String):Unit =
-//
-//    {
-//        logger.warn(msgWithLogIdent(msg))
-//    }
-//
+    public void warn(String msg) {
+        logger.warn(msgWithLogIdent(msg));
+    }
+
+    //
 //    def warn(e:=>Throwable):Any =
 //
 //    {
 //        logger.warn(logIdent, e)
 //    }
 //
-//    def warn(msg:=>String, e:=>Throwable) =
-//
-//    {
-//        logger.warn(msgWithLogIdent(msg), e)
-//    }
+    public void warn(String msg, Throwable e) {
+        logger.warn(msgWithLogIdent(msg), e);
+    }
 //
 //    def swallowWarn(action:=>Unit) {
 //        Utils.swallow(logger.warn, action)

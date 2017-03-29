@@ -2,9 +2,13 @@ package kafka.utils;/**
  * Created by zhoulf on 2017/3/22.
  */
 
+import kafka.func.Action;
+import kafka.func.Processor;
+
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.util.concurrent.locks.Lock;
 import java.util.zip.CRC32;
 
 /**
@@ -143,13 +147,13 @@ public class Utils extends Logging {
 //         * @param log The log method to use for logging. E.g. logger.warn
 //         * @param action The action to execute
 //         */
-//        def swallow(log: (Object, Throwable) => Unit, action: => Unit) {
-//            try {
-//                action
-//            } catch {
-//                case e: Throwable => log(e.getMessage(), e)
-//            }
-//        }
+        public static void swallow(Action action) {
+            try {
+                action.doAction();
+            } catch(Exception e){
+                e.printStackTrace();
+            }
+        }
 //
 //        /**
 //         * Test if two byte buffers are equal. In this case equality means having
@@ -581,17 +585,23 @@ public class Utils extends Logging {
 //    /**
 //     * Execute the given function inside the lock
 //     */
-//    def inLock[
-//    T](lock:Lock)(fun:=>T):T=
-//
-//    {
-//        lock.lock()
-//        try {
-//            fun
-//        } finally {
-//            lock.unlock()
-//        }
-//    }
+        public static <T> T inLock(Lock lock, Processor<T> process){
+            lock.lock();
+            try {
+                return process.process();
+            } finally {
+                lock.unlock();
+            }
+        }
+    public static void inLock(Lock lock, Action action){
+        lock.lock();
+        try {
+            action.doAction();
+        } finally {
+            lock.unlock();
+        }
+    }
+
 //
 //    def inReadLock[
 //    T](lock:ReadWriteLock)(fun:=>T):T=inLock[T](lock.readLock)(fun)
