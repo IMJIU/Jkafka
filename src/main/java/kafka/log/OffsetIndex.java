@@ -48,11 +48,14 @@ public class OffsetIndex extends Logging {
     public volatile File file;
     public Long baseOffset;
     public Integer maxIndexSize = -1;
-
-    public OffsetIndex(File file, Long baseOffset, Integer maxIndexSize) {
+    public OffsetIndex(File file, Long baseOffset) throws IOException {
+        this(file,baseOffset,-1);
+    }
+    public OffsetIndex(File file, Long baseOffset, Integer maxIndexSize) throws IOException {
         this.file = file;
         this.baseOffset = baseOffset;
         this.maxIndexSize = maxIndexSize;
+        init();
     }
 
     private ReentrantLock lock = new ReentrantLock();

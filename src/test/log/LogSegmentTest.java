@@ -15,7 +15,6 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
@@ -31,7 +30,7 @@ public class LogSegmentTest {
     List<LogSegment> segments = Lists.newArrayList();
 
     /* create a segment with the given base offset */
-    public LogSegment createSegment(Long offset) throws FileNotFoundException {
+    public LogSegment createSegment(Long offset) throws IOException {
         File msFile = TestUtils.tempFile();
         FileMessageSet ms = new FileMessageSet(msFile);
         File idxFile = TestUtils.tempFile();
@@ -64,7 +63,7 @@ public class LogSegmentTest {
      * A read on an empty log segment should return null
      */
     @Test
-    public void testReadOnEmptySegment() throws FileNotFoundException {
+    public void testReadOnEmptySegment() throws Exception {
         LogSegment seg = createSegment(40L);
         FetchDataInfo read = seg.read(40L, Optional.empty(), 300);
         Assert.assertNull("Read beyond the last offset in the segment should be null", read);
@@ -75,7 +74,7 @@ public class LogSegmentTest {
      * beginning with the first message in the segment
      */
     @Test
-    public void testReadBeforeFirstOffset() throws FileNotFoundException {
+    public void testReadBeforeFirstOffset() throws Exception {
         LogSegment seg = createSegment(40L);
         ByteBufferMessageSet ms = messages(50L, Lists.newArrayList("hello", "there", "little", "bee"));
         seg.append(50l, ms);
@@ -89,7 +88,7 @@ public class LogSegmentTest {
      * we should get only the first message in the log
      */
     @Test
-    public void testMaxOffset() throws FileNotFoundException {
+    public void testMaxOffset() throws Exception {
         Long baseOffset = 50L;
         LogSegment seg = createSegment(baseOffset);
         ByteBufferMessageSet ms = messages(baseOffset, Lists.newArrayList("hello", "there", "beautiful"));
@@ -115,7 +114,7 @@ public class LogSegmentTest {
      * If we read from an offset beyond the last offset in the segment we should get null
      */
     @Test
-    public void testReadAfterLast() throws FileNotFoundException {
+    public void testReadAfterLast() throws Exception {
         LogSegment seg = createSegment(40L);
         ByteBufferMessageSet ms = messages(50L, Lists.newArrayList("hello", "there"));
         seg.append(50L, ms);
@@ -128,7 +127,7 @@ public class LogSegmentTest {
      * with the least offset greater than the given startOffset.
      */
     @Test
-    public void testReadFromGap() throws FileNotFoundException {
+    public void testReadFromGap() throws Exception {
         LogSegment seg = createSegment(40L);
         ByteBufferMessageSet ms = messages(50L, Lists.newArrayList("hello", "there"));
         seg.append(50L, ms);

@@ -2,12 +2,21 @@ package log;/**
  * Created by zhoulf on 2017/3/30.
  */
 
+import com.google.common.collect.Lists;
+import kafka.common.InvalidOffsetException;
 import kafka.log.OffsetIndex;
+import kafka.log.OffsetPosition;
 import message.TestUtils;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Test;
 
 import java.io.File;
+import java.io.IOException;
+import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * @author
@@ -18,136 +27,155 @@ public class OffsetIndexTest {
     Integer maxEntries = 30;
 
     @Before
-    public void setup() {
+    public void setup() throws IOException {
         this.idx = new OffsetIndex(nonExistantTempFile(), 45L, 30 * 8);
     }
+
     @After
     public void teardown() {
-        if(this.idx != null)
-            this.idx.file.delete();
+        if (this.idx != null) ;
+        this.idx.file.delete();
     }
 //
-//    @Test;
-//    def randomLookupTest() {
-//        assertEquals("Not present value should return physical offset 0.", OffsetPosition(idx.baseOffset, 0), idx.lookup(92L));
-//
-//        // append some random values;
-//        val base = idx.baseOffset.toInt + 1;
-//        val size = idx.maxEntries;
-//        val Seq vals[(Long, Int)] = monotonicSeq(base, size).map(_.toLong).zip(monotonicSeq(0, size));
-//        vals.foreach{x => idx.append(x._1, x._2)}
-//
-//        // should be able to find all those values;
-//        for((logical, physical) <- vals);
-//        assertEquals("Should be able to find values that are present.", OffsetPosition(logical, physical), idx.lookup(logical));
-//
-//        // for non-present values we should find the offset of the largest value less than or equal to this;
-//        val valMap = new immutable.TreeMap[Long, (Long, Int)]() ++ vals.map(p => (p._1, p));
-//        val offsets = (idx.baseOffset until vals.last._1.toInt).toArray;
-//        Collections.shuffle(Arrays.asList(offsets));
-//        for(offset <- offsets.take(30)) {
-//            val rightAnswer =
-//            if(offset < valMap.firstKey)
-//                OffsetPosition(idx.baseOffset, 0);
-//            else;
-//                OffsetPosition(valMap.to(offset).last._1, valMap.to(offset).last._2._2);
-//            assertEquals("The index should give the same answer as the sorted map", rightAnswer, idx.lookup(offset));
-//        }
-//    }
-//
-//    @Test;
-//    def lookupExtremeCases() {
-//        assertEquals("Lookup on empty file", OffsetPosition(idx.baseOffset, 0), idx.lookup(idx.baseOffset));
-//        for(i <- 0 until idx.maxEntries);
-//        idx.append(idx.baseOffset + i + 1, i);
-//        // check first and last entry;
-//        assertEquals(OffsetPosition(idx.baseOffset, 0), idx.lookup(idx.baseOffset));
-//        assertEquals(OffsetPosition(idx.baseOffset + idx.maxEntries, idx.maxEntries - 1), idx.lookup(idx.baseOffset + idx.maxEntries));
-//    }
-//
-//    @Test;
-//    def appendTooMany() {
-//        for(i <- 0 until idx.maxEntries) {
-//            val offset = idx.baseOffset + i + 1;
-//            idx.append(offset, i);
-//        }
-//        assertWriteFails("Append should fail on a full index", idx, idx.maxEntries + 1, classOf[IllegalArgumentException]);
-//    }
-//
-//    @Test(expected = classOf[InvalidOffsetException]);
-//    def appendOutOfOrder() {
-//        idx.append(51, 0);
-//        idx.append(50, 1);
-//    }
-//
-//    @Test;
-//    def testReopen() {
-//        val first = OffsetPosition(51, 0);
-//        val sec = OffsetPosition(52, 1);
-//        idx.append(first.offset, first.position);
-//        idx.append(sec.offset, sec.position);
-//        idx.close();
-//        val idxRo = new OffsetIndex(file = idx.file, baseOffset = idx.baseOffset);
-//        assertEquals(first, idxRo.lookup(first.offset));
-//        assertEquals(sec, idxRo.lookup(sec.offset));
-//        assertEquals(sec.offset, idxRo.lastOffset);
-//        assertEquals(2, idxRo.entries);
-//        assertWriteFails("Append should fail on read-only index", idxRo, 53, classOf[IllegalArgumentException]);
-//    }
-//
-//    @Test;
-//    def truncate() {
-//        val idx = new OffsetIndex(file = nonExistantTempFile(), baseOffset = 0L, maxIndexSize = 10 * 8);
-//        idx.truncate();
-//        for(i <- 1 until 10);
-//        idx.append(i, i);
-//
-//        // now check the last offset after various truncate points and validate that we can still append to the index.;
-//        idx.truncateTo(12);
-//        assertEquals("Index should be unchanged by truncate past the end", OffsetPosition(9, 9), idx.lookup(10));
-//        assertEquals("9 should be the last entry in the index", 9, idx.lastOffset);
-//
-//        idx.append(10, 10);
-//        idx.truncateTo(10);
-//        assertEquals("Index should be unchanged by truncate at the end", OffsetPosition(9, 9), idx.lookup(10));
-//        assertEquals("9 should be the last entry in the index", 9, idx.lastOffset);
-//        idx.append(10, 10);
-//
-//        idx.truncateTo(9);
-//        assertEquals("Index should truncate off last entry", OffsetPosition(8, 8), idx.lookup(10));
-//        assertEquals("8 should be the last entry in the index", 8, idx.lastOffset);
-//        idx.append(9, 9);
-//
-//        idx.truncateTo(5);
-//        assertEquals("4 should be the last entry in the index", OffsetPosition(4, 4), idx.lookup(10));
-//        assertEquals("4 should be the last entry in the index", 4, idx.lastOffset);
-//        idx.append(5, 5);
-//
-//        idx.truncate();
-//        assertEquals("Full truncation should leave no entries", 0, idx.entries());
-//        idx.append(0, 0);
-//    }
-//
-//    def assertWriteFails[T](String message, OffsetIndex idx, Int offset, Class klass[T]) {
-//        try {
-//            idx.append(offset, 1);
-//            fail(message);
-//        } catch {
-//            case Exception e => assertEquals("Got an unexpected exception.", klass, e.getClass);
-//        }
-//    }
-//
-//    def monotonicSeq(Int base, Int len): Seq[Int] = {
-//        val rand = new Random(1L);
-//        val vals = new mutable.ArrayBuffer[Int](len);
-//                var last = base;
-//        for (i <- 0 until len) {
-//            last += rand.nextInt(15) + 1;
-//            vals += last;
-//        }
-//        vals;
-//    }
-//
+
+    @Test
+    public void randomLookupTest() {
+        System.out.println(idx);
+        Assert.assertEquals("Not present value should return physical offset 0.", new OffsetPosition(idx.baseOffset, 0), idx.lookup(92L));
+
+        // append some random values;
+        Integer base = idx.baseOffset.intValue() + 1;
+        Integer size = idx.maxEntries;
+        List<Long> vals = monotonicSeq(base, size).stream().map((n) -> (long) n).collect(Collectors.toList());
+        List<Integer> vals2 = (monotonicSeq(0, size));
+        for (int i = 0; i < vals.size(); i++) {
+            idx.append(vals.get(i), vals2.get(i));
+        }
+
+        // should be able to find all those values;
+        for (int i = 0; i < vals.size(); i++) {
+            Long logical = vals.get(i);
+            Integer physical = vals2.get(i);
+            Assert.assertEquals("Should be able to find values that are present.", new OffsetPosition(logical, physical), idx.lookup(logical));
+        }
+
+        // for non-present values we should find the offset of the largest value less than or equal to this;
+        TreeMap<Long, OffsetPosition> valMap = new TreeMap<>();
+        for (int i = 0; i < vals.size(); i++) {
+            valMap.put(vals.get(i), new OffsetPosition(vals.get(i), vals2.get(i)));
+        }
+        List<Long> offsets = Stream.iterate(idx.baseOffset, n -> n + 1).limit(vals.get(vals.size() - 1)).collect(Collectors.toList());
+        Collections.shuffle(Arrays.asList(offsets));
+//        for (offset< -offsets.take(30)) {
+        for (long offset = offsets.get(0); offset < offsets.get(30); offset++) {
+            OffsetPosition rightAnswer;
+            if (offset < valMap.firstKey())
+                rightAnswer = new OffsetPosition(idx.baseOffset, 0);
+            else
+                rightAnswer = new OffsetPosition(valMap.get(valMap.floorKey(offset)).offset, valMap.get(valMap.floorKey(offset)).position);
+            Assert.assertEquals("The index should give the same answer as the sorted map", rightAnswer, idx.lookup(offset));
+        }
+    }
+
+
+    @Test
+    public void lookupExtremeCases() {
+        Assert.assertEquals("Lookup on empty file", new OffsetPosition(idx.baseOffset, 0), idx.lookup(idx.baseOffset));
+        for (int i = 0; i < idx.maxEntries; i++)
+            idx.append(idx.baseOffset + i + 1, i);
+        // check first and last entry;
+        Assert.assertEquals(new OffsetPosition(idx.baseOffset, 0), idx.lookup(idx.baseOffset));
+        Assert.assertEquals(new OffsetPosition(idx.baseOffset + idx.maxEntries, idx.maxEntries - 1), idx.lookup(idx.baseOffset + idx.maxEntries));
+    }
+
+    //
+    @Test
+    public void appendTooMany() {
+        for (int i = 0; i < idx.maxEntries; i++) {
+            Long offset = idx.baseOffset + i + 1;
+            idx.append(offset, i);
+        }
+        assertWriteFails("Append should fail on a full index", idx, idx.maxEntries + 1, IllegalArgumentException.class);
+    }
+
+    //
+    @Test(expected = InvalidOffsetException.class)
+    public void appendOutOfOrder() {
+        idx.append(51L, 0);
+        idx.append(50L, 1);
+    }
+
+    //
+    @Test
+    public void testReopen() throws IOException {
+        OffsetPosition first = new OffsetPosition(51L, 0);
+        OffsetPosition sec = new OffsetPosition(52L, 1);
+        idx.append(first.offset, first.position);
+        idx.append(sec.offset, sec.position);
+        idx.close();
+        OffsetIndex idxRo = new OffsetIndex(idx.file, idx.baseOffset);
+        Assert.assertEquals(first, idxRo.lookup(first.offset));
+        Assert.assertEquals(sec, idxRo.lookup(sec.offset));
+        Assert.assertEquals(sec.offset, idxRo.lastOffset);
+        Assert.assertEquals(new Long(2), idxRo.entries());
+        assertWriteFails("Append should fail on read-only index", idxRo, 53, IllegalArgumentException.class);
+    }
+
+    //
+    @Test
+    public void truncate() throws IOException {
+        OffsetIndex idx = new OffsetIndex(nonExistantTempFile(), 0L, 10 * 8);
+        idx.truncate();
+        for (int i = 1; i < 10; i++)
+            idx.append(new Long(i), i);
+
+        // now check the last offset after various truncate points and validate that we can still append to the index.;
+        idx.truncateTo(12L);
+        Assert.assertEquals("Index should be unchanged by truncate past the end", new OffsetPosition(9L, 9), idx.lookup(10L));
+        Assert.assertEquals("9 should be the last entry in the index", new Long(9), idx.lastOffset);
+
+        idx.append(10L, 10);
+        idx.truncateTo(10L);
+        Assert.assertEquals("Index should be unchanged by truncate at the end", new OffsetPosition(9L, 9), idx.lookup(10L));
+        Assert.assertEquals("9 should be the last entry in the index", new Long(9), idx.lastOffset);
+        idx.append(10L, 10);
+
+        idx.truncateTo(9L);
+        Assert.assertEquals("Index should truncate off last entry", new OffsetPosition(8l, 8), idx.lookup(10L));
+        Assert.assertEquals("8 should be the last entry in the index", new Long(8), idx.lastOffset);
+        idx.append(9L, 9);
+
+        idx.truncateTo(5L);
+        Assert.assertEquals("4 should be the last entry in the index", new OffsetPosition(4L, 4), idx.lookup(10l));
+        Assert.assertEquals("4 should be the last entry in the index", new Long(4), idx.lastOffset);
+        idx.append(5L, 5);
+
+        idx.truncate();
+        Assert.assertEquals("Full truncation should leave no entries", new Long(0), idx.entries());
+        idx.append(0L, 0);
+    }
+
+    public <T> void assertWriteFails(String message, OffsetIndex idx, Integer offset, Class<T> klass) {
+        try {
+            idx.append(offset.longValue(), 1);
+            throw new Exception(message);
+        } catch (Exception e) {
+            Assert.assertEquals("Got an unexpected exception.", klass, e.getClass());
+        }
+    }
+
+    //
+    public List<Integer> monotonicSeq(Integer base, Integer len) {
+        Random rand = new Random(1L);
+        List<Integer> vals = Lists.newArrayList();
+        Integer last = base;
+        for (int i = 0; i < len; i++) {
+            last += rand.nextInt(15) + 1;
+            vals.add(last);
+        }
+        return vals;
+    }
+
     public File nonExistantTempFile() {
         File file = TestUtils.tempFile();
         file.delete();

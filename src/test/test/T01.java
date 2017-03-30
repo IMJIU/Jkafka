@@ -23,9 +23,11 @@ public class T01 {
 //        test_format();
 //        String filePath = "src/main/java/kafka/log/LogSegment.java";
 //        String filePath = main + "utils/Utils.java";
-        List<String> filePaths = Arrays.asList(test + "log/OffsetIndexTest.java", test + "log/LogSegmentTest.java");
+        String f = "for(i <- 1 until 10)";
+        System.out.println(f.replaceAll("for\\((\\w+)\\s?\\<-\\s?(\\d+)\\s+until\\s+(\\d+)\\)","for(int $1 = $2; $1 < $3; $1++)"));
+        List<String> filePaths = Arrays.asList(test + "log/OffsetIndexTest.java");
         for (String p : filePaths) {
-            convertToJava(p, true);
+//            convertToJava(p, true);
         }
     }
 
@@ -34,8 +36,12 @@ public class T01 {
         List<Character> lastList = Lists.newArrayList('[', '(', '}', '{', ';', '*', '/', ',', '>', '=');
         String p = "(\\w+):\\s?(\\w+)";
         String p1 = "[\\s\\(](Int)\\s";
-        String p2 = "def(.+):\\s?(\\w+)\\s?=";
+        String p2 = "public(.+):\\s?(\\w+)\\s?=";
+        String r2 = "public $2 $1";
         String p4 = "(\".+\")\\.format\\(";
+        String r4 = "String.format($1,";
+        String p5 = "for\\((\\w+)\\s?\\<-\\s?(\\d+)\\s+until\\s+(\\d+)\\)";
+        String r5 = "for(int $1 = $2; $1 < $3; $1++)";
         StringBuilder content = new StringBuilder();
         boolean comment = false;
 
@@ -43,12 +49,18 @@ public class T01 {
         String s;
         while ((s = reader.readLine()) != null) {
             if (s.length() > 0) {
-                content.append(s.replaceAll(p1, " Integer ")
-                        .replaceAll(p, "$2 $1")
-                        .replaceAll(p2, "public $2 $1")
-                        .replaceAll(p4, "String.format($1,")
+                if (s.contains(" assertEquals")) {
+                    s = s.replaceAll("assertEquals", "Assert.assertEquals");
+                }
+                s = s.replaceAll(p2, r2);
+                if (s.contains(" def ")) {
+                    s = s.replaceAll("def", "public void ");
+                }
+                content.append(s.replaceAll(p, "$2 $1")
+                        .replaceAll(p4, r4)
+                        .replaceAll(p1, " Integer ")
+                        .replaceAll(p5, r5)
                 );
-
                 if (s.indexOf("/*") != -1) {
                     comment = true;
                 }
@@ -79,7 +91,7 @@ public class T01 {
             }
         }
         if (!inLast) {
-            if (!(last == ')' && (s.contains("if") || s.contains("for"))) || s.contains("@")) {
+            if (!(last == ')' && (s.contains("if") || s.contains("for"))) && !s.contains("@")) {
                 content.append(";");
             }
         }

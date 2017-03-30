@@ -51,7 +51,7 @@ public class LogSegment extends Logging {
     }
 
     //
-    public LogSegment(File dir, Long startOffset, Integer indexIntervalBytes, Integer maxIndexSize, Long rollJitterMs, Time time) throws FileNotFoundException {
+    public LogSegment(File dir, Long startOffset, Integer indexIntervalBytes, Integer maxIndexSize, Long rollJitterMs, Time time) throws IOException {
         this(new FileMessageSet(Log.logFilename(dir, startOffset)),
                 new OffsetIndex(Log.indexFilename(dir, startOffset), startOffset, maxIndexSize),
                 startOffset,
