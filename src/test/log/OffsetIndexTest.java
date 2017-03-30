@@ -36,7 +36,6 @@ public class OffsetIndexTest {
         if (this.idx != null) ;
         this.idx.file.delete();
     }
-//
 
     @Test
     public void randomLookupTest() {
@@ -88,7 +87,6 @@ public class OffsetIndexTest {
         Assert.assertEquals(new OffsetPosition(idx.baseOffset + idx.maxEntries, idx.maxEntries - 1), idx.lookup(idx.baseOffset + idx.maxEntries));
     }
 
-    //
     @Test
     public void appendTooMany() {
         for (int i = 0; i < idx.maxEntries; i++) {
@@ -98,14 +96,12 @@ public class OffsetIndexTest {
         assertWriteFails("Append should fail on a full index", idx, idx.maxEntries + 1, IllegalArgumentException.class);
     }
 
-    //
     @Test(expected = InvalidOffsetException.class)
     public void appendOutOfOrder() {
         idx.append(51L, 0);
         idx.append(50L, 1);
     }
 
-    //
     @Test
     public void testReopen() throws IOException {
         OffsetPosition first = new OffsetPosition(51L, 0);
@@ -121,7 +117,6 @@ public class OffsetIndexTest {
         assertWriteFails("Append should fail on read-only index", idxRo, 53, IllegalArgumentException.class);
     }
 
-    //
     @Test
     public void truncate() throws IOException {
         OffsetIndex idx = new OffsetIndex(nonExistantTempFile(), 0L, 10 * 8);
@@ -164,7 +159,6 @@ public class OffsetIndexTest {
         }
     }
 
-    //
     public List<Integer> monotonicSeq(Integer base, Integer len) {
         Random rand = new Random(1L);
         List<Integer> vals = Lists.newArrayList();
