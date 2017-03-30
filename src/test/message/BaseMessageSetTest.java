@@ -1,6 +1,7 @@
 package message;
 
 import com.google.common.collect.Lists;
+import kafka.log.FileMessageSet;
 import kafka.message.Message;
 import kafka.message.MessageAndOffset;
 import kafka.message.MessageSet;
@@ -50,7 +51,7 @@ public abstract class BaseMessageSetTest {
     public void testSizeInBytes() {
         Assert.assertEquals("Empty message set should have 0 bytes.",
                 new Integer(0),
-                createMessageSet(new ArrayList<Message>()).sizeInBytes());
+                createMessageSet(Lists.newArrayList()).sizeInBytes());
         Assert.assertEquals("Predicted size should equal actual size.",
                 MessageSet.messageSetSize(messages),
                 createMessageSet(messages).sizeInBytes());
@@ -59,7 +60,7 @@ public abstract class BaseMessageSetTest {
     @Test
     public void testWriteTo() {
         // test empty message set
-        testWriteToWithMessageSet(createMessageSet(new ArrayList<Message>()));
+        testWriteToWithMessageSet(createMessageSet(Lists.newArrayList()));
         testWriteToWithMessageSet(createMessageSet(messages));
     }
 
@@ -72,9 +73,8 @@ public abstract class BaseMessageSetTest {
 
                 Integer written = set.writeTo(channel, 0L, 1024);
                 Assert.assertEquals("Expect to write the number of bytes in the set.", set.sizeInBytes(), written);
-                // TODO: 2017/3/27 fileMessage未写完
-//                FileMessageSet newSet = new FileMessageSet(file, channel);
-//                checkEquals(set.iterator(), newSet.iterator());
+                FileMessageSet newSet = new FileMessageSet(file, channel);
+                checkEquals(set.iterator(), newSet.iterator());
             }
         } catch (FileNotFoundException e) {
             e.printStackTrace();

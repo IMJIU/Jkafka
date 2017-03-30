@@ -8,14 +8,25 @@ import kafka.utils.IteratorTemplate;
 import org.junit.Assert;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.util.Iterator;
+import java.util.Random;
 
 /**
  * Created by Administrator on 2017/3/26.
  */
 public class TestUtils {
+    public final static String IoTmpDir = "f:\\temp\\";
+    public final static String Letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    public final static String Digits = "0123456789";
+    public final static String LettersAndDigits = Letters + Digits;
+
+    /* A consistent random number generator to make tests repeatable */
+    public static Random seededRandom = new Random(192348092834L);
+    public static Random random = new Random();
 
     public static void checkEquals(ByteBuffer b1, ByteBuffer b2) {
         Assert.assertEquals("Buffers should have equal length", b1.limit() - b1.position(), b2.limit() - b2.position());
@@ -36,9 +47,11 @@ public class TestUtils {
         }
         return f;
     }
+
     public static void assertEquals(String msg, Iterator<MessageAndOffset> expected, Iterator<MessageAndOffset> actual) {
-        checkEquals(expected,actual);
+        checkEquals(expected, actual);
     }
+
     /**
      * Throw an exception if the two iterators are of differing lengths or contain
      * different messages on their Nth element
@@ -94,9 +107,18 @@ public class TestUtils {
 
     public static void print(Iterator<MessageAndOffset> iterator) {
         System.out.println("================");
-        while(iterator.hasNext()){
+        while (iterator.hasNext()) {
             System.out.println(iterator.next());
         }
         System.out.println("================");
+    }
+
+
+    public static void writeNonsenseToFile(File fileName, Long position, Integer size) throws Exception {
+        RandomAccessFile file = new RandomAccessFile(fileName, "rw");
+        file.seek(position);
+        for (int i = 0; i < size; i++)
+            file.writeByte(random.nextInt(255));
+        file.close();
     }
 }

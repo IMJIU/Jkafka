@@ -7,6 +7,7 @@ public class LogOffsetMetadata {
     public static final Long UnknownSegBaseOffset = -1L;
     public static final Integer UnknownFilePosition = -1;
     public static final LogOffsetMetadata UnknownOffsetMetadata = new LogOffsetMetadata(-1L, 0L, 0);
+
     public Long messageOffset;
     public Long segmentBaseOffset = LogOffsetMetadata.UnknownSegBaseOffset;
     public Integer relativePositionInSegment = LogOffsetMetadata.UnknownFilePosition;

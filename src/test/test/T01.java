@@ -35,7 +35,6 @@ public class T01 {
         String p = "(\\w+):\\s?(\\w+)";
         String p1 = "[\\s\\(](Int)\\s";
         String p2 = "def(.+):\\s?(\\w+)\\s?=";
-//        String p3 = " (val) ";
         String p4 = "(\".+\")\\.format\\(";
         StringBuilder content = new StringBuilder();
         boolean comment = false;
@@ -45,10 +44,9 @@ public class T01 {
         while ((s = reader.readLine()) != null) {
             if (s.length() > 0) {
                 content.append(s.replaceAll(p1, " Integer ")
-                                .replaceAll(p, "$2 $1")
-                                .replaceAll(p2, "public $2 $1")
-//                        .replaceAll(p3, " Integer ")
-                                .replaceAll(p4, "String.format($1,")
+                        .replaceAll(p, "$2 $1")
+                        .replaceAll(p2, "public $2 $1")
+                        .replaceAll(p4, "String.format($1,")
                 );
 
                 if (s.indexOf("/*") != -1) {
@@ -81,9 +79,7 @@ public class T01 {
             }
         }
         if (!inLast) {
-            if (last == ')' && s.indexOf("if") != -1) {
-
-            } else {
+            if (!(last == ')' && (s.contains("if") || s.contains("for"))) || s.contains("@")) {
                 content.append(";");
             }
         }
