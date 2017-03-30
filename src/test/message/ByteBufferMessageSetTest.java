@@ -22,32 +22,36 @@ public class ByteBufferMessageSetTest extends BaseMessageSetTest {
     @Test
     public void testValidBytes() {
         {
-            ByteBufferMessageSet messages = new ByteBufferMessageSet(CompressionCodec.NoCompressionCodec, new Message("hello".getBytes()), new Message("there".getBytes()));
+            ByteBufferMessageSet messages = new ByteBufferMessageSet(CompressionCodec.NoCompressionCodec, new Message("hello1111111".getBytes()), new Message("there1111111".getBytes()));
             ByteBuffer buffer = ByteBuffer.allocate(messages.sizeInBytes() + 2);
             buffer.put(messages.buffer);
             short s = 4;
             buffer.putShort(s);
+            messages.buffer.rewind();
+            buffer.rewind();
             ByteBufferMessageSet messagesPlus = new ByteBufferMessageSet(buffer);
             Assert.assertEquals("Adding invalid bytes shouldn't change byte count", messages.validBytes(), messagesPlus.validBytes());
+            System.out.println(messages.validBytes());
         }
 
         // test valid bytes on empty ByteBufferMessageSet
         {
-            Assert.assertEquals("Valid bytes on an empty ByteBufferMessageSet should return 0", new Integer(0),
-                    ((ByteBufferMessageSet) MessageSet.Empty).validBytes());
+            Assert.assertEquals("Valid bytes on an empty ByteBufferMessageSet should return 0",
+                    new Integer(0), MessageSet.Empty.validBytes());
         }
     }
 
     @Test
     public void testValidBytesWithCompression() {
-        {
-            ByteBufferMessageSet messages = new ByteBufferMessageSet(CompressionCodec.GZIPCompressionCodec, new Message("hello".getBytes()), new Message("there".getBytes()));
-            ByteBuffer buffer = ByteBuffer.allocate(messages.sizeInBytes() + 2);
-            buffer.put(messages.buffer);
-            buffer.putShort((short) 4);
-            ByteBufferMessageSet messagesPlus = new ByteBufferMessageSet(buffer);
-            Assert.assertEquals("Adding invalid bytes shouldn't change byte count", messages.validBytes(), messagesPlus.validBytes());
-        }
+        ByteBufferMessageSet messages = new ByteBufferMessageSet(CompressionCodec.GZIPCompressionCodec, new Message("hello1111111".getBytes()), new Message("there1111111".getBytes()));
+        ByteBuffer buffer = ByteBuffer.allocate(messages.sizeInBytes() + 2);
+        buffer.put(messages.buffer);
+        buffer.putShort((short) 4);
+        messages.buffer.rewind();
+        buffer.rewind();
+        ByteBufferMessageSet messagesPlus = new ByteBufferMessageSet(buffer);
+        Assert.assertEquals("Adding invalid bytes shouldn't change byte count", messages.validBytes(), messagesPlus.validBytes());
+        System.out.println(messages.validBytes());
     }
 
     @Test
@@ -65,31 +69,29 @@ public class ByteBufferMessageSetTest extends BaseMessageSetTest {
 
     @Test
     public void testIterator() {
-        Message[] arr = new Message[]{
+        List<Message> messageList = Lists.newArrayList(
                 new Message("msg1".getBytes()),
                 new Message("msg2".getBytes()),
-                new Message("msg3".getBytes())
-        };
-        List<Message> messageList = Arrays.asList(arr);
+                new Message("msg3".getBytes()));
 
         // test for uncompressed regular messages
         {
             ByteBufferMessageSet messageSet = new ByteBufferMessageSet(CompressionCodec.NoCompressionCodec, messageList);
-            TestUtils.checkEquals(messageList.iterator(), TestUtils.getMessageIterator(messageSet.iterator()));
+            TestUtils.checkEquals(messageList.iterator(), messageSet.toMessageList().iterator());
             //make sure ByteBufferMessageSet is re-iterable.
-            TestUtils.checkEquals(messageList.iterator(), TestUtils.getMessageIterator(messageSet.iterator()));
+            TestUtils.checkEquals(messageList.iterator(), messageSet.toMessageList().iterator());
 
             //make sure shallow iterator is the same as deep iterator
             TestUtils.checkEquals(TestUtils.getMessageIterator(messageSet.shallowIterator()),
-                    TestUtils.getMessageIterator(messageSet.iterator()));
+                    messageSet.toMessageList().iterator());
         }
 
         // test for compressed regular messages
         {
             ByteBufferMessageSet messageSet = new ByteBufferMessageSet(CompressionCodec.GZIPCompressionCodec, messageList);
-            TestUtils.checkEquals(messageList.iterator(), TestUtils.getMessageIterator(messageSet.iterator()));
+            TestUtils.checkEquals(messageList.iterator(), messageSet.toMessageList().iterator());
             //make sure ByteBufferMessageSet is re-iterable.
-            TestUtils.checkEquals(messageList.iterator(), TestUtils.getMessageIterator(messageSet.iterator()));
+            TestUtils.checkEquals(messageList.iterator(), messageSet.toMessageList().iterator());
             verifyShallowIterator(messageSet);
         }
 
@@ -103,12 +105,12 @@ public class ByteBufferMessageSetTest extends BaseMessageSetTest {
             buffer.put(regularMessgeSet.buffer);
             buffer.rewind();
             ByteBufferMessageSet mixedMessageSet = new ByteBufferMessageSet(buffer);
-            TestUtils.checkEquals(messageList.iterator(), TestUtils.getMessageIterator(mixedMessageSet.iterator()));
+            TestUtils.checkEquals(messageList.iterator(), mixedMessageSet.toMessageList().iterator());
             //make sure ByteBufferMessageSet is re-iterable.
-            TestUtils.checkEquals(messageList.iterator(), TestUtils.getMessageIterator(mixedMessageSet.iterator()));
+            TestUtils.checkEquals(messageList.iterator(), mixedMessageSet.toMessageList().iterator());
             //make sure shallow iterator is the same as deep iterator
             TestUtils.checkEquals(TestUtils.getMessageIterator(mixedMessageSet.shallowIterator()),
-                    TestUtils.getMessageIterator(mixedMessageSet.iterator()));
+                    mixedMessageSet.toMessageList().iterator());
         }
 
         // test for mixed empty and non-empty messagesets compressed
@@ -121,9 +123,9 @@ public class ByteBufferMessageSetTest extends BaseMessageSetTest {
             buffer.put(regularMessgeSet.buffer);
             buffer.rewind();
             ByteBufferMessageSet mixedMessageSet = new ByteBufferMessageSet(buffer);
-            TestUtils.checkEquals(messageList.iterator(), TestUtils.getMessageIterator(mixedMessageSet.iterator()));
+            TestUtils.checkEquals(messageList.iterator(), mixedMessageSet.toMessageList().iterator());
             //make sure ByteBufferMessageSet is re-iterable.
-            TestUtils.checkEquals(messageList.iterator(), TestUtils.getMessageIterator(mixedMessageSet.iterator()));
+            TestUtils.checkEquals(messageList.iterator(), mixedMessageSet.toMessageList().iterator());
             verifyShallowIterator(mixedMessageSet);
         }
     }
