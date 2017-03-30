@@ -87,17 +87,12 @@ public class FileMessageSetTest extends BaseMessageSetTest {
     public void testRead() {
         FileMessageSet read = messageSet.read(0, messageSet.sizeInBytes());
         TestUtils.checkEquals(messageSet.iterator(), read.iterator());
-        Iterator<MessageAndOffset> items = read.iterator();
-        MessageAndOffset sec = items.next();
+        List<MessageAndOffset> items = read.toMessageAndOffsetList();
+        MessageAndOffset sec = read.tail().next();
         read = messageSet.read(MessageSet.entrySize(sec.message), messageSet.sizeInBytes());
-//        Iterator<MessageAndOffset>it = read.iterator();
-//        while(it.hasNext()){
-//            System.out.println(it.next());
-//        }
-        TestUtils.checkEquals(items, read.iterator());
-//        Assert.assertEquals("Try a read starting from the second message", items, read.iterator());
+        TestUtils.assertEquals("Try a read starting from the second message",items.subList(1,items.size()).iterator(), read.iterator());
         read = messageSet.read(MessageSet.entrySize(sec.message), MessageSet.entrySize(sec.message));
-//        Assert.assertEquals("Try a read of a single message starting from the second message", List(items.tail.head), read.toList)
+        TestUtils.assertEquals("Try a read of a single message starting from the second message", items.subList(1,2).iterator(), read.iterator());
     }
 
     /**

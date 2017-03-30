@@ -15,15 +15,26 @@ import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Created by Administrator on 2017/3/26.
+ * An on-disk message set. An optional start and end position can be applied to the message set
+ * which will allow slicing a subset of the file.
  */
+//@nonthreadsafe
 public class FileMessageSet extends MessageSet {
     public volatile File file;
     public FileChannel channel;
     public Integer start;
     public Integer end;
     public Boolean isSlice;
+    /* the size of the message set in bytes */
+    private AtomicInteger _size;
 
+    /**
+     * @param file    The file name for the underlying log data
+     * @param channel the underlying file channel used
+     * @param start   A lower bound on the absolute position in the file from which the message set begins
+     * @param end     The upper bound on the absolute position in the file at which the message set ends
+     * @param isSlice Should the start and end parameters be used for slicing?
+     */
     public FileMessageSet(File file, FileChannel channel, Integer start, Integer end, Boolean isSlice) {
         this.file = file;
         this.channel = channel;
@@ -57,11 +68,6 @@ public class FileMessageSet extends MessageSet {
         this(file, channel, 0, Integer.MAX_VALUE, false);
     }
 
-
-    /* the size of the message set in bytes */
-    private AtomicInteger _size;
-
-
     /**
      * Create a file message set with no slicing
      */
@@ -82,7 +88,6 @@ public class FileMessageSet extends MessageSet {
     public FileMessageSet(File file, FileChannel channel, Integer start, Integer end) {
         this(file, channel, start, end, true);
     }
-
 
     /**
      * Return a message set which is a view into this set starting from the given position and with the given size limit.
@@ -168,7 +173,6 @@ public class FileMessageSet extends MessageSet {
         return iterator(Integer.MAX_VALUE);
     }
 
-
     /**
      * Get an iterator over the messages in the set. We only do shallow iteration here.
      *
@@ -190,8 +194,10 @@ public class FileMessageSet extends MessageSet {
                     // read the size of the item
                     sizeOffsetBuffer.rewind();
                     channel.read(sizeOffsetBuffer, location);
-                    if (sizeOffsetBuffer.hasRemaining())
+
+                    if (sizeOffsetBuffer.hasRemaining()) {
                         return allDone();
+                    }
 
                     sizeOffsetBuffer.rewind();
                     Long offset = sizeOffsetBuffer.getLong();

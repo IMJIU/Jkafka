@@ -16,6 +16,7 @@ import java.util.Iterator;
  * Created by Administrator on 2017/3/26.
  */
 public class TestUtils {
+
     public static void checkEquals(ByteBuffer b1, ByteBuffer b2) {
         Assert.assertEquals("Buffers should have equal length", b1.limit() - b1.position(), b2.limit() - b2.position());
         for (int i = 0; i < b1.limit() - b1.position(); i++)
@@ -35,7 +36,9 @@ public class TestUtils {
         }
         return f;
     }
-
+    public static void assertEquals(String msg, Iterator<MessageAndOffset> expected, Iterator<MessageAndOffset> actual) {
+        checkEquals(expected,actual);
+    }
     /**
      * Throw an exception if the two iterators are of differing lengths or contain
      * different messages on their Nth element
@@ -86,5 +89,14 @@ public class TestUtils {
     public static ByteBufferMessageSet singleMessageSet(byte[] payload) {
         byte[] key = null;
         return new ByteBufferMessageSet(CompressionCodec.NoCompressionCodec, new Message(payload, key));
+    }
+
+
+    public static void print(Iterator<MessageAndOffset> iterator) {
+        System.out.println("================");
+        while(iterator.hasNext()){
+            System.out.println(iterator.next());
+        }
+        System.out.println("================");
     }
 }

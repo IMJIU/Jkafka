@@ -19,7 +19,6 @@ public class ByteBufferMessageSetTest extends BaseMessageSetTest {
         return new ByteBufferMessageSet(CompressionCodec.NoCompressionCodec, messages);
     }
 
-
     @Test
     public void testValidBytes() {
         {
@@ -63,7 +62,6 @@ public class ByteBufferMessageSetTest extends BaseMessageSetTest {
 
         Assert.assertTrue(messages.equals(moreMessages));
     }
-
 
     @Test
     public void testIterator() {

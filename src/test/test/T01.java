@@ -3,10 +3,12 @@ package test;/**
  */
 
 import com.google.common.collect.Lists;
+
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -14,11 +16,17 @@ import java.util.List;
  * @create 2017-03-30 10:04
  **/
 public class T01 {
+    public static final String main = "src/main/java/kafka/";
+    public static final String test = "src/test/";
+
     public static void main(String[] args) throws IOException {
 //        test_format();
 //        String filePath = "src/main/java/kafka/log/LogSegment.java";
-        String filePath = "src/main/java/kafka/utils/Utils.java";
-        convertToJava(filePath, true);
+//        String filePath = main + "utils/Utils.java";
+        List<String> filePaths = Arrays.asList(test + "log/OffsetIndexTest.java", test + "log/LogSegmentTest.java");
+        for (String p : filePaths) {
+            convertToJava(p, true);
+        }
     }
 
 

@@ -129,7 +129,9 @@ public class ByteBufferMessageSet extends MessageSet {
     public ByteBufferMessageSet(CompressionCodec compressionCodec, AtomicLong offsetCounter, Message... messages) {
         this(ByteBufferMessageSet.create(offsetCounter, compressionCodec, messages));
     }
-
+    public ByteBufferMessageSet(CompressionCodec compressionCodec, AtomicLong offsetCounter, List<Message> messages) {
+        this(ByteBufferMessageSet.create(offsetCounter, compressionCodec, messages));
+    }
 
     public ByteBufferMessageSet(Message... messages) {
         this(CompressionCodec.NoCompressionCodec, new AtomicLong(0), messages);
@@ -273,11 +275,11 @@ public class ByteBufferMessageSet extends MessageSet {
         } else {
             // messages are compressed, crack open the messageset and recompress with correct offset
             Iterator<MessageAndOffset> it = this.internalIterator(false);
-            List<Message> list = new ArrayList();
+            List<Message> list = Lists.newArrayList();
             while (it.hasNext()) {
                 list.add(it.next().message);
             }
-            return new ByteBufferMessageSet(codec, offsetCounter, list.toArray(new Message[list.size()]));
+            return new ByteBufferMessageSet(codec, offsetCounter, list);
         }
     }
 
