@@ -258,13 +258,13 @@ public class FileMessageSet extends MessageSet {
      *
      * @return True iff this message set was deleted.
      */
-    public void delete() {
+    public Boolean delete() {
         try {
             channel.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
-        file.delete();
+        return file.delete();
     }
 
     /**

@@ -1,5 +1,6 @@
 package log;
 
+import com.google.common.collect.Lists;
 import kafka.log.FileMessageSet;
 import kafka.log.OffsetPosition;
 import kafka.message.*;
@@ -111,20 +112,22 @@ public class FileMessageSetTest extends BaseMessageSetTest {
         Assert.assertEquals("Should be able to find the first message by its offset",
                 new OffsetPosition(0L, position),
                 messageSet.searchFor(0L, 0));
-//        position += MessageSet.entrySize(messageSet.head.message);
-//        Assert.assertEquals("Should be able to find second message when starting from 0",
-//                new OffsetPosition(1L, position),
-//                messageSet.searchFor(1L, 0));
-//        Assert.assertEquals("Should be able to find second message starting from its offset",
-//                new OffsetPosition(1L, position),
-//                messageSet.searchFor(1L, position));
-//        position += MessageSet.entrySize(messageSet.tail.head.message) + MessageSet.entrySize(messageSet.tail.tail.head.message)
-//        Assert.assertEquals("Should be able to find fourth message from a non-existant offset",
-//                new OffsetPosition(50L, position),
-//                messageSet.searchFor(3L, position));
-//        Assert.assertEquals("Should be able to find fourth message by correct offset",
-//                new OffsetPosition(50L, position),
-//                messageSet.searchFor(50L, position));
+        position += MessageSet.entrySize(messageSet.head().message);
+        Assert.assertEquals("Should be able to find second message when starting from 0",
+                new OffsetPosition(1L, position),
+                messageSet.searchFor(1L, 0));
+        Assert.assertEquals("Should be able to find second message starting from its offset",
+                new OffsetPosition(1L, position),
+                messageSet.searchFor(1L, position));
+        Iterator<MessageAndOffset> tailIt = messageSet.tail();
+        tailIt.next();
+        position += MessageSet.entrySize(messageSet.tail().next().message) + MessageSet.entrySize(tailIt.next().message);
+        Assert.assertEquals("Should be able to find fourth message from a non-existant offset",
+                new OffsetPosition(50L, position),
+                messageSet.searchFor(3L, position));
+        Assert.assertEquals("Should be able to find fourth message by correct offset",
+                new OffsetPosition(50L, position),
+                messageSet.searchFor(50L, position));
     }
 
     /**
@@ -132,11 +135,11 @@ public class FileMessageSetTest extends BaseMessageSetTest {
      */
     @Test
     public void testIteratorWithLimits() {
-//        val message = messageSet.toList(1)
-//        val start = messageSet.searchFor(1, 0).position
-//        val size = message.message.size
-//        val slice = messageSet.read(start, size)
-//        Assert.assertEquals(List(message), slice.toList);
+        MessageAndOffset message = messageSet.tail().next();
+        Integer start = messageSet.searchFor(1L, 0).position;
+        Integer size = message.message.size();
+        FileMessageSet slice = messageSet.read(start, size);
+        Assert.assertEquals(Lists.newArrayList(message.message), slice.toMessageList());
     }
 
     /**
@@ -144,10 +147,14 @@ public class FileMessageSetTest extends BaseMessageSetTest {
      */
     @Test
     public void testTruncate() {
-//        val message = messageSet.toList(0);
-//        val end = messageSet.searchFor(1, 0).position;
-//        messageSet.truncateTo(end);
-//        Assert.assertEquals(List(message), messageSet.toList);
-//        Assert.assertEquals(MessageSet.entrySize(message.message), messageSet.sizeInBytes);
+        MessageAndOffset message = messageSet.head();
+        Integer end = messageSet.searchFor(1L, 0).position;
+        try {
+            messageSet.truncateTo(end);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        Assert.assertEquals(Lists.newArrayList(message.message), messageSet.toMessageList());
+        Assert.assertEquals(MessageSet.entrySize(message.message), messageSet.sizeInBytes());
     }
 }

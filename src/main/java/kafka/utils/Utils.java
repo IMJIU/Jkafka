@@ -28,9 +28,9 @@ public class Utils extends Logging {
 //         * @param fun A function
 //         * @return A Runnable that just executes the function
 //         */
-//        def runnable(fun: => Unit): Runnable =
+//        public Runnable  runnable(fun: => Unit)
 //                new Runnable {
-//            def run() = fun
+//            def run() = fun;
 //        }
 //
 //        /**
@@ -38,8 +38,8 @@ public class Utils extends Logging {
 //         * @param runnable The runnable to execute in the background
 //         * @return The unstarted thread
 //         */
-//        def daemonThread(runnable: Runnable): Thread =
-//                newThread(runnable, true)
+//        public Thread  daemonThread(Runnable runnable)
+//                newThread(runnable, true);
 //
 //        /**
 //         * Create a daemon thread
@@ -47,8 +47,8 @@ public class Utils extends Logging {
 //         * @param runnable The runnable to execute in the background
 //         * @return The unstarted thread
 //         */
-//        def daemonThread(name: String, runnable: Runnable): Thread =
-//                newThread(name, runnable, true)
+//        public Thread  daemonThread(String name, Runnable runnable)
+//                newThread(name, runnable, true);
 //
 //        /**
 //         * Create a daemon thread
@@ -56,8 +56,8 @@ public class Utils extends Logging {
 //         * @param fun The runction to execute in the thread
 //         * @return The unstarted thread
 //         */
-//        def daemonThread(name: String, fun: () => Unit): Thread =
-//                daemonThread(name, runnable(fun))
+//        public Thread  daemonThread(String name, fun: () => Unit)
+//                daemonThread(name, runnable(fun));
 //
 //        /**
 //         * Create a new thread
@@ -66,15 +66,15 @@ public class Utils extends Logging {
 //         * @param daemon Should the thread block JVM shutdown?
 //         * @return The unstarted thread
 //         */
-//        def newThread(name: String, runnable: Runnable, daemon: Boolean): Thread = {
-//                val thread = new Thread(runnable, name)
-//                thread.setDaemon(daemon)
+//        public Thread  newThread(String name, Runnable runnable, Boolean daemon) {
+//                Integer thread = new Thread(runnable, name);
+//                thread.setDaemon(daemon);
 //                thread.setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
-//                    def uncaughtException(t: Thread, e: Throwable) {
-//                        error("Uncaught exception in thread '" + t.getName + "':", e)
+//                    def uncaughtException(Thread t, Throwable e) {
+//                        error("Uncaught exception in thread '" + t.getName + "':", e);
 //                    }
-//                })
-//                thread
+//                });
+//                thread;
 //        }
 //
 //        /**
@@ -83,52 +83,52 @@ public class Utils extends Logging {
 //         * @param daemon Should the thread block JVM shutdown?
 //         * @return The unstarted thread
 //         */
-//        def newThread(runnable: Runnable, daemon: Boolean): Thread = {
-//                val thread = new Thread(runnable)
-//                thread.setDaemon(daemon)
+//        public Thread  newThread(Runnable runnable, Boolean daemon) {
+//                Integer thread = new Thread(runnable);
+//                thread.setDaemon(daemon);
 //                thread.setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
-//                    def uncaughtException(t: Thread, e: Throwable) {
-//                        error("Uncaught exception in thread '" + t.getName + "':", e)
+//                    def uncaughtException(Thread t, Throwable e) {
+//                        error("Uncaught exception in thread '" + t.getName + "':", e);
 //                    }
-//                })
-//                thread
+//                });
+//                thread;
 //        }
 //
 //        /**
 //         * Read the given byte buffer into a byte array
 //         */
-//        def readBytes(buffer: ByteBuffer): Array[Byte] = readBytes(buffer, 0, buffer.limit)
+//        def readBytes(ByteBuffer buffer): Array[Byte] = readBytes(buffer, 0, buffer.limit);
 //
 //        /**
 //         * Read a byte array from the given offset and size in the buffer
 //         */
-//        def readBytes(buffer: ByteBuffer, offset: Int, size: Int): Array[Byte] = {
-//                val dest = new Array[Byte](size)
+//        def readBytes(ByteBuffer buffer, Int offset, Int size): Array[Byte] = {
+//                Integer dest = new Array[Byte](size);
 //        if(buffer.hasArray) {
-//            System.arraycopy(buffer.array, buffer.arrayOffset() + offset, dest, 0, size)
+//            System.arraycopy(buffer.array, buffer.arrayOffset() + offset, dest, 0, size);
 //        } else {
-//            buffer.mark()
-//            buffer.get(dest)
-//            buffer.reset()
+//            buffer.mark();
+//            buffer.get(dest);
+//            buffer.reset();
 //        }
-//        dest
+//        dest;
 //  }
 //
 //        /**
 //         * Read a properties file from the given path
 //         * @param filename The path of the file to read
 //         */
-//        def loadProps(filename: String): Properties = {
-//                val props = new Properties()
-//                var propStream: InputStream = null
+//        public Properties  loadProps(String filename) {
+//                Integer props = new Properties();
+//                var InputStream propStream = null;
 //        try {
-//            propStream = new FileInputStream(filename)
-//            props.load(propStream)
+//            propStream = new FileInputStream(filename);
+//            props.load(propStream);
 //        } finally {
 //            if(propStream != null)
-//                propStream.close
+//                propStream.close;
 //        }
-//        props
+//        props;
 //   }
 //
 
@@ -159,17 +159,17 @@ public class Utils extends Logging {
 //         * Test if two byte buffers are equal. In this case equality means having
 //         * the same bytes from the current position to the limit
 //         */
-//        def equal(b1: ByteBuffer, b2: ByteBuffer): Boolean = {
+//        public Boolean  equal(ByteBuffer b1, ByteBuffer b2) {
 //        // two byte buffers are equal if their position is the same,
-//        // their remaining bytes are the same, and their contents are the same
+//        // their remaining bytes are the same, and their contents are the same;
 //        if(b1.position != b2.position)
-//            return false
+//            return false;
 //        if(b1.remaining != b2.remaining)
-//            return false
-//        for(i <- 0 until b1.remaining)
+//            return false;
+//        for(i <- 0 until b1.remaining);
 //        if(b1.get(i) != b2.get(i))
-//            return false
-//        return true
+//            return false;
+//        return true;
 //  }
 //
 //        /**
@@ -177,49 +177,49 @@ public class Utils extends Logging {
 //         * @param buffer The buffer to translate
 //         * @param encoding The encoding to use in translating bytes to characters
 //         */
-//        def readString(buffer: ByteBuffer, encoding: String = Charset.defaultCharset.toString): String = {
-//                val bytes = new Array[Byte](buffer.remaining)
-//                buffer.get(bytes)
-//                new String(bytes, encoding)
+//        public String  readString(ByteBuffer buffer, String encoding = Charset.defaultCharset.toString) {
+//                Integer bytes = new Array[Byte](buffer.remaining);
+//                buffer.get(bytes);
+//                new String(bytes, encoding);
 //        }
 //
 //        /**
 //         * Print an error message and shutdown the JVM
 //         * @param message The error message
 //         */
-//        def croak(message: String) {
-//            System.err.println(message)
-//            System.exit(1)
+//        def croak(String message) {
+//            System.err.println(message);
+//            System.exit(1);
 //        }
 //
 //        /**
 //         * Recursively delete the given file/directory and any subfiles (if any exist)
 //         * @param file The root file at which to begin deleting
 //         */
-//        def rm(file: String): Unit = rm(new File(file))
+//        public Unit  rm(String file) rm(new File(file));
 //
 //        /**
 //         * Recursively delete the list of files/directories and any subfiles (if any exist)
 //         * @param a sequence of files to be deleted
 //         */
-//        def rm(files: Seq[String]): Unit = files.map(f => rm(new File(f)))
+//        public Unit  rm(Seq files[String]) files.map(f => rm(new File(f)));
 //
 //        /**
 //         * Recursively delete the given file/directory and any subfiles (if any exist)
 //         * @param file The root file at which to begin deleting
 //         */
-//        def rm(file: File) {
+//        def rm(File file) {
 //            if(file == null) {
-//                return
+//                return;
 //            } else if(file.isDirectory) {
-//                val files = file.listFiles()
+//                Integer files = file.listFiles();
 //                if(files != null) {
-//                    for(f <- files)
-//                        rm(f)
+//                    for(f <- files);
+//                        rm(f);
 //                }
-//                file.delete()
+//                file.delete();
 //            } else {
-//                file.delete()
+//                file.delete();
 //            }
 //        }
 //
@@ -233,20 +233,20 @@ public class Utils extends Logging {
 //         * @param name The name to register this mbean with
 //         * @return true if the registration succeeded
 //         */
-//        def registerMBean(mbean: Object, name: String): Boolean = {
+//        public Boolean  registerMBean(Object mbean, String name) {
 //        try {
-//            val mbs = ManagementFactory.getPlatformMBeanServer()
+//            Integer mbs = ManagementFactory.getPlatformMBeanServer();
 //            mbs synchronized {
-//                val objName = new ObjectName(name)
+//                Integer objName = new ObjectName(name);
 //                if(mbs.isRegistered(objName))
-//                    mbs.unregisterMBean(objName)
-//                mbs.registerMBean(mbean, objName)
-//                true
+//                    mbs.unregisterMBean(objName);
+//                mbs.registerMBean(mbean, objName);
+//                true;
 //            }
 //        } catch {
-//            case e: Exception => {
-//                error("Failed to register Mbean " + name, e)
-//                false
+//            case Exception e => {
+//                error("Failed to register Mbean " + name, e);
+//                false;
 //            }
 //        }
 //  }
@@ -255,12 +255,12 @@ public class Utils extends Logging {
 //         * Unregister the mbean with the given name, if there is one registered
 //         * @param name The mbean name to unregister
 //         */
-//        def unregisterMBean(name: String) {
-//            val mbs = ManagementFactory.getPlatformMBeanServer()
+//        def unregisterMBean(String name) {
+//            Integer mbs = ManagementFactory.getPlatformMBeanServer();
 //            mbs synchronized {
-//                val objName = new ObjectName(name)
+//                Integer objName = new ObjectName(name);
 //                if(mbs.isRegistered(objName))
-//                    mbs.unregisterMBean(objName)
+//                    mbs.unregisterMBean(objName);
 //            }
 //        }
 
@@ -337,115 +337,115 @@ public class Utils extends Logging {
     /**
      * Compute the hash code for the given items
      */
-//    def hashcode(as:Any*)
+//    def hashcode(Any as*);
 //
 //    :Int=
 //
 //    {
-//        if (as == null)
-//            return 0
-//        var h = 1
-//        var i = 0
+//        if (as == null);
+//            return 0;
+//        var h = 1;
+//        var i = 0;
 //        while (i < as.length) {
 //            if (as(i) != null) {
-//                h = 31 * h + as(i).hashCode
-//                i += 1
+//                h = 31 * h + as(i).hashCode;
+//                i += 1;
 //            }
 //        }
-//        return h
+//        return h;
 //    }
 //
 //    /**
 //     * Group the given values by keys extracted with the given function
 //     */
 //    def groupby[
-//    K,V](vals:Iterable[V],f:V=>K):Map[K,List[V]]=
+//    K,V](Iterable vals[V],V f=>K):Map[K,List[V]]=
 //
 //    {
-//        val m = new mutable.HashMap[K, List[ V]]
+//        Integer m = new mutable.HashMap[K, List[ V]];
 //        for (v< -vals) {
-//            val k = f(v)
+//            Integer k = f(v);
 //            m.get(k) match {
-//                case Some(l: List[V])=>m.put(k, v::l)
-//                case None =>m.put(k, List(v))
+//                case Some(List l[V])=>m.put(k, v::l);
+//                case None =>m.put(k, List(v));
 //            }
 //        }
-//        m
+//        m;
 //    }
 //
 //    /**
 //     * Read some bytes into the provided buffer, and return the number of bytes read. If the
 //     * channel has been closed or we get -1 on the read for any reason, throw an EOFException
 //     */
-//    def read(channel:ReadableByteChannel, buffer:ByteBuffer)
+//    def read(ReadableByteChannel channel, ByteBuffer buffer);
 //
 //    :Int=
 //
 //    {
 //        channel.read(buffer) match {
-//        case -1 =>throw new EOFException("Received -1 when reading from channel, socket has likely been closed.")
-//        case n:
-//            Int =>n
+//        case -1 =>throw new EOFException("Received -1 when reading from channel, socket has likely been closed.");
+//        case n:;
+//            Integer =>n;
 //    }
 //    }
 //
 //    /**
 //     * Throw an exception if the given value is null, else return it. You can use this like:
-//     * val myValue = Utils.notNull(expressionThatShouldntBeNull)
+//     * Integer myValue = Utils.notNull(expressionThatShouldntBeNull)
 //     */
 //    def notNull[
-//    V](v:V)=
+//    V](V v)=
 //
 //    {
-//        if (v == null)
-//            throw new KafkaException("Value cannot be null.")
-//        else
-//            v
+//        if (v == null);
+//            throw new KafkaException("Value cannot be null.");
+//        else;
+//            v;
 //    }
 //
 //    /**
 //     * Get the stack trace from an exception as a string
 //     */
-//    def stackTrace(e:Throwable)
+//    def stackTrace(Throwable e);
 //
 //    :String=
 //
 //    {
-//        val sw = new StringWriter
-//        val pw = new PrintWriter(sw)
-//        e.printStackTrace(pw)
-//        sw.toString()
+//        Integer sw = new StringWriter;
+//        Integer pw = new PrintWriter(sw);
+//        e.printStackTrace(pw);
+//        sw.toString();
 //    }
 //
 //    /**
 //     * This method gets comma separated values which contains key,value pairs and returns a map of
-//     * key value pairs. the format of allCSVal is key1:val1, key2:val2 ....
+//     * key value pairs. the format of allCSVal is val1 key1, val2 key2 ....
 //     */
-//    def parseCsvMap(str:String)
+//    def parseCsvMap(String str);
 //
 //    :Map[String,String]=
 //
 //    {
-//        val map = new mutable.HashMap[String, String]
-//        if ("".equals(str))
-//            return map
-//        val keyVals = str.split("\\s*,\\s*").map(s = > s.split("\\s*:\\s*"))
-//        keyVals.map(pair = > (pair(0), pair(1))).toMap
+//        Integer map = new mutable.HashMap[String, String];
+//        if ("".equals(str));
+//            return map;
+//        Integer keyVals = str.split("\\s*,\\s*").map(s = > s.split("\\s*:\\s*"));
+//        keyVals.map(pair = > (pair(0), pair(1))).toMap;
 //    }
 //
 //    /**
 //     * Parse a comma separated string into a sequence of strings.
 //     * Whitespace surrounding the comma will be removed.
 //     */
-//    def parseCsvList(csvList:String)
+//    def parseCsvList(String csvList);
 //
 //    :Seq[String]=
 //
 //    {
-//        if (csvList == null || csvList.isEmpty)
-//            Seq.empty[String]
+//        if (csvList == null || csvList.isEmpty);
+//            Seq.empty[String];
 //        else {
-//            csvList.split("\\s*,\\s*").filter(v = > !v.equals(""))
+//            csvList.split("\\s*,\\s*").filter(v = > !v.equals(""));
 //        }
 //    }
 //
@@ -453,20 +453,20 @@ public class Utils extends Logging {
 //     * Create an instance of the class with the given class name
 //     */
 //    def createObject[
-//    T<:AnyRef](className:String,args:AnyRef*):T=
+//    T<:AnyRef](String className,AnyRef args*):T=
 //
 //    {
-//        val klass = Class.forName(className).asInstanceOf[Class[T]]
-//        val constructor = klass.getConstructor(args.map(_.getClass):_ *)
-//        constructor.newInstance(args:_ *).asInstanceOf[T]
+//        Integer klass = Class.forName(className).asInstanceOf[Class[T]];
+//        Integer constructor = klass.getConstructor(args.map(_.getClass):_ *);
+//        constructor.newInstance(_ args *).asInstanceOf[T];
 //    }
 //
 //    /**
 //     * Is the given string null or empty ("")?
 //     */
-//    def nullOrEmpty(s:String)
+//    def nullOrEmpty(String s);
 //
-//    :Boolean=s==null||s.equals("")
+//    :Boolean=s==null||s.equals("");
 //
 //    /**
 //     * Create a circular (looping) iterator over a collection.
@@ -475,29 +475,29 @@ public class Utils extends Logging {
 //     * @return A circular iterator over the collection.
 //     */
 //    def circularIterator[
-//    T](coll:Iterable[T])=
+//    T](Iterable coll[T])=
 //
 //    {
-//        val stream:Stream[T] =
-//        for (forever< -Stream.continually(1); t < -coll) yield t
-//        stream.iterator
+//        Integer Stream stream[T] =
+//        for (forever< -Stream.continually(1); t < -coll) yield t;
+//        stream.iterator;
 //    }
 //
 //    /**
 //     * Attempt to read a file as a string
 //     */
-//    def readFileAsString(path:String, charset:Charset=Charset.defaultCharset()
+//    def readFileAsString(String path, Charset charset=Charset.defaultCharset();
 //
 //    ):String=
 //
 //    {
-//        val stream = new FileInputStream(new File(path))
+//        Integer stream = new FileInputStream(new File(path));
 //        try {
-//            val fc = stream.getChannel()
-//            val bb = fc.map(FileChannel.MapMode.READ_ONLY, 0, fc.size())
-//            charset.decode(bb).toString()
+//            Integer fc = stream.getChannel();
+//            Integer bb = fc.map(FileChannel.MapMode.READ_ONLY, 0, fc.size());
+//            charset.decode(bb).toString();
 //        } finally {
-//            stream.close()
+//            stream.close();
 //        }
 //    }
 //
@@ -505,22 +505,18 @@ public class Utils extends Logging {
 //     * Get the absolute value of the given number. If the number is Int.MinValue return 0.
 //     * This is different from java.lang.Math.abs or scala.math.abs in that they return Int.MinValue (!).
 //     */
-//    def abs(n:Int)
+//    def abs(Int n);
 //
 //    =if(n==Integer.MIN_VALUE)0 else math.abs(n)
 //
-//    /**
-//     * Replace the given string suffix with the new suffix. If the string doesn't end with the given suffix throw an exception.
-//     */
-//    def replaceSuffix(s:String, oldSuffix:String, newSuffix:String)
-//
-//    :String=
-//
-//    {
-//        if (!s.endsWith(oldSuffix))
-//            throw new IllegalArgumentException("Expected string to end with '%s' but string is '%s'".format(oldSuffix, s))
-//        s.substring(0, s.length - oldSuffix.length) + newSuffix
-//    }
+    /**
+     * Replace the given string suffix with the new suffix. If the string doesn't end with the given suffix throw an exception.
+     */
+    public static String replaceSuffix(String s, String oldSuffix, String newSuffix){
+        if (!s.endsWith(oldSuffix))
+            throw new IllegalArgumentException(String.format("Expected string to end with '%s' but string is '%s'",oldSuffix, s));
+        return s.substring(0, s.length() - oldSuffix.length()) + newSuffix;
+    }
 //
 //    /**
 //     * Create a file with the given path
@@ -529,57 +525,57 @@ public class Utils extends Logging {
 //     * @return The created file
 //     * @throws KafkaStorageException If the file create fails
 //     */
-//    def createFile(path:String)
+//    def createFile(String path);
 //
 //    :File=
 //
 //    {
-//        val f = new File(path)
-//        val created = f.createNewFile()
-//        if (!created)
-//            throw new KafkaStorageException("Failed to create file %s.".format(path))
-//        f
+//        Integer f = new File(path);
+//        Integer created = f.createNewFile();
+//        if (!created);
+//            throw new KafkaStorageException(String.format("Failed to create file %s.",path));
+//        f;
 //    }
 //
 //    /**
 //     * Turn a properties map into a string
 //     */
-//    def asString(props:Properties)
+//    def asString(Properties props);
 //
 //    :String=
 //
 //    {
-//        val writer = new StringWriter()
-//        props.store(writer, "")
-//        writer.toString
+//        Integer writer = new StringWriter();
+//        props.store(writer, "");
+//        writer.toString;
 //    }
 //
 //    /**
 //     * Read some properties with the given default values
 //     */
-//    def readProps(s:String, defaults:Properties)
+//    def readProps(String s, Properties defaults);
 //
 //    :Properties=
 //
 //    {
-//        val reader = new StringReader(s)
-//        val props = new Properties(defaults)
-//        props.load(reader)
-//        props
+//        Integer reader = new StringReader(s);
+//        Integer props = new Properties(defaults);
+//        props.load(reader);
+//        props;
 //    }
 //
 //    /**
 //     * Read a big-endian integer from a byte array
 //     */
-//    def readInt(bytes:Array[Byte], offset:Int)
+//    def readInt(Array bytes[Byte], Int offset);
 //
 //    :Int=
 //
 //    {
-//        ((bytes(offset) & 0xFF) << 24) |
-//                ((bytes(offset + 1) & 0xFF) << 16) |
-//                ((bytes(offset + 2) & 0xFF) << 8) |
-//                (bytes(offset + 3) & 0xFF)
+//        ((bytes(offset) & 0xFF) << 24) |;
+//                ((bytes(offset + 1) & 0xFF) << 16) |;
+//                ((bytes(offset + 2) & 0xFF) << 8) |;
+//                (bytes(offset + 3) & 0xFF);
 //    }
 //
 //    /**
@@ -604,27 +600,27 @@ public class Utils extends Logging {
 
 //
 //    def inReadLock[
-//    T](lock:ReadWriteLock)(fun:=>T):T=inLock[T](lock.readLock)(fun)
+//    T](ReadWriteLock lock)(fun:=>T):T=inLock[T](lock.readLock)(fun);
 //
 //    def inWriteLock[
-//    T](lock:ReadWriteLock)(fun:=>T):T=inLock[T](lock.writeLock)(fun)
+//    T](ReadWriteLock lock)(fun:=>T):T=inLock[T](lock.writeLock)(fun);
 //
 //
-//    //JSON strings need to be escaped based on ECMA-404 standard http://json.org
-//    def JSONEscapeString(s:String)
+//    //JSON strings need to be escaped based on ECMA-404 standard http://json.org;
+//    def JSONEscapeString(String s);
 //
 //    :String=
 //
 //    {
 //        s.map {
-//        case '"' =>"\\\""
-//        case '\\' =>"\\\\"
-//        case '/' =>"\\/"
-//        case '\b' =>"\\b"
-//        case '\f' =>"\\f"
-//        case '\n' =>"\\n"
-//        case '\r' =>"\\r"
-//        case '\t' =>"\\t"
+//        case '"' =>"\\\"";
+//        case '\\' =>"\\\\";
+//        case '/' =>"\\/";
+//        case '\b' =>"\\b";
+//        case '\f' =>"\\f";
+//        case '\n' =>"\\n";
+//        case '\r' =>"\\r";
+//        case '\t' =>"\\t";
 //      /* We'll unicode escape any control characters. These include:
 //       * 0x0 -> 0x1f  : ASCII Control (C0 Control Codes)
 //       * 0x7f         : ASCII DELETE
@@ -633,25 +629,25 @@ public class Utils extends Logging {
 //       * Per RFC4627, section 2.5, we're not technically required to
 //       * encode the C1 codes, but we do to be safe.
 //       */
-//        case c if ((c >= '\u0000' && c <= '\u001f') || (c >= '\u007f' && c <= '\u009f'))=>"\\u%04x".format(c:Int)
-//        case c =>c
-//    }.mkString
+//        case c if ((c >= '\u0000' && c <= '\u001f') || (c >= '\u007f' && c <= '\u009f'))=>String.format("\\u%04x",Int c);
+//        case c =>c;
+//    }.mkString;
 //    }
 //
 //    /**
 //     * Returns a list of duplicated items
 //     */
 //    def duplicates[
-//    T](s:Traversable[T]):Iterable[T]=
+//    T](Traversable s[T]):Iterable[T]=
 //
 //    {
-//        s.groupBy(identity)
+//        s.groupBy(identity);
 //                .map {
 //        case (k,l)=>(k, l.size)}
 //        .filter {
-//        case (k,l)=>(l > 1)
+//        case (k,l)=>(l > 1);
 //    }
-//        .keys
+//        .keys;
 //    }
 
     /*********************************************************************************/

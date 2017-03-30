@@ -106,6 +106,16 @@ public abstract class MessageSet extends Logging implements Iterable<MessageAndO
         return builder.toString();
     }
 
+
+    public List<MessageAndOffset> toMessageAndOffsetList() {
+        Iterator<MessageAndOffset> it = iterator();
+        List<MessageAndOffset> list = Lists.newArrayList();
+        while (it.hasNext()) {
+            list.add(it.next());
+        }
+        return list;
+    }
+
     public List<Message> toMessageList() {
         Iterator<MessageAndOffset> it = iterator();
         List<Message> list = Lists.newArrayList();
@@ -119,6 +129,16 @@ public abstract class MessageSet extends Logging implements Iterable<MessageAndO
         Iterator<MessageAndOffset> it = iterator();
         if (it.hasNext()) {
             return it.next();
+        }
+        return null;
+    }
+
+
+    public Iterator<MessageAndOffset> tail() {
+        Iterator<MessageAndOffset> it = iterator();
+        if (it.hasNext()) {
+            it.next();
+            return it;
         }
         return null;
     }

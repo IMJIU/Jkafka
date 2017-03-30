@@ -1,5 +1,6 @@
 package kafka.log;
 
+import kafka.common.KafkaStorageException;
 import kafka.message.*;
 import kafka.server.FetchDataInfo;
 import kafka.server.LogOffsetMetadata;
@@ -245,66 +246,77 @@ public class LogSegment extends Logging {
         }
     }
 //
-        /**
-         * Flush this log segment to disk
-         */
+
+    /**
+     * Flush this log segment to disk
+     */
 //        @threadsafe;
-        public void flush() {
-            LogFlushStats.logFlushTimer.time(()->{
-                try {
-                    log.flush();
-                    index.flush();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-                return 0;
-            });
-        }
-//
+    public void flush() {
+        LogFlushStats.logFlushTimer.time(() -> {
+            try {
+                log.flush();
+                index.flush();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return 0;
+        });
+    }
+
+    //
 //        /**
 //         * Change the suffix for the index and log file for this log segment
 //         */
-        public void changeFileSuffixes(String oldSuffix, String newSuffix) {
-            Boolean logRenamed = log.renameTo(new File(Utils.replaceSuffix(log.file.getPath(), oldSuffix, newSuffix)));
-            if(!logRenamed)
-                throw new KafkaStorageException(String.format("Failed to change the log file suffix from %s to %s for log segment %d",oldSuffix, newSuffix, baseOffset));
-            Long indexRenamed = index.renameTo(new File(Utils.replaceSuffix(index.file.getPath(), oldSuffix, newSuffix)));
-            if(!indexRenamed)
-                throw new KafkaStorageException(String.format("Failed to change the index file suffix from %s to %s for log segment %d",oldSuffix, newSuffix, baseOffset));
+    public void changeFileSuffixes(String oldSuffix, String newSuffix) {
+        Boolean logRenamed = log.renameTo(new File(Utils.replaceSuffix(log.file.getPath(), oldSuffix, newSuffix)));
+        if (!logRenamed)
+            throw new KafkaStorageException(String.format("Failed to change the log file suffix from %s to %s for log segment %d", oldSuffix, newSuffix, baseOffset));
+        Boolean indexRenamed = index.renameTo(new File(Utils.replaceSuffix(index.file.getPath(), oldSuffix, newSuffix)));
+        if (!indexRenamed)
+            throw new KafkaStorageException(String.format("Failed to change the index file suffix from %s to %s for log segment %d", oldSuffix, newSuffix, baseOffset));
+    }
+//
+
+    /**
+     * Close this log segment
+     */
+    public void close() {
+        Utils.swallow(() -> index.close());
+        // TODO: 2017/3/30 close
+        try {
+            log.close();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
+    }
 //
-//        /**
-//         * Close this log segment
-//         */
-//        def close() {
-//            Utils.swallow(index.close);
-//            Utils.swallow(log.close);
-//        }
-//
-//        /**
-//         * Delete this log segment from the filesystem.
-//         * @throws KafkaStorageException if the delete fails.
-//         */
-//        def delete() {
-//            Long deletedLog = log.delete();
-//            Long deletedIndex = index.delete();
-//            if(!deletedLog && log.file.exists)
-//                throw new KafkaStorageException("Delete of log " + log.file.getName + " failed.");
-//            if(!deletedIndex && index.file.exists)
-//                throw new KafkaStorageException("Delete of index " + index.file.getName + " failed.");
-//        }
-//
-//        /**
-//         * The last modified time of this log segment as a unix time stamp
-//         */
-//        def lastModified = log.file.lastModified;
-//
-//        /**
-//         * Change the last modified time for this log segment
-//         */
-//        def lastModified_=(Long ms) = {
-//            log.file.setLastModified(ms);
-//            index.file.setLastModified(ms);
-//        }
-//    }
+
+    /**
+     * Delete this log segment from the filesystem.
+     *
+     * @throws KafkaStorageException if the delete fails.
+     */
+    public void delete() {
+        Boolean deletedLog = log.delete();
+        Boolean deletedIndex = index.delete();
+        if (!deletedLog && log.file.exists())
+            throw new KafkaStorageException("Delete of log " + log.file.getName() + " failed.");
+        if (!deletedIndex && index.file.exists())
+            throw new KafkaStorageException("Delete of index " + index.file.getName() + " failed.");
+    }
+
+    /**
+     * The last modified time of this log segment as a unix time stamp
+     */
+    public Long lastModified() {
+        return log.file.lastModified();
+    }
+
+    /**
+     * Change the last modified time for this log segment
+     */
+    public void lastModified_(Long ms) {
+        log.file.setLastModified(ms);
+        index.file.setLastModified(ms);
+    }
 }
