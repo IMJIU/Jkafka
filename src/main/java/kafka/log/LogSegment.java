@@ -1,5 +1,7 @@
 package kafka.log;
 
+import kafka.annotation.nonthreadsafe;
+import kafka.annotation.threadsafe;
 import kafka.common.KafkaStorageException;
 import kafka.message.*;
 import kafka.server.FetchDataInfo;
@@ -20,7 +22,7 @@ import java.util.Optional;
  * segment has a base offset which is an offset <= the least offset of any message in this segment and > any offset in
  * any previous segment.
  */
-//@nonthreadsafe;
+@nonthreadsafe
 public class LogSegment extends Logging {
     public FileMessageSet log;
     public OffsetIndex index;
@@ -50,7 +52,6 @@ public class LogSegment extends Logging {
         this.time = time;
     }
 
-    //
     public LogSegment(File dir, Long startOffset, Integer indexIntervalBytes, Integer maxIndexSize, Long rollJitterMs, Time time) throws IOException {
         this(new FileMessageSet(Log.logFilename(dir, startOffset)),
                 new OffsetIndex(Log.indexFilename(dir, startOffset), startOffset, maxIndexSize),
@@ -60,8 +61,7 @@ public class LogSegment extends Logging {
                 time);
     }
 
-    //
-  /* Return the size in bytes of this log segment */
+    /* Return the size in bytes of this log segment */
     public Long size() {
         return log.sizeInBytes().longValue();
     }
@@ -76,7 +76,7 @@ public class LogSegment extends Logging {
      * @param offset   The first offset in the message set.
      * @param messages The messages to append.
      */
-    //@nonthreadsafe;
+    @nonthreadsafe
     public void append(Long offset, ByteBufferMessageSet messages) {
         if (messages.sizeInBytes() > 0) {
             trace(String.format("Inserting %d bytes at offset %d at position %d", messages.sizeInBytes(), offset, log.sizeInBytes()));
@@ -102,12 +102,11 @@ public class LogSegment extends Logging {
      *                             when omitted, the search will begin at the position in the offset index.
      * @return The position in the log storing the message with the least offset >= the requested offset or null if no message meets this criteria.
      */
-    //@threadsafe;
+    @threadsafe
     OffsetPosition translateOffset(Long offset, Integer startingFilePosition) {
         OffsetPosition mapping = index.lookup(offset);
         return log.searchFor(offset, Math.max(mapping.position, startingFilePosition));
     }
-//
 
     /**
      * Read a message set from this segment beginning with the first offset >= startOffset. The message set will include
@@ -120,43 +119,47 @@ public class LogSegment extends Logging {
      * or null if the startOffset is larger than the largest offset in this log
      */
 
-//        @threadsafe;
+    @threadsafe
     public FetchDataInfo read(Long startOffset, Optional<Long> maxOffset, Integer maxSize) {
-        if (maxSize < 0)
+        if (maxSize < 0) {
             throw new IllegalArgumentException(String.format("Invalid max size for log read (%d)", maxSize));
+        }
 
         Integer logSize = log.sizeInBytes(); // this may change, need to save a consistent copy;
         OffsetPosition startPosition = translateOffset(startOffset, 0);
 
         // if the start position is already off the end of the log, return null;
-        if (startPosition == null)
+        if (startPosition == null) {
             return null;
+        }
 
         LogOffsetMetadata offsetMetadata = new LogOffsetMetadata(startOffset, this.baseOffset, startPosition.position);
 
         // if the size is zero, still return a log segment but with zero size;
-        if (maxSize == 0)
+        if (maxSize == 0) {
             return new FetchDataInfo(offsetMetadata, MessageSet.Empty);
+        }
 
         // calculate the length of the message set to read based on whether or not they gave us a maxOffset;
         Integer length = 0;
-        if (maxOffset.isPresent()) {
+        if (!maxOffset.isPresent()) {
             length = maxSize;
         } else {
             Long offset = maxOffset.get();
-            if (offset < startOffset)
+            if (offset < startOffset) {
                 throw new IllegalArgumentException(String.format("Attempt to read with a maximum offset (%d) less than the start offset (%d).", offset, startOffset));
+            }
             OffsetPosition mapping = translateOffset(offset, startPosition.position);
             Integer endPosition;
-            if (mapping == null)
+            if (mapping == null) {
                 endPosition = logSize; // the max offset is off the end of the log, use the end of the file;
-            else
+            } else {
                 endPosition = mapping.position;
+            }
             Math.min(endPosition - startPosition.position, maxSize);
         }
         return new FetchDataInfo(offsetMetadata, log.read(startPosition.position, length));
     }
-//
 
     /**
      * Run recovery on the given segment. This will rebuild the index from the log file and lop off any invalid bytes from the end of the log and index.
@@ -165,7 +168,7 @@ public class LogSegment extends Logging {
      *                       is corrupt.
      * @return The number of bytes truncated from the log
      */
-//  @nonthreadsafe;
+    @nonthreadsafe
     public Integer recover(Integer maxMessageSize) throws IOException {
         index.truncate();
         index.resize(index.maxIndexSize);
@@ -203,7 +206,6 @@ public class LogSegment extends Logging {
     public String toString() {
         return "LogSegment(baseOffset=" + baseOffset + ", size=" + size() + ")";
     }
-    //
 
     /**
      * Truncate off all index and log entries with offsets >= the given offset.
@@ -213,7 +215,7 @@ public class LogSegment extends Logging {
      * @return The number of log bytes truncated
      */
     // truncateTo(offset)就是把end到offset的起始位置;
-//  @nonthreadsafe;
+    @nonthreadsafe
     public Integer truncateTo(Long offset) throws IOException {
         OffsetPosition mapping = translateOffset(offset, 0);
         if (mapping == null)
@@ -232,7 +234,7 @@ public class LogSegment extends Logging {
      * Calculate the offset that would be used for the next message to be append to this segment.
      * Note that this is expensive.
      */
-//    @threadsafe;
+    @threadsafe
     public Long nextOffset() {
         FetchDataInfo ms = read(index.lastOffset, Optional.empty(), log.sizeInBytes());
         if (ms == null) {
@@ -250,7 +252,7 @@ public class LogSegment extends Logging {
     /**
      * Flush this log segment to disk
      */
-//        @threadsafe;
+    @threadsafe
     public void flush() {
         LogFlushStats.logFlushTimer.time(() -> {
             try {
@@ -263,10 +265,10 @@ public class LogSegment extends Logging {
         });
     }
 
-    //
-//        /**
-//         * Change the suffix for the index and log file for this log segment
-//         */
+
+    /**
+     * Change the suffix for the index and log file for this log segment
+     */
     public void changeFileSuffixes(String oldSuffix, String newSuffix) {
         Boolean logRenamed = log.renameTo(new File(Utils.replaceSuffix(log.file.getPath(), oldSuffix, newSuffix)));
         if (!logRenamed)
@@ -275,7 +277,6 @@ public class LogSegment extends Logging {
         if (!indexRenamed)
             throw new KafkaStorageException(String.format("Failed to change the index file suffix from %s to %s for log segment %d", oldSuffix, newSuffix, baseOffset));
     }
-//
 
     /**
      * Close this log segment
@@ -289,7 +290,6 @@ public class LogSegment extends Logging {
             e.printStackTrace();
         }
     }
-//
 
     /**
      * Delete this log segment from the filesystem.

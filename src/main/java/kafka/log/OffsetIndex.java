@@ -250,12 +250,13 @@ public class OffsetIndex extends Logging {
        * 3) if there is no entry for this offset, delete everything larger than the next smallest
        */
             int newEntries;
-            if (slot < 0)
+            if (slot < 0) {//not find smaller
                 newEntries = 0;
-            else if (relativeOffset(idx, slot) == offset - baseOffset)
+            } else if (relativeOffset(idx, slot) == (offset - baseOffset)) {//find
                 newEntries = slot;
-            else
+            } else {//not find larger
                 newEntries = slot + 1;
+            }
             truncateToEntries(newEntries);
         });
     }

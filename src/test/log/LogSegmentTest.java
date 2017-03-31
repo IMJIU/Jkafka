@@ -3,6 +3,7 @@ package log;/**
  */
 
 import com.google.common.collect.Lists;
+import com.sun.xml.internal.bind.v2.TODO;
 import kafka.log.FileMessageSet;
 import kafka.log.LogSegment;
 import kafka.log.OffsetIndex;
@@ -40,16 +41,14 @@ public class LogSegmentTest {
         segments.add(seg);
         return seg;
     }
-//
-    /* create a ByteBufferMessageSet for the given messages starting from the given offset */
 
+    /* create a ByteBufferMessageSet for the given messages starting from the given offset */
     public ByteBufferMessageSet messages(Long offset, List<String> messages) {
         return new ByteBufferMessageSet(CompressionCodec.NoCompressionCodec,
                 new AtomicLong(offset),
                 messages.stream().map((s) -> new Message(s.getBytes())).collect(Collectors.toList()));
     }
 
-    //
     @After
     public void teardown() {
         for (LogSegment seg : segments) {
@@ -57,7 +56,6 @@ public class LogSegmentTest {
             seg.log.delete();
         }
     }
-//
 
     /**
      * A read on an empty log segment should return null
@@ -77,11 +75,10 @@ public class LogSegmentTest {
     public void testReadBeforeFirstOffset() throws Exception {
         LogSegment seg = createSegment(40L);
         ByteBufferMessageSet ms = messages(50L, Lists.newArrayList("hello", "there", "little", "bee"));
-        seg.append(50l, ms);
+        seg.append(50L, ms);
         MessageSet read = seg.read(41L, Optional.empty(), 300).messageSet;
         TestUtils.checkEquals(ms.iterator(), read.iterator());
     }
-//
 
     /**
      * If we set the startOffset and maxOffset for the read to be the same value
@@ -134,7 +131,7 @@ public class LogSegmentTest {
         ByteBufferMessageSet ms2 = messages(60L, Lists.newArrayList("alpha", "beta"));
         seg.append(60L, ms2);
         FetchDataInfo read = seg.read(55L, Optional.empty(), 200);
-        Assert.assertEquals(ms2.iterator(), read.messageSet.iterator());
+        TestUtils.checkEquals(ms2.iterator(), read.messageSet.iterator());
     }
 
     /**
@@ -219,7 +216,6 @@ public class LogSegmentTest {
         for (long i = 0; i < 100; i++)
             Assert.assertEquals(new Long(i), seg.read(i, Optional.of(i + 1), 1024).messageSet.head().offset);
     }
-//
 
     /**
      * Randomly corrupt a log a number of times and attempt recovery.
@@ -238,9 +234,10 @@ public class LogSegmentTest {
             seg.recover(64 * 1024);
 //            Assert.assertEquals("Should have truncated off bad messages.", (0until offsetToBeginCorruption).toList, seg.log.map(_.offset).toList)
             Assert.assertEquals("Should have truncated off bad messages.",
-                    Stream.iterate(0,  n -> n + 1).limit(offsetToBeginCorruption).collect(Collectors.toList()),
+                    Stream.iterate(0L,  n -> n + 1).limit(offsetToBeginCorruption).collect(Collectors.toList()),
                     seg.log.toMessageAndOffsetList().stream().map((m)->m.offset).collect(Collectors.toList()));
-            seg.delete();
+            // TODO: 2017/4/1 windows fail segment.delete()
+//            seg.delete();
         }
     }
 }

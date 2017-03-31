@@ -127,16 +127,23 @@ public class FileMessageSet extends MessageSet {
             while (position + MessageSet.LogOverhead < size) {
                 buffer.rewind();
                 channel.read(buffer, position);
-                if (buffer.hasRemaining())
-                    throw new IllegalStateException("Failed to read complete buffer for targetOffset %d startPosition %d in %s"
-                            .format(targetOffset.toString(), startingPosition, file.getAbsolutePath()));
+
+                if (buffer.hasRemaining()) {
+                    throw new IllegalStateException(String.format("Failed to read complete buffer for targetOffset %d startPosition %d in %s", targetOffset, startingPosition, file.getAbsolutePath()));
+                }
                 buffer.rewind();
                 Long offset = buffer.getLong();
-                if (offset >= targetOffset)
+
+                if (offset >= targetOffset) {
                     return new OffsetPosition(offset, position);
+                }
+
                 Integer messageSize = buffer.getInt();
-                if (messageSize < Message.MessageOverhead)
+
+                if (messageSize < Message.MessageOverhead) {
                     throw new IllegalStateException("Invalid message size: " + messageSize);
+                }
+
                 position += MessageSet.LogOverhead + messageSize;
             }
         } catch (IOException e) {
