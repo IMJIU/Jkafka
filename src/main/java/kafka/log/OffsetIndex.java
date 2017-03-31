@@ -48,9 +48,11 @@ public class OffsetIndex extends Logging {
     public volatile File file;
     public Long baseOffset;
     public Integer maxIndexSize = -1;
+
     public OffsetIndex(File file, Long baseOffset) throws IOException {
-        this(file,baseOffset,-1);
+        this(file, baseOffset, -1);
     }
+
     public OffsetIndex(File file, Long baseOffset, Integer maxIndexSize) throws IOException {
         this.file = file;
         this.baseOffset = baseOffset;
@@ -87,11 +89,12 @@ public class OffsetIndex extends Logging {
             MappedByteBuffer idx = raf.getChannel().map(FileChannel.MapMode.READ_WRITE, 0, len);
 
         /* set the position in the index for the next entry */
-            if (newlyCreated)
+            if (newlyCreated) {
                 idx.position(0);
-            else
+            } else {
                 // if this is a pre-existing index, assume it is all valid and set position to last entry
                 idx.position(roundToExactMultiple(idx.limit(), 8));
+            }
             mmap = idx;
         } finally {
             raf.close();
@@ -107,16 +110,13 @@ public class OffsetIndex extends Logging {
      * The last entry in the index
      */
     public OffsetPosition readLastEntry() {
-        lock.lock();
-        try {
+        return Utils.inLock(lock, () -> {
             int s = size.get();
             if (s == 0) {
                 return new OffsetPosition(baseOffset, 0);
             }
             return new OffsetPosition(baseOffset + relativeOffset(this.mmap, s - 1), physical(this.mmap, s - 1));
-        } finally {
-            lock.unlock();
-        }
+        });
     }
 
     /**
@@ -276,7 +276,7 @@ public class OffsetIndex extends Logging {
      * the file.
      */
     public void trimToValidSize() {
-        Utils.inLock(lock, () ->  resize(entries() * 8));
+        Utils.inLock(lock, () -> resize(entries() * 8));
     }
 
     /**

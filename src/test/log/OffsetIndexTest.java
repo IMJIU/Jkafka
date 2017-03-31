@@ -39,14 +39,13 @@ public class OffsetIndexTest {
 
     @Test
     public void randomLookupTest() {
-        System.out.println(idx);
         Assert.assertEquals("Not present value should return physical offset 0.", new OffsetPosition(idx.baseOffset, 0), idx.lookup(92L));
 
         // append some random values;
         Integer base = idx.baseOffset.intValue() + 1;
         Integer size = idx.maxEntries;
-        List<Long> vals = monotonicSeq(base, size).stream().map((n) -> (long) n).collect(Collectors.toList());
-        List<Integer> vals2 = (monotonicSeq(0, size));
+        List<Long> vals = monotonicList(base, size).stream().map((n) -> (long) n).collect(Collectors.toList());
+        List<Integer> vals2 = (monotonicList(0, size));
         for (int i = 0; i < vals.size(); i++) {
             idx.append(vals.get(i), vals2.get(i));
         }
@@ -64,14 +63,15 @@ public class OffsetIndexTest {
             valMap.put(vals.get(i), new OffsetPosition(vals.get(i), vals2.get(i)));
         }
         List<Long> offsets = Stream.iterate(idx.baseOffset, n -> n + 1).limit(vals.get(vals.size() - 1)).collect(Collectors.toList());
-        Collections.shuffle(Arrays.asList(offsets));
-//        for (offset< -offsets.take(30)) {
-        for (long offset = offsets.get(0); offset < offsets.get(30); offset++) {
+        long max = offsets.get(offsets.size()-1);
+        Collections.shuffle(offsets);
+        for (long offset = offsets.get(0); offset < max; offset++) {
             OffsetPosition rightAnswer;
-            if (offset < valMap.firstKey())
+            if (offset < valMap.firstKey()) {
                 rightAnswer = new OffsetPosition(idx.baseOffset, 0);
-            else
+            } else {
                 rightAnswer = new OffsetPosition(valMap.get(valMap.floorKey(offset)).offset, valMap.get(valMap.floorKey(offset)).position);
+            }
             Assert.assertEquals("The index should give the same answer as the sorted map", rightAnswer, idx.lookup(offset));
         }
     }
@@ -113,7 +113,7 @@ public class OffsetIndexTest {
         Assert.assertEquals(first, idxRo.lookup(first.offset));
         Assert.assertEquals(sec, idxRo.lookup(sec.offset));
         Assert.assertEquals(sec.offset, idxRo.lastOffset);
-        Assert.assertEquals(new Long(2), idxRo.entries());
+        Assert.assertEquals(new Integer(2), idxRo.entries());
         assertWriteFails("Append should fail on read-only index", idxRo, 53, IllegalArgumentException.class);
     }
 
@@ -146,20 +146,21 @@ public class OffsetIndexTest {
         idx.append(5L, 5);
 
         idx.truncate();
-        Assert.assertEquals("Full truncation should leave no entries", new Long(0), idx.entries());
+        Assert.assertEquals("Full truncation should leave no entries", new Integer(0), idx.entries());
         idx.append(0L, 0);
     }
 
     public <T> void assertWriteFails(String message, OffsetIndex idx, Integer offset, Class<T> klass) {
         try {
             idx.append(offset.longValue(), 1);
+            System.out.println("can not be there!");
             throw new Exception(message);
         } catch (Exception e) {
             Assert.assertEquals("Got an unexpected exception.", klass, e.getClass());
         }
     }
 
-    public List<Integer> monotonicSeq(Integer base, Integer len) {
+    public List<Integer> monotonicList(Integer base, Integer len) {
         Random rand = new Random(1L);
         List<Integer> vals = Lists.newArrayList();
         Integer last = base;
