@@ -141,22 +141,22 @@ public class LogSegment extends Logging {
         }
 
         // calculate the length of the message set to read based on whether or not they gave us a maxOffset;
-        Integer length = 0;
+        Integer length;
         if (!maxOffset.isPresent()) {
             length = maxSize;
         } else {
-            Long offset = maxOffset.get();
-            if (offset < startOffset) {
-                throw new IllegalArgumentException(String.format("Attempt to read with a maximum offset (%d) less than the start offset (%d).", offset, startOffset));
+            Long maxOffs = maxOffset.get();
+            if (maxOffs < startOffset) {
+                throw new IllegalArgumentException(String.format("Attempt to read with a maximum offset (%d) less than the start offset (%d).", maxOffs, startOffset));
             }
-            OffsetPosition mapping = translateOffset(offset, startPosition.position);
+            OffsetPosition mapping = translateOffset(maxOffs, startPosition.position);
             Integer endPosition;
             if (mapping == null) {
                 endPosition = logSize; // the max offset is off the end of the log, use the end of the file;
             } else {
                 endPosition = mapping.position;
             }
-            Math.min(endPosition - startPosition.position, maxSize);
+            length = Math.min(endPosition - startPosition.position, maxSize);
         }
         return new FetchDataInfo(offsetMetadata, log.read(startPosition.position, length));
     }
@@ -181,7 +181,7 @@ public class LogSegment extends Logging {
                 entry.message.ensureValid();
                 if (validBytes - lastIndexEntry > indexIntervalBytes) {
                     // we need to decompress the message, if required, to get the offset of the first uncompressed message;
-                    Long startOffset = 0L;
+                    Long startOffset;
                     if (entry.message.compressionCodec() == CompressionCodec.NoCompressionCodec) {
                         startOffset = entry.offset;
                     } else {
@@ -247,7 +247,6 @@ public class LogSegment extends Logging {
             return baseOffset;
         }
     }
-//
 
     /**
      * Flush this log segment to disk

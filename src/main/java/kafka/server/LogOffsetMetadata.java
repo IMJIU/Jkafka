@@ -12,6 +12,11 @@ public class LogOffsetMetadata {
     public Long segmentBaseOffset = LogOffsetMetadata.UnknownSegBaseOffset;
     public Integer relativePositionInSegment = LogOffsetMetadata.UnknownFilePosition;
 
+    public LogOffsetMetadata(Long messageOffset, Long segmentBaseOffset, Integer positionInSegment) {
+        this.messageOffset = messageOffset;
+        this.segmentBaseOffset = segmentBaseOffset;
+        this.relativePositionInSegment = positionInSegment;
+    }
 //    class OffsetOrdering extends Ordering[LogOffsetMetadata] {
 //        override def compare(x: LogOffsetMetadata , y: LogOffsetMetadata ): Int = {
 //        return x.offsetDiff(y).toInt
@@ -27,11 +32,7 @@ public class LogOffsetMetadata {
         this(messageOffset, segmentBaseOffset, LogOffsetMetadata.UnknownFilePosition);
     }
 
-    public LogOffsetMetadata(Long messageOffset, Long segmentBaseOffset, Integer relativePositionInSegment) {
-        this.messageOffset = messageOffset;
-        this.segmentBaseOffset = segmentBaseOffset;
-        this.relativePositionInSegment = relativePositionInSegment;
-    }
+
 
 
 }
