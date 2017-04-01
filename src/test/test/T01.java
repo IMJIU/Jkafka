@@ -28,7 +28,8 @@ public class T01 {
         List<String> filePaths = Arrays.asList(
 //                main + "server/ReplicaManager.java",
 //                main + "cluster/Partition.java",
-                main + "cluster/Replica.java");
+                main + "utils/Scheduler.java",
+                main + "log/LogConfig.java");
 //        List<String> filePaths = Arrays.asList(main + "log/Log.java");
         for (String p : filePaths) {
             convertToJava(p, true);

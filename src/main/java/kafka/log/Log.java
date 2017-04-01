@@ -4,6 +4,7 @@ package kafka.log;/**
 
 
 import kafka.metrics.KafkaMetricsGroup;
+import kafka.utils.Scheduler;
 import kafka.utils.Time;
 
 import java.io.File;
