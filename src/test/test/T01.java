@@ -23,11 +23,15 @@ public class T01 {
 //        test_format();
 //        String filePath = "src/main/java/kafka/log/LogSegment.java";
 //        String filePath = main + "utils/Utils.java";
-        String f = "for(i <- 1 until 10)";
-        System.out.println(f.replaceAll("for\\((\\w+)\\s?\\<-\\s?(\\d+)\\s+until\\s+(\\d+)\\)","for(int $1 = $2; $1 < $3; $1++)"));
-        List<String> filePaths = Arrays.asList(test + "log/OffsetIndexTest.java");
+//        String f = "for(i <- 1 until 10)";
+//        System.out.println(f.replaceAll("for\\((\\w+)\\s?\\<-\\s?(\\d+)\\s+until\\s+(\\d+)\\)","for(int $1 = $2; $1 < $3; $1++)"));
+        List<String> filePaths = Arrays.asList(
+//                main + "server/ReplicaManager.java",
+//                main + "cluster/Partition.java",
+                main + "cluster/Replica.java");
+//        List<String> filePaths = Arrays.asList(main + "log/Log.java");
         for (String p : filePaths) {
-//            convertToJava(p, true);
+            convertToJava(p, true);
         }
     }
 
@@ -42,6 +46,8 @@ public class T01 {
         String r4 = "String.format($1,";
         String p5 = "for\\((\\w+)\\s?\\<-\\s?(\\d+)\\s+until\\s+(\\d+)\\)";
         String r5 = "for(int $1 = $2; $1 < $3; $1++)";
+        String p6 = "\\[(\\S+\\s?\\S+)\\]";
+        String r6 = "<$1>";
         StringBuilder content = new StringBuilder();
         boolean comment = false;
 
@@ -60,6 +66,7 @@ public class T01 {
                         .replaceAll(p4, r4)
                         .replaceAll(p1, " Integer ")
                         .replaceAll(p5, r5)
+                        .replaceAll(p6, r6)
                 );
                 if (s.indexOf("/*") != -1) {
                     comment = true;
