@@ -8,7 +8,7 @@ import org.apache.log4j.Logger;
  * @author
  * @create 2017-03-23 16:33
  **/
-public abstract class Logging {
+public class Logging {
     public String loggerName = this.getClass().getName();
     public Logger logger = Logger.getLogger(loggerName);
 
@@ -113,7 +113,8 @@ public abstract class Logging {
     public void warn(String msg, Throwable e) {
         logger.warn(msgWithLogIdent(msg), e);
     }
-//
+
+    //
 //    def swallowWarn(action:=>Unit) {
 //        Utils.swallow(logger.warn, action)
 //    }
@@ -122,23 +123,20 @@ public abstract class Logging {
 //
 //    swallowWarn(action)
 //
-//    def error(msg:=>String):Unit =
-//
-//    {
-//        logger.error(msgWithLogIdent(msg))
-//    }
-//
+    public void error(String msg) {
+        logger.error(msgWithLogIdent(msg));
+    }
+
+    //
 //    def error(e:=>Throwable):Any =
 //
 //    {
 //        logger.error(logIdent, e)
 //    }
 //
-//    def error(msg:=>String, e:=>Throwable) =
-//
-//    {
-//        logger.error(msgWithLogIdent(msg), e)
-//    }
+    public void error(String msg, Throwable e) {
+        logger.error(msgWithLogIdent(msg), e);
+    }
 //
 //    def swallowError(action:=>Unit) {
 //        Utils.swallow(logger.error, action)

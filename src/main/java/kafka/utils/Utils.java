@@ -23,15 +23,16 @@ import java.util.zip.CRC32;
  * 3. You have tests for it if it is nontrivial in any way
  */
 public class Utils extends Logging {
-//        /**
-//         * Wrap the given function in a java.lang.Runnable
-//         * @param fun A function
-//         * @return A Runnable that just executes the function
-//         */
-//        public Runnable  runnable(fun: => Unit)
-//                new Runnable {
-//            def run() = fun;
-//        }
+    private static Logging logger = new Logging();
+    /**
+     * Wrap the given function in a java.lang.Runnable
+     *
+     * @param fun A function
+     * @return A Runnable that just executes the function
+     */
+    public static Runnable runnable(Action action) {
+        return () -> action.doAction();
+    }
 //
 //        /**
 //         * Create a daemon thread
@@ -59,23 +60,26 @@ public class Utils extends Logging {
 //        public Thread  daemonThread(String name, fun: () => Unit)
 //                daemonThread(name, runnable(fun));
 //
-//        /**
-//         * Create a new thread
-//         * @param name The name of the thread
-//         * @param runnable The work for the thread to do
-//         * @param daemon Should the thread block JVM shutdown?
-//         * @return The unstarted thread
-//         */
-//        public Thread  newThread(String name, Runnable runnable, Boolean daemon) {
-//                Integer thread = new Thread(runnable, name);
-//                thread.setDaemon(daemon);
-//                thread.setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
-//                    def uncaughtException(Thread t, Throwable e) {
-//                        error("Uncaught exception in thread '" + t.getName + "':", e);
-//                    }
-//                });
-//                thread;
-//        }
+
+    /**
+     * Create a new thread
+     *
+     * @param name     The name of the thread
+     * @param runnable The work for the thread to do
+     * @param daemon   Should the thread block JVM shutdown?
+     * @return The unstarted thread
+     */
+    public static Thread newThread(String name, Runnable runnable, Boolean daemon) {
+        Thread thread = new Thread(runnable, name);
+        thread.setDaemon(daemon);
+        thread.setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
+            @Override
+            public void uncaughtException(Thread t, Throwable e) {
+                logger.error("Uncaught exception in thread '" + t.getName() + "':", e);
+            }
+        });
+        return thread;
+    }
 //
 //        /**
 //         * Create a new thread
@@ -141,19 +145,20 @@ public class Utils extends Logging {
         else
             return new FileInputStream(file).getChannel();
     }
-//
+
+    //
 //        /**
 //         * Do the given action and log any exceptions thrown without rethrowing them
 //         * @param log The log method to use for logging. E.g. logger.warn
 //         * @param action The action to execute
 //         */
-        public static void swallow(Action action) {
-            try {
-                action.doAction();
-            } catch(Exception e){
-                e.printStackTrace();
-            }
+    public static void swallow(Action action) {
+        try {
+            action.doAction();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
+    }
 //
 //        /**
 //         * Test if two byte buffers are equal. In this case equality means having
@@ -509,15 +514,17 @@ public class Utils extends Logging {
 //
 //    =if(n==Integer.MIN_VALUE)0 else math.abs(n)
 //
+
     /**
      * Replace the given string suffix with the new suffix. If the string doesn't end with the given suffix throw an exception.
      */
-    public static String replaceSuffix(String s, String oldSuffix, String newSuffix){
+    public static String replaceSuffix(String s, String oldSuffix, String newSuffix) {
         if (!s.endsWith(oldSuffix))
-            throw new IllegalArgumentException(String.format("Expected string to end with '%s' but string is '%s'",oldSuffix, s));
+            throw new IllegalArgumentException(String.format("Expected string to end with '%s' but string is '%s'", oldSuffix, s));
         return s.substring(0, s.length() - oldSuffix.length()) + newSuffix;
     }
-//
+
+    //
 //    /**
 //     * Create a file with the given path
 //     *
@@ -581,15 +588,16 @@ public class Utils extends Logging {
 //    /**
 //     * Execute the given function inside the lock
 //     */
-        public static <T> T inLock(Lock lock, Processor<T> process){
-            lock.lock();
-            try {
-                return process.process();
-            } finally {
-                lock.unlock();
-            }
+    public static <T> T inLock(Lock lock, Processor<T> process) {
+        lock.lock();
+        try {
+            return process.process();
+        } finally {
+            lock.unlock();
         }
-    public static void inLock(Lock lock, Action action){
+    }
+
+    public static void inLock(Lock lock, Action action) {
         lock.lock();
         try {
             action.doAction();
