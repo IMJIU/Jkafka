@@ -1,4 +1,4 @@
-package test;/**
+package kafka.test;/**
  * Created by zhoulf on 2017/3/30.
  */
 

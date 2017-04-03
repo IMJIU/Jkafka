@@ -260,7 +260,7 @@ public class ByteBufferMessageSet extends MessageSet {
      * Update the offsets for this message set. This method attempts to do an in-place conversion
      * if there is no compression, but otherwise recopies the messages
      */
-    public ByteBufferMessageSet assignOffsets(AtomicLong offsetCounter, CompressionCodec codec) {
+    public ByteBufferMessageSet assignOffsets(AtomicLong offsetCounter, CompressionCodec codec){
         if (codec == CompressionCodec.NoCompressionCodec) {
             // do an in-place conversion
             int position = 0;

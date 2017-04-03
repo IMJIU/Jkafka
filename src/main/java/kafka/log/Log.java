@@ -3,12 +3,26 @@ package kafka.log;/**
  */
 
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import kafka.annotation.threadsafe;
+import kafka.common.*;
+import kafka.func.Action;
+import kafka.message.*;
 import kafka.metrics.KafkaMetricsGroup;
+import kafka.server.BrokerTopicStats;
+import kafka.server.LogOffsetMetadata;
+import kafka.utils.KafkaScheduler;
 import kafka.utils.Scheduler;
 import kafka.utils.Time;
+import kafka.utils.Utils;
 
+import javax.swing.text.Segment;
 import java.io.File;
+import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.text.NumberFormat;
+import java.util.*;
 import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -21,22 +35,23 @@ import java.util.concurrent.atomic.AtomicLong;
  * <p>
  * New log segments are created according to a configurable policy that controls the size in bytes or time interval
  * for a given segment.
- *
- * @param dir           The directory in which log segments are created.
- * @param config        The log configuration settings
- * @param recoveryPoint The offset at which to begin recovery--i.e. the first offset which has not been flushed to disk
- * @param scheduler     The thread pool scheduler used for background actions
- * @param time          The time instance used for checking the clock
  */
-//@threadsafe
-public class Log  extends KafkaMetricsGroup{
+@threadsafe
+public class Log extends KafkaMetricsGroup {
     public File dir;
-    public volatile LogConfig config ;
-     public  volatile Long recoveryPoint= 0L;
-    public Scheduler scheduler;
+    public volatile LogConfig config;
+    public volatile Long recoveryPoint = 0L;
+    public KafkaScheduler scheduler;
     public Time time;
 
-    public Log(File dir, LogConfig config, Long recoveryPoint, Scheduler scheduler, Time time) {
+    /**
+     * @param dir           The directory in which log segments are created.
+     * @param config        The log configuration settings
+     * @param recoveryPoint The offset at which to begin recovery--i.e. the first offset which has not been flushed to disk
+     * @param scheduler     The thread pool scheduler used for background actions
+     * @param time          The time instance used for checking the clock
+     */
+    public Log(File dir, LogConfig config, Long recoveryPoint, KafkaScheduler scheduler, Time time) {
         this.dir = dir;
         this.config = config;
         this.recoveryPoint = recoveryPoint;
@@ -52,19 +67,29 @@ public class Log  extends KafkaMetricsGroup{
 
     /* the actual segments of the log */
     private ConcurrentNavigableMap<Long, LogSegment> segments = new ConcurrentSkipListMap<Long, LogSegment>();
+    /* Calculate the offset of the next message */
+    public volatile LogOffsetMetadata nextOffsetMetadata;
+    TopicAndPartition topicAndPartition;
+    Map<String, String> tags;
+    /**
+     * The name of this log
+     */
+    public String name;
 
-//    loadSegments();
-//
-//    /* Calculate the offset of the next message */
-//    volatile LogOffsetMetadata nextOffsetMetadata = new LogOffsetMetadata(activeSegment.nextOffset(), activeSegment.baseOffset, activeSegment.size.toInt);
-//
-//    TopicAndPartition topicAndPartition = Log.parseTopicPartitionName(name);
-//
-//    info(String.format("Completed load of log %s with log end offset %d", name, logEndOffset));
-//
-//    val tags = Map("topic" ->topicAndPartition.topic,"partition"->topicAndPartition.partition.toString);
+    public void init() throws IOException {
+        loadSegments();
+        name = dir.getName();
+        nextOffsetMetadata = new LogOffsetMetadata(activeSegment().nextOffset(), activeSegment().baseOffset, activeSegment().size().intValue());
 
+        topicAndPartition = Log.parseTopicPartitionName(name);
+
+        info(String.format("Completed load of log %s with log end offset %d", name, logEndOffset()));
+
+        tags = Maps.newHashMap();
+        tags.put("topic", topicAndPartition.topic);
+        tags.put("partition", topicAndPartition.partition.toString());
 //
+    }
 //    newGauge("NumLogSegments",
 //                     new Gauge[Int] {
 //        public void  value = numberOfSegments;
@@ -89,318 +114,311 @@ public class Log  extends KafkaMetricsGroup{
 //    },
 //    tags);
 //
-//    /** The name of this log */
-//    public void  name  = dir.getName();
 //
-//    /* Load the log segments from the log files on disk */
-//    private public void  loadSegments() {
-//        // create the log directory if it doesn't exist;
-//        dir.mkdirs();
+
+    /* Load the log segments from the log files on disk */
+    private void loadSegments() throws IOException {
+        // create the log directory if it doesn't exist;
+        dir.mkdirs();
+
+        // first do a pass through the files in the log directory and remove any temporary files;
+        // and complete any interrupted swap operations;
+        for (File file : dir.listFiles()) {
+            if (!file.isFile()) {
+                continue;
+            }
+            if (!file.canRead())
+                throw new IOException("Could not read file " + file);
+            String filename = file.getName();
+            if (filename.endsWith(DeletedFileSuffix) || filename.endsWith(CleanedFileSuffix)) {
+                // if the file ends in .deleted or .cleaned, delete it;
+                file.delete();
+            } else if (filename.endsWith(SwapFileSuffix)) {
+                // we crashed in the middle of a swap operation, to recover:;
+                // if a log, swap it in and delete the .index file;
+                // if an index just delete it, it will be rebuilt;
+                File baseName = new File(Utils.replaceSuffix(file.getPath(), SwapFileSuffix, ""));
+                if (baseName.getPath().endsWith(IndexFileSuffix)) {
+                    file.delete();
+                } else if (baseName.getPath().endsWith(LogFileSuffix)) {
+                    // delete the index;
+                    File index = new File(Utils.replaceSuffix(baseName.getPath(), LogFileSuffix, IndexFileSuffix));
+                    index.delete();
+                    // complete the swap operation;
+                    boolean renamed = file.renameTo(baseName);
+                    if (renamed)
+                        info(String.format("Found log file %s from interrupted swap operation, repairing.", file.getPath()));
+                    else
+                        throw new KafkaException(String.format("Failed to rename file %s.", file.getPath()));
+                }
+            }
+        }
+
+        // now do a second pass and load all the .log and .index files;
+        for (File file : dir.listFiles()) {
+            if (!file.isFile()) {
+                continue;
+            }
+            String filename = file.getName();
+            if (filename.endsWith(IndexFileSuffix)) {
+                // if it is an index file, make sure it has a corresponding .log file;
+                File logFile = new File(file.getAbsolutePath().replace(IndexFileSuffix, LogFileSuffix));
+                if (!logFile.exists()) {
+                    warn(String.format("Found an orphaned index file, %s, with no corresponding log file.", file.getAbsolutePath()))
+                    file.delete();
+                }
+            } else if (filename.endsWith(LogFileSuffix)) {
+                // if its a log file, load the corresponding log segment;
+                Long start = Long.parseLong(filename.substring(0, filename.length() - LogFileSuffix.length()));
+                boolean hasIndex = Log.indexFilename(dir, start).exists();
+                LogSegment segment = new LogSegment(dir, start, config.indexInterval, config.maxIndexSize, config.randomSegmentJitter, time);
+                if (!hasIndex) {
+                    error(String.format("Could not find index file corresponding to log file %s, rebuilding index...", segment.log.file.getAbsolutePath))
+                    segment.recover(config.maxMessageSize);
+                }
+                segments.put(start, segment);
+            }
+        }
+        if (logSegments().size() == 0) {
+            // no existing segments, create a new mutable segment beginning at offset 0;
+            segments.put(0L, new LogSegment(dir, 0, config.indexInterval, config.maxIndexSize, config.randomSegmentJitter, time));
+        } else {
+            recoverLog();
+            // reset the index size of the currently active log segment to allow more entries;
+            activeSegment().index.resize(config.maxIndexSize);
+        }
+
+        // sanity check the index file of every segment to ensure we don't proceed with a corrupt segment;
+        for (LogSegment s : logSegments())
+            s.index.sanityCheck();
+    }
+
+    private void updateLogEndOffset(Long messageOffset) {
+        nextOffsetMetadata = new LogOffsetMetadata(messageOffset, activeSegment().baseOffset, activeSegment().size().intValue());
+    }
+
+    private void recoverLog() throws IOException {
+        // if we have the clean shutdown marker, skip recovery;
+        if (hasCleanShutdownFile()) {
+            this.recoveryPoint = activeSegment().nextOffset();
+            return;
+        }
+
+        // okay we need to actually recovery this log;
+        Iterator<LogSegment> unflushed = logSegments(this.recoveryPoint, Long.MAX_VALUE).iterator();
+        while (unflushed.hasNext()) {
+            LogSegment curr = unflushed.next();
+            info(String.format("Recovering unflushed segment %d in log %s.", curr.baseOffset, name))
+            Integer truncatedBytes;
+            try {
+                truncatedBytes = curr.recover(config.maxMessageSize);
+            } catch (InvalidOffsetException e) {
+                Long startOffset = curr.baseOffset;
+                warn("Found invalid offset during recovery for log " + dir.getName() + ". Deleting the corrupt segment and " +
+                        "creating an empty one with starting offset " + startOffset);
+                truncatedBytes = curr.truncateTo(startOffset);
+            }
+            if (truncatedBytes > 0) {
+                // we had an invalid message, delete all remaining log;
+                warn(String.format("Corruption found in segment %d of log %s, truncating to offset %d.", curr.baseOffset, name, curr.nextOffset()));
+//                unflushed.foreach(deleteSegment);
+                unflushed.forEachRemaining((s) -> deleteSegment(s));
+            }
+        }
+    }
+
+    /**
+     * Check if we have the "clean shutdown" file
+     */
+    private boolean hasCleanShutdownFile() {
+        return new File(dir.getParentFile(), CleanShutdownFile).exists();
+    }
+
+    /**
+     * The number of segments in the log.
+     * Take care! this is an O(n) operation.
+     */
+    public Integer numberOfSegments() {
+        return segments.size();
+    }
+
+    /**
+     * Close this log
+     */
+    public void close() {
+        debug("Closing log " + name);
+        synchronized (lock) {
+            logSegments().forEach((seg) -> seg.close());
+        }
+    }
+
+    /**
+     * Append this message set to the active segment of the log, rolling over to a fresh segment if necessary.
+     * <p>
+     * This method will generally be responsible for assigning offsets to the messages,
+     * however if the assignOffsets=false flag is passed we will only check that the existing offsets are valid.
+     *
+     * @param messages      The message set to append
+     * @param assignOffsets Should the log assign offsets to this message set or blindly apply what it is given
+     * @return Information about the appended messages including the first and last offset.
+     * @throws KafkaStorageException If the append fails due to an I/O error.
+     */
+    public LogAppendInfo append(ByteBufferMessageSet messages, Boolean assignOffsets) {
+        if (assignOffsets == null) {
+            assignOffsets = true;
+        }
+        LogAppendInfo appendInfo = analyzeAndValidateMessageSet(messages);//生成LogAppendInfo;
+
+        // if we have any valid messages, append them to the log;
+        if (appendInfo.shallowCount == 0)
+            return appendInfo;
+
+        // trim any invalid bytes or partial messages before appending it to the on-disk log;
+        ByteBufferMessageSet validMessages = trimInvalidBytes(messages, appendInfo);//过滤有效字符;
+
+        try {
+            // they are valid, insert them in the log;
+            synchronized (lock) {
+                appendInfo.firstOffset = nextOffsetMetadata.messageOffset;
+
+                if (assignOffsets) {
+                    // assign offsets to the message set;
+                    AtomicLong offset = new AtomicLong(nextOffsetMetadata.messageOffset);
+                    try {
+                        validMessages = validMessages.assignOffsets(offset, appendInfo.codec);
+                    } catch (Exception e) {
+                        throw new KafkaException(String.format("Error in validating messages while appending to log '%s'", name), e);
+                    }
+                    appendInfo.lastOffset = offset.get() - 1;
+                } else {
+                    // we are taking the offsets we are given;
+                    if (!appendInfo.offsetsMonotonic || appendInfo.firstOffset < nextOffsetMetadata.messageOffset)
+                        throw new IllegalArgumentException("Out of order offsets found in " + messages);
+                }
+
+                // re-validate message sizes since after re-compression some may exceed the limit;
+                Iterator<MessageAndOffset> it = validMessages.shallowIterator();
+                while (it.hasNext()) {
+                    MessageAndOffset messageAndOffset = it.next();
+                    if (MessageSet.entrySize(messageAndOffset.message) > config.maxMessageSize) {
+                        // we record the original message set size instead of trimmed size;
+                        // to be consistent with pre-compression bytesRejectedRate recording;
+                        BrokerTopicStats.getBrokerTopicStats(topicAndPartition.topic).bytesRejectedRate.mark(messages.sizeInBytes());
+                        BrokerTopicStats.getBrokerAllTopicsStats().bytesRejectedRate.mark(messages.sizeInBytes());
+                        throw new MessageSizeTooLargeException(String.format("Message size is %d bytes which exceeds the maximum configured message size of %d.",
+                                MessageSet.entrySize(messageAndOffset.message), config.maxMessageSize));
+                    }
+                }
+
+                // check messages set size may be exceed config.segmentSize;
+                if (validMessages.sizeInBytes() > config.segmentSize) {
+                    throw new MessageSetSizeTooLargeException(String.format("Message set size is %d bytes which exceeds the maximum configured segment size of %d.",
+                            validMessages.sizeInBytes(), config.segmentSize));
+                }
+
+
+                // maybe roll the log if this segment is full;
+                LogSegment segment = maybeRoll(validMessages.sizeInBytes());
+
+                // now append to the log;
+                segment.append(appendInfo.firstOffset, validMessages);
+
+                // increment the log end offset;
+                updateLogEndOffset(appendInfo.lastOffset + 1);
+
+                trace(String.format("Appended message set to log %s with first offset: %d, next offset: %d, and messages: %s",
+                        this.name, appendInfo.firstOffset, nextOffsetMetadata.messageOffset, validMessages));
+
+                if (unflushedMessages() >= config.flushInterval)
+                    flush();
+
+                return appendInfo;
+            }
+        } catch (Exception e) {
+            throw new KafkaStorageException(String.format("I/O exception in append to log '%s'", name), e);
+        }
+    }
+
+    /**
+     * Validate the following:
+     * <ol>
+     * <li> each message matches its CRC
+     * <li> each message size is valid
+     * </ol>
+     * <p>
+     * Also compute the following quantities:
+     * <ol>
+     * <li> First offset in the message set
+     * <li> Last offset in the message set
+     * <li> Number of messages
+     * <li> Number of valid bytes
+     * <li> Whether the offsets are monotonically increasing
+     * <li> Whether any compression codec is used (if many are used, then the last one is given)
+     * </ol>
+     */
+    private LogAppendInfo analyzeAndValidateMessageSet(ByteBufferMessageSet messages) {
+        Integer shallowMessageCount = 0;
+        Integer validBytesCount = 0;
+        Long firstOffset = 0L, lastOffset = -1L;
+        CompressionCodec codec = CompressionCodec.NoCompressionCodec;
+        boolean monotonic = true;
+        Iterator<MessageAndOffset> it = messages.shallowIterator();
+        while (it.hasNext()) {
+            MessageAndOffset messageAndOffset = it.next();
+            // update the first offset if on the first message;
+            if (firstOffset < 0)
+                firstOffset = messageAndOffset.offset;
+            // check that offsets are monotonically increasing;
+            if (lastOffset >= messageAndOffset.offset)
+                monotonic = false;
+            // update the last offset seen;
+            lastOffset = messageAndOffset.offset;
+
+            Message m = messageAndOffset.message;
+
+            // Check if the message sizes are valid.;
+            Integer messageSize = MessageSet.entrySize(m);
+            if (messageSize > config.maxMessageSize) {
+//                BrokerTopicStats.getBrokerTopicStats(topicAndPartition.topic).bytesRejectedRate.mark(messages.sizeInBytes());
+//                BrokerTopicStats.getBrokerAllTopicsStats.bytesRejectedRate.mark(messages.sizeInBytes());
+                throw new MessageSizeTooLargeException(String.format("Message size is %d bytes which exceeds the maximum configured message size of %d."
+                        , messageSize, config.maxMessageSize));
+            }
+
+            // check the validity of the message by checking CRC;
+            m.ensureValid();
+
+            shallowMessageCount += 1;
+            validBytesCount += messageSize;
+
+            CompressionCodec messageCodec = m.compressionCodec();
+            if (messageCodec != CompressionCodec.NoCompressionCodec)
+                codec = messageCodec;
+        }
+        return new LogAppendInfo(firstOffset, lastOffset, codec, shallowMessageCount, validBytesCount, monotonic);
+    }
 //
-//        // first do a pass through the files in the log directory and remove any temporary files;
-//        // and complete any interrupted swap operations;
-//        for(file <- dir.listFiles if file.isFile) {
-//            if(!file.canRead)
-//                throw new IOException("Could not read file " + file);
-//            val filename = file.getName;
-//            if(filename.endsWith(DeletedFileSuffix) || filename.endsWith(CleanedFileSuffix)) {
-//                // if the file ends in .deleted or .cleaned, delete it;
-//                file.delete();
-//            } else if(filename.endsWith(SwapFileSuffix)) {
-//                // we crashed in the middle of a swap operation, to recover:;
-//                // if a log, swap it in and delete the .index file;
-//                // if an index just delete it, it will be rebuilt;
-//                val baseName = new File(Utils.replaceSuffix(file.getPath, SwapFileSuffix, ""));
-//                if(baseName.getPath.endsWith(IndexFileSuffix)) {
-//                    file.delete();
-//                } else if(baseName.getPath.endsWith(LogFileSuffix)){
-//                    // delete the index;
-//                    val index = new File(Utils.replaceSuffix(baseName.getPath, LogFileSuffix, IndexFileSuffix));
-//                    index.delete();
-//                    // complete the swap operation;
-//                    val renamed = file.renameTo(baseName);
-//                    if(renamed)
-//                        info(String.format("Found log file %s from interrupted swap operation, repairing.",file.getPath))
-//                    else;
-//                        throw new KafkaException(String.format("Failed to rename file %s.",file.getPath))
-//                }
-//            }
-//        }
-//
-//        // now do a second pass and load all the .log and .index files;
-//        for(file <- dir.listFiles if file.isFile) {
-//            val filename = file.getName;
-//            if(filename.endsWith(IndexFileSuffix)) {
-//                // if it is an index file, make sure it has a corresponding .log file;
-//                val logFile = new File(file.getAbsolutePath.replace(IndexFileSuffix, LogFileSuffix));
-//                if(!logFile.exists) {
-//                    warn(String.format("Found an orphaned index file, %s, with no corresponding log file.",file.getAbsolutePath))
-//                    file.delete();
-//                }
-//            } else if(filename.endsWith(LogFileSuffix)) {
-//                // if its a log file, load the corresponding log segment;
-//                val start = filename.substring(0, filename.length - LogFileSuffix.length).toLong;
-//                val hasIndex = Log.indexFilename(dir, start).exists;
-//                val segment = new LogSegment(dir = dir,
-//                        startOffset = start,
-//                        indexIntervalBytes = config.indexInterval,
-//                        maxIndexSize = config.maxIndexSize,
-//                        rollJitterMs = config.randomSegmentJitter,
-//                        time = time);
-//                if(!hasIndex) {
-//                    error(String.format("Could not find index file corresponding to log file %s, rebuilding index...",segment.log.file.getAbsolutePath))
-//                    segment.recover(config.maxMessageSize);
-//                }
-//                segments.put(start, segment);
-//            }
-//        }
-//
-//        if(logSegments.size == 0) {
-//            // no existing segments, create a new mutable segment beginning at offset 0;
-//            segments.put(0L, new LogSegment(dir = dir,
-//                    startOffset = 0,
-//                    indexIntervalBytes = config.indexInterval,
-//                    maxIndexSize = config.maxIndexSize,
-//                    rollJitterMs = config.randomSegmentJitter,
-//                    time = time));
-//        } else {
-//            recoverLog();
-//            // reset the index size of the currently active log segment to allow more entries;
-//            activeSegment.index.resize(config.maxIndexSize);
-//        }
-//
-//        // sanity check the index file of every segment to ensure we don't proceed with a corrupt segment;
-//        for (s <- logSegments)
-//            s.index.sanityCheck();
-//    }
-//
-//    private public void  updateLogEndOffset(Long messageOffset) {
-//        nextOffsetMetadata = new LogOffsetMetadata(messageOffset, activeSegment.baseOffset, activeSegment.size.toInt);
-//    }
-//
-//    private public void  recoverLog() {
-//        // if we have the clean shutdown marker, skip recovery;
-//        if(hasCleanShutdownFile) {
-//            this.recoveryPoint = activeSegment.nextOffset;
-//            return;
-//        }
-//
-//        // okay we need to actually recovery this log;
-//        val unflushed = logSegments(this.recoveryPoint, Long.MaxValue).iterator;
-//        while(unflushed.hasNext) {
-//            val curr = unflushed.next;
-//            info(String.format("Recovering unflushed segment %d in log %s.",curr.baseOffset, name))
-//            val truncatedBytes =
-//            try {
-//                curr.recover(config.maxMessageSize);
-//            } catch {
-//                case InvalidOffsetException e =>
-//                    val startOffset = curr.baseOffset;
-//                    warn("Found invalid offset during recovery for log " + dir.getName +". Deleting the corrupt segment and " +;
-//                            "creating an empty one with starting offset " + startOffset);
-//                    curr.truncateTo(startOffset);
-//            }
-//            if(truncatedBytes > 0) {
-//                // we had an invalid message, delete all remaining log;
-//                warn(String.format("Corruption found in segment %d of log %s, truncating to offset %d.",curr.baseOffset, name, curr.nextOffset))
-//                unflushed.foreach(deleteSegment)
-//            }
-//        }
-//    }
-//
-//    /**
-//     * Check if we have the "clean shutdown" file
-//     */
-//    private public void  hasCleanShutdownFile() = new File(dir.getParentFile, CleanShutdownFile).exists();
-//
-//    /**
-//     * The number of segments in the log.
-//     * Take care! this is an O(n) operation.
-//     */
-//    public void  Integer numberOfSegments = segments.size;
-//
-//    /**
-//     * Close this log
-//     */
-//    public void  close() {
-//        debug("Closing log " + name);
-//        lock synchronized {
-//            for(seg <- logSegments)
-//                seg.close();
-//        }
-//    }
-//
-//    /**
-//     * Append this message set to the active segment of the log, rolling over to a fresh segment if necessary.
-//     *
-//     * This method will generally be responsible for assigning offsets to the messages,
-//     * however if the assignOffsets=false flag is passed we will only check that the existing offsets are valid.
-//     *
-//     * @param messages The message set to append
-//     * @param assignOffsets Should the log assign offsets to this message set or blindly apply what it is given
-//     *
-//     * @throws KafkaStorageException If the append fails due to an I/O error.
-//     *
-//     * @return Information about the appended messages including the first and last offset.
-//     */
-//    public void  append(ByteBufferMessageSet messages, Boolean assignOffsets = true): LogAppendInfo = {
-//        val appendInfo = analyzeAndValidateMessageSet(messages)//生成LogAppendInfo;
-//
-//        // if we have any valid messages, append them to the log;
-//        if(appendInfo.shallowCount == 0)
-//            return appendInfo;
-//
-//        // trim any invalid bytes or partial messages before appending it to the on-disk log;
-//        var validMessages = trimInvalidBytes(messages, appendInfo)//过滤有效字符;
-//
-//        try {
-//            // they are valid, insert them in the log;
-//            lock synchronized {
-//                appendInfo.firstOffset = nextOffsetMetadata.messageOffset;
-//
-//                if(assignOffsets) {
-//                    // assign offsets to the message set;
-//                    val offset = new AtomicLong(nextOffsetMetadata.messageOffset);
-//                    try {
-//                        validMessages = validMessages.assignOffsets(offset, appendInfo.codec);
-//                    } catch {
-//                        case IOException e => throw new KafkaException(String.format("Error in validating messages while appending to log '%s'",name), e)
-//                    }
-//                    appendInfo.lastOffset = offset.get - 1;
-//                } else {
-//                    // we are taking the offsets we are given;
-//                    if(!appendInfo.offsetsMonotonic || appendInfo.firstOffset < nextOffsetMetadata.messageOffset)
-//                        throw new IllegalArgumentException("Out of order offsets found in " + messages);
-//                }
-//
-//                // re-validate message sizes since after re-compression some may exceed the limit;
-//                for(messageAndOffset <- validMessages.shallowIterator) {
-//                    if(MessageSet.entrySize(messageAndOffset.message) > config.maxMessageSize) {
-//                        // we record the original message set size instead of trimmed size;
-//                        // to be consistent with pre-compression bytesRejectedRate recording;
-//                        BrokerTopicStats.getBrokerTopicStats(topicAndPartition.topic).bytesRejectedRate.mark(messages.sizeInBytes);
-//                        BrokerTopicStats.getBrokerAllTopicsStats.bytesRejectedRate.mark(messages.sizeInBytes);
-//                        throw new MessageSizeTooLargeException("Message size is %d bytes which exceeds the maximum configured message size of %d.";
-//                                .format(MessageSet.entrySize(messageAndOffset.message), config.maxMessageSize))
-//                    }
-//                }
-//
-//                // check messages set size may be exceed config.segmentSize;
-//                if(validMessages.sizeInBytes > config.segmentSize) {
-//                    throw new MessageSetSizeTooLargeException("Message set size is %d bytes which exceeds the maximum configured segment size of %d.";
-//                            .format(validMessages.sizeInBytes, config.segmentSize))
-//                }
-//
-//
-//                // maybe roll the log if this segment is full;
-//                val segment = maybeRoll(validMessages.sizeInBytes);
-//
-//                // now append to the log;
-//                segment.append(appendInfo.firstOffset, validMessages);
-//
-//                // increment the log end offset;
-//                updateLogEndOffset(appendInfo.lastOffset + 1);
-//
-//                trace("Appended message set to log %s with first offset: %d, next offset: %d, and messages: %s";
-//                        .format(this.name, appendInfo.firstOffset, nextOffsetMetadata.messageOffset, validMessages))
-//
-//                if(unflushedMessages >= config.flushInterval)
-//                    flush();
-//
-//                appendInfo;
-//            }
-//        } catch {
-//            case IOException e => throw new KafkaStorageException(String.format("I/O exception in append to log '%s'",name), e)
-//        }
-//    }
-//
-//    /**
-//     * Struct to hold various quantities we compute about each message set before appending to the log
-//     * @param firstOffset The first offset in the message set
-//     * @param lastOffset The last offset in the message set
-//     * @param shallowCount The number of shallow messages
-//     * @param validBytes The number of valid bytes
-//     * @param codec The codec used in the message set
-//     * @param offsetsMonotonic Are the offsets in this message set monotonically increasing
-//     */
-//  case class LogAppendInfo(var Long firstOffset, var Long lastOffset, CompressionCodec codec, Integer shallowCount, Integer validBytes, Boolean offsetsMonotonic);
-//
-//    /**
-//     * Validate the following:
-//     * <ol>
-//     * <li> each message matches its CRC
-//     * <li> each message size is valid
-//     * </ol>
-//     *
-//     * Also compute the following quantities:
-//     * <ol>
-//     * <li> First offset in the message set
-//     * <li> Last offset in the message set
-//     * <li> Number of messages
-//     * <li> Number of valid bytes
-//     * <li> Whether the offsets are monotonically increasing
-//     * <li> Whether any compression codec is used (if many are used, then the last one is given)
-//     * </ol>
-//     */
-//    private public void  analyzeAndValidateMessageSet(ByteBufferMessageSet messages): LogAppendInfo = {
-//        var shallowMessageCount = 0;
-//        var validBytesCount = 0;
-//        var firstOffset, lastOffset = -1L;
-//        var CompressionCodec codec = NoCompressionCodec;
-//        var monotonic = true;
-//        for(messageAndOffset <- messages.shallowIterator) {
-//            // update the first offset if on the first message;
-//            if(firstOffset < 0)
-//                firstOffset = messageAndOffset.offset;
-//            // check that offsets are monotonically increasing;
-//            if(lastOffset >= messageAndOffset.offset)
-//                monotonic = false;
-//            // update the last offset seen;
-//            lastOffset = messageAndOffset.offset;
-//
-//            val m = messageAndOffset.message;
-//
-//            // Check if the message sizes are valid.;
-//            val messageSize = MessageSet.entrySize(m);
-//            if(messageSize > config.maxMessageSize) {
-//                BrokerTopicStats.getBrokerTopicStats(topicAndPartition.topic).bytesRejectedRate.mark(messages.sizeInBytes);
-//                BrokerTopicStats.getBrokerAllTopicsStats.bytesRejectedRate.mark(messages.sizeInBytes);
-//                throw new MessageSizeTooLargeException("Message size is %d bytes which exceeds the maximum configured message size of %d.";
-//                        .format(messageSize, config.maxMessageSize))
-//            }
-//
-//            // check the validity of the message by checking CRC;
-//            m.ensureValid();
-//
-//            shallowMessageCount += 1;
-//            validBytesCount += messageSize;
-//
-//            val messageCodec = m.compressionCodec;
-//            if(messageCodec != NoCompressionCodec)
-//                codec = messageCodec;
-//        }
-//        LogAppendInfo(firstOffset, lastOffset, codec, shallowMessageCount, validBytesCount, monotonic);
-//    }
-//
-//    /**
-//     * Trim any invalid bytes from the end of this message set (if there are any)
-//     * @param messages The message set to trim
-//     * @param info The general information of the message set
-//     * @return A trimmed message set. This may be the same as what was passed in or it may not.
-//     */
-//    private public void  trimInvalidBytes(ByteBufferMessageSet messages, LogAppendInfo info): ByteBufferMessageSet = {
-//        val messageSetValidBytes = info.validBytes;
-//        if(messageSetValidBytes < 0)
-//            throw new InvalidMessageSizeException("Illegal length of message set " + messageSetValidBytes + " Message set cannot be appended to log. Possible causes are corrupted produce requests");
-//        if(messageSetValidBytes == messages.sizeInBytes) {
-//            messages;
-//        } else {
-//            // trim invalid bytes;
-//            val validByteBuffer = messages.buffer.duplicate();
-//            validByteBuffer.limit(messageSetValidBytes);
-//            new ByteBufferMessageSet(validByteBuffer);
-//        }
-//    }
+
+    /**
+     * Trim any invalid bytes from the end of this message set (if there are any)
+     *
+     * @param messages The message set to trim
+     * @param info     The general information of the message set
+     * @return A trimmed message set. This may be the same as what was passed in or it may not.
+     */
+    private ByteBufferMessageSet trimInvalidBytes(ByteBufferMessageSet messages, LogAppendInfo info) {
+        Integer messageSetValidBytes = info.validBytes;
+        if (messageSetValidBytes < 0)
+            throw new InvalidMessageSizeException("Illegal length of message set " + messageSetValidBytes + " Message set cannot be appended to log. Possible causes are corrupted produce requests");
+        if (messageSetValidBytes == messages.sizeInBytes()) {
+            return messages;
+        } else {
+            // trim invalid bytes;
+            ByteBuffer validByteBuffer = messages.buffer.duplicate();
+            validByteBuffer.limit(messageSetValidBytes);
+            return new ByteBufferMessageSet(validByteBuffer);
+        }
+    }
 //
 //    /**
 //     * Read messages from the log
@@ -481,135 +499,160 @@ public class Log  extends KafkaMetricsGroup{
 //        numToDelete;
 //    }
 //
-//    /**
-//     * The size of the log in bytes
-//     */
-//    public void  Long size = logSegments.map(_.size).sum;
+
+    /**
+     * The size of the log in bytes
+     */
+    public Long size() {
+        Long sum = 0L;
+        for (LogSegment s : logSegments()) {
+            sum += s.size();
+        }
+        return sum;
+    }
+
+    /**
+     * The earliest message offset in the log
+     */
+    public Long logStartOffset() {
+        return logSegments().stream().findFirst().get().baseOffset;
+    }
 //
-//    /**
-//     * The earliest message offset in the log
-//     */
-//    public void  Long logStartOffset = logSegments.head.baseOffset;
-//
-//    /**
-//     * The offset metadata of the next message that will be appended to the log
-//     */
-//    public void  LogOffsetMetadata logEndOffsetMetadata = nextOffsetMetadata;
-//
-//    /**
-//     *  The offset of the next message that will be appended to the log
-//     */
-//    public void  Long logEndOffset = nextOffsetMetadata.messageOffset;
-//
-//    /**
-//     * Roll the log over to a new empty log segment if necessary.
-//     *
-//     * @param messagesSize The messages set size in bytes
-//     * logSegment will be rolled if one of the following conditions met
-//     * <ol>
-//     * <li> The logSegment is full
-//     * <li> The maxTime has elapsed
-//     * <li> The index is full
-//     * </ol>
-//     * @return The currently active segment after (perhaps) rolling to a new segment
-//     */
-//    private public void  maybeRoll Integer messagesSize): LogSegment = {
-//        val segment = activeSegment;
-//        if (segment.size > config.segmentSize - messagesSize ||;
-//                segment.size > 0 && time.milliseconds - segment.created > config.segmentMs - segment.rollJitterMs ||;
-//                segment.index.isFull) {
-//            debug("Rolling new log segment in %s (log_size = %d/%d, index_size = %d/%d, age_ms = %d/%d).";
-//                    .format(name,
-//                            segment.size,
-//                            config.segmentSize,
-//                            segment.index.entries,
-//                            segment.index.maxEntries,
-//                            time.milliseconds - segment.created,
-//                            config.segmentMs - segment.rollJitterMs));
-//            roll();
-//        } else {
-//            segment;
-//        }
-//    }
-//
-//    /**
-//     * Roll the log over to a new active segment starting with the current logEndOffset.
-//     * This will trim the index to the exact size of the number of entries it currently contains.
-//     * @return The newly rolled segment
-//     */
-//    public void  roll(): LogSegment = {
-//        val start = time.nanoseconds;
-//        lock synchronized {
-//            val newOffset = logEndOffset;
-//            val logFile = logFilename(dir, newOffset);
-//            val indexFile = indexFilename(dir, newOffset);
-//            for(file <- List(logFile, indexFile); if file.exists) {
-//                warn("Newly rolled segment file " + file.getName + " already exists; deleting it first");
-//                file.delete();
-//            }
-//
-//            segments.lastEntry() match {
-//                case null =>
-//                case entry => entry.getValue.index.trimToValidSize();
-//            }
-//            val segment = new LogSegment(dir,
-//                    startOffset = newOffset,
-//                    indexIntervalBytes = config.indexInterval,
-//                    maxIndexSize = config.maxIndexSize,
-//                    rollJitterMs = config.randomSegmentJitter,
-//                    time = time);
-//            val prev = addSegment(segment);
-//            if(prev != null)
-//                throw new KafkaException(String.format("Trying to roll a new log segment for topic partition %s with start offset %d while it already exists.",name, newOffset))
-//
-//            // schedule an asynchronous flush of the old segment;
-//            scheduler.schedule("flush-log", () => flush(newOffset), delay = 0L);
-//
-//            info(String.format("Rolled new log segment for '" + name + "' in %.0f ms.",(System.nanoTime - start) / (1000.0*1000.0)))
-//
-//            segment;
-//        }
-//    }
-//
-//    /**
-//     * The number of messages appended to the log since the last flush
-//     */
-//    public void  unflushedMessages() = this.logEndOffset - this.recoveryPoint;
-//
-//    /**
-//     * Flush all log segments
-//     */
-//    public void  flush(): Unit = flush(this.logEndOffset);
-//
-//    /**
-//     * Flush log segments for all offsets up to offset-1
-//     * @param offset The offset to flush up to (non-inclusive); the new recovery point
-//     */
-//    public void  flush(Long offset) : Unit = {
-//        if (offset <= this.recoveryPoint)
-//            return;
-//                    debug("Flushing log '" + name + " up to offset " + offset + ", last flushed: " + lastFlushTime + " current time: " +;
-//                            time.milliseconds + " unflushed = " + unflushedMessages);
-//        for(segment <- logSegments(this.recoveryPoint, offset))
-//            segment.flush();
-//        lock synchronized {
-//            if(offset > this.recoveryPoint) {
-//                this.recoveryPoint = offset;
-//                lastflushedTime.set(time.milliseconds);
-//            }
-//        }
-//    }
-//
-//    /**
-//     * Completely delete this log directory and all contents from the file system with no delay
-//     */
-//    private[log] public void  delete() {
-//        lock synchronized {
-//            logSegments.foreach(_.delete())
-//            segments.clear();
-//            Utils.rm(dir);
-//        }
-//    }
+
+    /**
+     * The offset metadata of the next message that will be appended to the log
+     */
+    public LogOffsetMetadata logEndOffsetMetadata() {
+        return nextOffsetMetadata;
+    }
+
+    /**
+     * The offset of the next message that will be appended to the log
+     */
+    public Long logEndOffset() {
+        return nextOffsetMetadata.messageOffset;
+    }
+
+    /**
+     * Roll the log over to a new empty log segment if necessary.
+     *
+     * @param messagesSize The messages set size in bytes
+     *                     logSegment will be rolled if one of the following conditions met
+     *                     <ol>
+     *                     <li> The logSegment is full
+     *                     <li> The maxTime has elapsed
+     *                     <li> The index is full
+     *                     </ol>
+     * @return The currently active segment after (perhaps) rolling to a new segment
+     */
+    private LogSegment maybeRoll(Integer messagesSize) {
+        LogSegment segment = activeSegment();
+        if (segment.size() > config.segmentSize - messagesSize
+                || segment.size() > 0
+                && time.milliseconds() - segment.created > config.segmentMs - segment.rollJitterMs ||
+                segment.index.isFull()) {
+            debug(String.format("Rolling new log segment in %s (log_size = %d/%d, index_size = %d/%d, age_ms = %d/%d).",
+                    name,
+                    segment.size(),
+                    config.segmentSize,
+                    segment.index.entries(),
+                    segment.index.maxEntries,
+                    time.milliseconds() - segment.created,
+                    config.segmentMs - segment.rollJitterMs));
+            return roll();
+        } else {
+            return segment;
+        }
+    }
+
+    /**
+     * Roll the log over to a new active segment starting with the current logEndOffset.
+     * This will trim the index to the exact size of the number of entries it currently contains.
+     *
+     * @return The newly rolled segment
+     */
+    public LogSegment roll() {
+        Long start = time.nanoseconds();
+        synchronized (lock) {
+            Long newOffset = logEndOffset();
+            File logFile = logFilename(dir, newOffset);
+            File indexFile = indexFilename(dir, newOffset);
+            List<File> fileList = Lists.newArrayList(logFile, indexFile);
+            for (File file : fileList) {
+                if (file.exists()) {
+                    warn("Newly rolled segment file " + file.getName() + " already exists; deleting it first");
+                    file.delete();
+                }
+
+                Map.Entry<Long, LogSegment> lastEnty = segments.lastEntry();
+                // TODO: 2017/4/3
+                if (lastEnty != null) {
+                    lastEnty.getValue().index.trimToValidSize();
+                }
+                LogSegment segment = new LogSegment(dir,
+                        newOffset,
+                        config.indexInterval,
+                        config.maxIndexSize,
+                        config.randomSegmentJitter,
+                        time);
+                LogSegment prev = addSegment(segment);
+                if (prev != null)
+                    throw new KafkaException(String.format("Trying to roll a new log segment for topic partition %s with start offset %d while it already exists.", name, newOffset))
+
+                // schedule an asynchronous flush of the old segment;
+                scheduler.schedule("flush-log", () -> flush(newOffset), 0L);
+
+                info(String.format("Rolled new log segment for '" + name + "' in %.0f ms.", (System.nanoTime() - start) / (1000.0 * 1000.0)));
+
+                return segment;
+            }
+        }
+
+        /**
+         * The number of messages appended to the log since the last flush
+         */
+
+    public Long unflushedMessages() {
+        return this.logEndOffset() - this.recoveryPoint;
+    }
+
+    /**
+     * Flush all log segments
+     */
+    public void flush() {
+        flush(this.logEndOffset());
+    }
+
+    /**
+     * Flush log segments for all offsets up to offset-1
+     *
+     * @param offset The offset to flush up to (non-inclusive); the new recovery point
+     */
+    public void flush(Long offset) {
+        if (offset <= this.recoveryPoint)
+            return;
+        debug("Flushing log '" + name + " up to offset " + offset + ", last flushed: " + lastFlushTime() + " current time: " +
+                time.milliseconds() + " unflushed = " + unflushedMessages());
+        for (LogSegment segment : logSegments(this.recoveryPoint, offset))
+            segment.flush();
+        synchronized (lock) {
+            if (offset > this.recoveryPoint) {
+                this.recoveryPoint = offset;
+                lastflushedTime.set(time.milliseconds());
+            }
+        }
+    }
+
+    /**
+     * Completely delete this log directory and all contents from the file system with no delay
+     */
+    void delete() {
+         synchronized(lock) {
+            logSegments().forEach((s)->s.delete());
+            segments.clear();
+            Utils.rm(dir);
+        }
+    }
 //
 //    /**
 //     * Truncate this log so that it ends with the greatest offset < targetOffset.
@@ -656,73 +699,79 @@ public class Log  extends KafkaMetricsGroup{
 //        }
 //    }
 //
-//    /**
-//     * The time this log is last known to have been fully flushed to disk
-//     */
-//    public void  lastFlushTime(): Long = lastflushedTime.get;
-//
-//    /**
-//     * The active segment that is currently taking appends
-//     */
-//    public void  activeSegment = segments.lastEntry.getValue;
-//
-//    /**
-//     * All the log segments in this log ordered from oldest to newest
-//     */
-//    public void  Iterable logSegments[LogSegment] = {
-//    import JavaConversions._;
-//        segments.values;
-//    }
-//
-//    /**
-//     * Get all segments beginning with the segment that includes "from" and ending with the segment
-//     * that includes up to "to-1" or the end of the log (if to > logEndOffset)
-//     */
-//    public void  logSegments(Long from, Long to): Iterable[LogSegment] = {
-//    import JavaConversions._;
-//        lock synchronized {
-//            val floor = segments.floorKey(from);
-//            if(floor eq null)
-//            segments.headMap(to).values;
-//      else;
-//            segments.subMap(floor, true, to, false).values;
-//        }
-//    }
-//
-//    override public void  toString() = "Log(" + dir + ")";
-//
-//    /**
-//     * This method performs an asynchronous log segment delete by doing the following:
-//     * <ol>
-//     *   <li>It removes the segment from the segment map so that it will no longer be used for reads.
-//     *   <li>It renames the index and log files by appending .deleted to the respective file name
-//     *   <li>It schedules an asynchronous delete operation to occur in the future
-//     * </ol>
-//     * This allows reads to happen concurrently without synchronization and without the possibility of physically
-//     * deleting a file while it is being read from.
-//     *
-//     * @param segment The log segment to schedule for deletion
-//     */
-//    private public void  deleteSegment(LogSegment segment) {
-//        info(String.format("Scheduling log segment %d for log %s for deletion.",segment.baseOffset, name))
-//        lock synchronized {
-//            segments.remove(segment.baseOffset);
-//            asyncDeleteSegment(segment);
-//        }
-//    }
-//
-//    /**
-//     * Perform an asynchronous delete on the given file if it exists (otherwise do nothing)
-//     * @throws KafkaStorageException if the file can't be renamed and still exists
-//     */
-//    private public void  asyncDeleteSegment(LogSegment segment) {
-//        segment.changeFileSuffixes("", Log.DeletedFileSuffix);
-//        public void  deleteSeg() {
-//            info(String.format("Deleting segment %d from log %s.",segment.baseOffset, name))
-//            segment.delete();
-//        }
-//        scheduler.schedule("delete-file", deleteSeg, delay = config.fileDeleteDelayMs);
-//    }
+
+    /**
+     * The time this log is last known to have been fully flushed to disk
+     */
+    public Long lastFlushTime() {
+        return lastflushedTime.get();
+    }
+
+
+    /**
+     * The active segment that is currently taking appends
+     */
+    public LogSegment activeSegment() {
+        return segments.lastEntry().getValue();
+    }
+
+    /**
+     * All the log segments in this log ordered from oldest to newest
+     */
+    public Collection<LogSegment> logSegments() {
+        return segments.values();
+    }
+
+    /**
+     * Get all segments beginning with the segment that includes "from" and ending with the segment
+     * that includes up to "to-1" or the end of the log (if to > logEndOffset)
+     */
+    public Collection<LogSegment> logSegments(Long from, Long to) {
+        synchronized (lock) {
+            Long floor = segments.floorKey(from);
+            if (floor == null)
+                return segments.headMap(to).values();
+            else
+                return segments.subMap(floor, true, to, false).values();
+        }
+    }
+
+    @Override
+    public String toString() {
+        return "Log(" + dir + ")";
+    }
+
+    /**
+     * This method performs an asynchronous log segment delete by doing the following:
+     * <ol>
+     * <li>It removes the segment from the segment map so that it will no longer be used for reads.
+     * <li>It renames the index and log files by appending .deleted to the respective file name
+     * <li>It schedules an asynchronous delete operation to occur in the future
+     * </ol>
+     * This allows reads to happen concurrently without synchronization and without the possibility of physically
+     * deleting a file while it is being read from.
+     *
+     * @param segment The log segment to schedule for deletion
+     */
+    private void deleteSegment(LogSegment segment) {
+        info(String.format("Scheduling log segment %d for log %s for deletion.", segment.baseOffset, name));
+        synchronized (lock) {
+            segments.remove(segment.baseOffset);
+            asyncDeleteSegment(segment);
+        }
+    }
+
+    /**
+     * Perform an asynchronous delete on the given file if it exists (otherwise do nothing)
+     */
+    private void asyncDeleteSegment(LogSegment segment) {
+        segment.changeFileSuffixes("", Log.DeletedFileSuffix);
+        Action deleteSeg = () -> {
+            info(String.format("Deleting segment %d from log %s.", segment.baseOffset, name));
+            segment.delete();
+        };
+        scheduler.schedule("delete-file", deleteSeg, config.fileDeleteDelayMs);
+    }
 //
 //    /**
 //     * Swap a new segment in place and delete one or more existing segments in a crash-safe manner. The old segments will
@@ -792,12 +841,10 @@ public class Log  extends KafkaMetricsGroup{
     /**
      * Parse the topic and partition out of the directory name of a log
      */
-//    public TopicAndPartition  parseTopicPartitionName(String name);
-//
-//    {
-//        val index = name.lastIndexOf('-');
-//        TopicAndPartition(name.substring(0, index), name.substring(index + 1).toInt);
-//    }
+    public static TopicAndPartition parseTopicPartitionName(String name) {
+        Integer index = name.lastIndexOf('-');
+        return new TopicAndPartition(name.substring(0, index), Integer.parseInt(name.substring(index + 1)));
+    }
 
 
     /**
@@ -807,6 +854,7 @@ public class Log  extends KafkaMetricsGroup{
      * @param offset The offset to use in the file name
      * @return The filename
      */
+
     public static String filenamePrefixFromOffset(Long offset) {
         NumberFormat nf = NumberFormat.getInstance();
         nf.setMinimumIntegerDigits(20);

@@ -57,6 +57,10 @@ public class KafkaScheduler extends Logging implements Scheduler {
         this.executor = null;
     }
 
+    public void schedule(String name, final Action action, Long delay) {
+        schedule(name, action, delay, -1L, TimeUnit.MICROSECONDS);
+    }
+
     @Override
     public void schedule(String name, final Action action, Long delay, Long period, TimeUnit unit) {
 

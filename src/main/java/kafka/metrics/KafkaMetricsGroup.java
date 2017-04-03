@@ -2,6 +2,7 @@ package kafka.metrics;
 
 import com.google.common.collect.Maps;
 import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Meter;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.Timer;
 import kafka.utils.Logging;
@@ -64,15 +65,11 @@ public class KafkaMetricsGroup extends Logging {
 //
 //    );
 //
-//    def newMeter(String name, String eventType, TimeUnit timeUnit, scala tags.collection.Map[String, String]=Map.empty);
-//
-//    =
-//            Metrics.defaultRegistry().;
-//
-//    newMeter(metricName(name, tags),eventType,timeUnit;
-//
-//    );
-//
+    public Meter newMeter(String name, String eventType, TimeUnit timeUnit, Map<String, String> tags) {
+        return Metrics.defaultRegistry().newMeter(metricName(name, tags), eventType, timeUnit);
+    }
+
+    //
 //    def newHistogram(String name, Boolean biased=true, scala tags.collection.Map[String, String]=Map.empty);
 //
 //    =
