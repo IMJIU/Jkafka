@@ -4,7 +4,6 @@ import kafka.annotation.threadsafe;
 import kafka.func.Action;
 
 import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -70,7 +69,7 @@ public class KafkaScheduler extends Logging implements Scheduler {
         Runnable runnable = Utils.runnable(() -> {
             try {
                 trace(String.format("Begining execution of scheduled task '%s'.", name));
-                action.doAction();
+                action.invoke();
             } catch (Exception e) {
                 error("Uncaught exception in scheduled task '" + name + "'", e);
             } finally {

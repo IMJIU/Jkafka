@@ -1,7 +1,7 @@
 package kafka.log;
 
 import kafka.common.InvalidOffsetException;
-import kafka.func.Processor;
+import kafka.func.ActionWithResult;
 import kafka.utils.Logging;
 import kafka.utils.Os;
 import kafka.utils.Prediction;
@@ -405,11 +405,11 @@ public class OffsetIndex extends Logging {
      * because Windows won't let us resize a file while it is mmapped. As a result we have to force unmap it
      * and this requires synchronizing reads.
      */
-    private <T> T maybeLock(Lock lock, Processor<T> process) {
+    private <T> T maybeLock(Lock lock, ActionWithResult<T> process) {
         if (Os.isWindows)
             lock.lock();
         try {
-            return process.process();
+            return process.invoke();
         } finally {
             if (Os.isWindows)
                 lock.unlock();

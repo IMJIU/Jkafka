@@ -7,6 +7,6 @@ package kafka.func;/**
  * @create 2017-03-29 14:10
  **/
 @FunctionalInterface
-public interface Converter<T,V>{
-    V convert(T t);
+public interface ActionWithResult<T>{
+    T invoke();
 }

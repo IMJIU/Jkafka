@@ -50,7 +50,7 @@ public class MockScheduler implements Scheduler {
             while (!tasks.isEmpty() && tasks.stream().findFirst().get().nextExecution <= now) {
         /* pop and execute the task with the lowest next execution time */
                 MockTask curr = tasks.poll();
-                curr.func.doAction();
+                curr.func.invoke();
         /* if the task is periodic, reschedule it and re-enqueue */
                 if (curr.periodic()) {
                     curr.nextExecution += curr.period;

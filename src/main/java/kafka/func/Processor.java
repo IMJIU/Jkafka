@@ -7,6 +7,6 @@ package kafka.func;/**
  * @create 2017-03-29 14:10
  **/
 @FunctionalInterface
-public interface Processor<T>{
-    T process();
+public interface Processor<T,V>{
+    V process(T t);
 }

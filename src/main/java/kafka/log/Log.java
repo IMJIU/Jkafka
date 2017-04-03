@@ -9,7 +9,7 @@ import com.yammer.metrics.core.Gauge;
 import kafka.annotation.threadsafe;
 import kafka.common.*;
 import kafka.func.Action;
-import kafka.func.Converter;
+import kafka.func.Processor;
 import kafka.message.*;
 import kafka.metrics.KafkaMetricsGroup;
 import kafka.server.BrokerTopicStats;
@@ -461,12 +461,12 @@ public class Log extends KafkaMetricsGroup {
      * @param predicate A function that takes in a single log segment and returns true iff it is deletable
      * @return The number of segments deleted
      */
-    public Integer deleteOldSegments(Converter<LogSegment, Boolean> predicate) throws IOException {
+    public Integer deleteOldSegments(Processor<LogSegment, Boolean> predicate) throws IOException {
         // find any segments that match the user-supplied predicate UNLESS it is the final segment;
         // and it is empty (since we would just end up re-creating it;
         LogSegment lastSegment = activeSegment();
         // TODO: 2017/4/3 takewhile filter
-        List<LogSegment> deletable = logSegments().stream().filter(s -> predicate.convert(s) && (s.baseOffset != lastSegment.baseOffset || s.size() > 0)).collect(Collectors.toList());
+        List<LogSegment> deletable = logSegments().stream().filter(s -> predicate.process(s) && (s.baseOffset != lastSegment.baseOffset || s.size() > 0)).collect(Collectors.toList());
         Integer numToDelete = deletable.size();
         if (numToDelete > 0) {
             synchronized (lock) {

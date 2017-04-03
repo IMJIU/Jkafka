@@ -11,7 +11,5 @@ import java.util.Map;
  **/
 @FunctionalInterface
 public interface Action {
-    void doAction();
-
-
+    void invoke();
 }

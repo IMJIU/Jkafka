@@ -2,13 +2,15 @@ package kafka.utils;/**
  * Created by zhoulf on 2017/3/22.
  */
 
+import com.google.common.collect.Maps;
 import kafka.func.Action;
-import kafka.func.Processor;
+import kafka.func.ActionWithResult;
 
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.locks.Lock;
 import java.util.zip.CRC32;
 
@@ -33,7 +35,7 @@ public class Utils extends Logging {
      * @return A Runnable that just executes the function
      */
     public static Runnable runnable(Action action) {
-        return () -> action.doAction();
+        return () -> action.invoke();
     }
 //
 //        /**
@@ -156,7 +158,7 @@ public class Utils extends Logging {
 //         */
     public static void swallow(Action action) {
         try {
-            action.doAction();
+            action.invoke();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -205,8 +207,8 @@ public class Utils extends Logging {
      *
      * @param file The root file at which to begin deleting
      */
-    public static  void rm(String file) {
-         rm(new File(file));
+    public static void rm(String file) {
+        rm(new File(file));
     }
 
     /**
@@ -214,8 +216,8 @@ public class Utils extends Logging {
      *
      * @param files sequence of files to be deleted
      */
-    public static  void rm(List<String> files) {
-         files.stream().forEach(f -> rm(new File(f)));
+    public static void rm(List<String> files) {
+        files.stream().forEach(f -> rm(new File(f)));
     }
 
     /**
@@ -225,16 +227,16 @@ public class Utils extends Logging {
      */
     public static void rm(File file) {
         if (file == null) {
-            return ;
+            return;
         } else if (file.isDirectory()) {
             File[] files = file.listFiles();
             if (files != null) {
                 for (File f : files)
                     rm(f);
             }
-             file.delete();
+            file.delete();
         } else {
-             file.delete();
+            file.delete();
         }
     }
 //
@@ -432,21 +434,18 @@ public class Utils extends Logging {
 //        sw.toString();
 //    }
 //
-//    /**
-//     * This method gets comma separated values which contains key,value pairs and returns a map of
-//     * key value pairs. the format of allCSVal is val1 key1, val2 key2 ....
-//     */
-//    def parseCsvMap(String str);
-//
-//    :Map[String,String]=
-//
-//    {
-//        Integer map = new mutable.HashMap[String, String];
-//        if ("".equals(str));
-//            return map;
-//        Integer keyVals = str.split("\\s*,\\s*").map(s = > s.split("\\s*:\\s*"));
-//        keyVals.map(pair = > (pair(0), pair(1))).toMap;
-//    }
+
+    /**
+     * This method gets comma separated values which contains key,value pairs and returns a map of
+     * key value pairs. the format of allCSVal is val1 key1, val2 key2 ....
+     */
+    public Map<String, String> parseCsvMap(String str) {
+        HashMap map = Maps.newHashMap();
+        if ("".equals(str)) ;
+        return map;
+        Integer keyVals = str.split("\\s*,\\s*").map(s = > s.split("\\s*:\\s*"));
+        keyVals.map(pair = > (pair(0), pair(1))).toMap;
+    }
 //
 //    /**
 //     * Parse a comma separated string into a sequence of strings.
@@ -598,10 +597,10 @@ public class Utils extends Logging {
 //    /**
 //     * Execute the given function inside the lock
 //     */
-    public static <T> T inLock(Lock lock, Processor<T> process) {
+    public static <T> T inLock(Lock lock, ActionWithResult<T> process) {
         lock.lock();
         try {
-            return process.process();
+            return process.invoke();
         } finally {
             lock.unlock();
         }
@@ -610,7 +609,7 @@ public class Utils extends Logging {
     public static void inLock(Lock lock, Action action) {
         lock.lock();
         try {
-            action.doAction();
+            action.invoke();
         } finally {
             lock.unlock();
         }
