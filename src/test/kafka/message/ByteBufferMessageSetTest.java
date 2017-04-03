@@ -1,12 +1,10 @@
-package message;
+package kafka.message;
 
 import com.google.common.collect.Lists;
-import kafka.message.*;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;

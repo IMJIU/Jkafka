@@ -8,6 +8,7 @@ import kafka.func.Processor;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.util.List;
 import java.util.concurrent.locks.Lock;
 import java.util.zip.CRC32;
 
@@ -24,6 +25,7 @@ import java.util.zip.CRC32;
  */
 public class Utils extends Logging {
     private static Logging logger = new Logging();
+
     /**
      * Wrap the given function in a java.lang.Runnable
      *
@@ -197,36 +199,44 @@ public class Utils extends Logging {
 //            System.exit(1);
 //        }
 //
-//        /**
-//         * Recursively delete the given file/directory and any subfiles (if any exist)
-//         * @param file The root file at which to begin deleting
-//         */
-//        public Unit  rm(String file) rm(new File(file));
-//
-//        /**
-//         * Recursively delete the list of files/directories and any subfiles (if any exist)
-//         * @param a sequence of files to be deleted
-//         */
-//        public Unit  rm(Seq files[String]) files.map(f => rm(new File(f)));
-//
-//        /**
-//         * Recursively delete the given file/directory and any subfiles (if any exist)
-//         * @param file The root file at which to begin deleting
-//         */
-//        def rm(File file) {
-//            if(file == null) {
-//                return;
-//            } else if(file.isDirectory) {
-//                Integer files = file.listFiles();
-//                if(files != null) {
-//                    for(f <- files);
-//                        rm(f);
-//                }
-//                file.delete();
-//            } else {
-//                file.delete();
-//            }
-//        }
+
+    /**
+     * Recursively delete the given file/directory and any subfiles (if any exist)
+     *
+     * @param file The root file at which to begin deleting
+     */
+    public static  void rm(String file) {
+         rm(new File(file));
+    }
+
+    /**
+     * Recursively delete the list of files/directories and any subfiles (if any exist)
+     *
+     * @param files sequence of files to be deleted
+     */
+    public static  void rm(List<String> files) {
+         files.stream().forEach(f -> rm(new File(f)));
+    }
+
+    /**
+     * Recursively delete the given file/directory and any subfiles (if any exist)
+     *
+     * @param file The root file at which to begin deleting
+     */
+    public static void rm(File file) {
+        if (file == null) {
+            return ;
+        } else if (file.isDirectory()) {
+            File[] files = file.listFiles();
+            if (files != null) {
+                for (File f : files)
+                    rm(f);
+            }
+             file.delete();
+        } else {
+             file.delete();
+        }
+    }
 //
 //        /**
 //         * Register the given mbean with the platform mbean server,

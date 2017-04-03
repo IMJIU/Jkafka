@@ -1,4 +1,4 @@
-package message;
+package kafka.message;
 
 import kafka.message.ByteBufferMessageSet;
 import kafka.message.CompressionCodec;

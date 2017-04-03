@@ -1,11 +1,9 @@
-package log;
+package kafka.log;
 
 import com.google.common.collect.Lists;
-import kafka.log.FileMessageSet;
-import kafka.log.OffsetPosition;
 import kafka.message.*;
-import message.BaseMessageSetTest;
-import message.TestUtils;
+import kafka.message.BaseMessageSetTest;
+import kafka.message.TestUtils;
 import org.junit.Assert;
 import org.junit.Test;
 

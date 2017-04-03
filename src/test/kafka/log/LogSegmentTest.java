@@ -1,16 +1,12 @@
-package log;/**
+package kafka.log;/**
  * Created by zhoulf on 2017/3/30.
  */
 
 import com.google.common.collect.Lists;
-import com.sun.xml.internal.bind.v2.TODO;
-import kafka.log.FileMessageSet;
-import kafka.log.LogSegment;
-import kafka.log.OffsetIndex;
 import kafka.message.*;
 import kafka.server.FetchDataInfo;
 import kafka.utils.Time;
-import message.TestUtils;
+import kafka.message.TestUtils;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;

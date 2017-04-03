@@ -1,8 +1,6 @@
-package message;
+package kafka.message;
 
 import com.google.common.collect.Lists;
-import kafka.message.CompressionCodec;
-import kafka.message.Message;
 import kafka.utils.Utils;
 import org.junit.Assert;
 import org.junit.Before;

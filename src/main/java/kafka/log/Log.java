@@ -8,9 +8,12 @@ import com.google.common.collect.Maps;
 import kafka.annotation.threadsafe;
 import kafka.common.*;
 import kafka.func.Action;
+import kafka.func.Converter;
+import kafka.func.Processor;
 import kafka.message.*;
 import kafka.metrics.KafkaMetricsGroup;
 import kafka.server.BrokerTopicStats;
+import kafka.server.FetchDataInfo;
 import kafka.server.LogOffsetMetadata;
 import kafka.utils.KafkaScheduler;
 import kafka.utils.Scheduler;
@@ -18,6 +21,7 @@ import kafka.utils.Time;
 import kafka.utils.Utils;
 
 import javax.swing.text.Segment;
+import javax.swing.text.html.Option;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -26,6 +30,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 
 /**
@@ -88,9 +93,7 @@ public class Log extends KafkaMetricsGroup {
         tags = Maps.newHashMap();
         tags.put("topic", topicAndPartition.topic);
         tags.put("partition", topicAndPartition.partition.toString());
-//
-    }
-//    newGauge("NumLogSegments",
+        //    newGauge("NumLogSegments",
 //                     new Gauge[Int] {
 //        public void  value = numberOfSegments;
 //    },
@@ -113,8 +116,8 @@ public class Log extends KafkaMetricsGroup {
 //        public void  value = size;
 //    },
 //    tags);
-//
-//
+    }
+
 
     /* Load the log segments from the log files on disk */
     private void loadSegments() throws IOException {
@@ -164,7 +167,7 @@ public class Log extends KafkaMetricsGroup {
                 // if it is an index file, make sure it has a corresponding .log file;
                 File logFile = new File(file.getAbsolutePath().replace(IndexFileSuffix, LogFileSuffix));
                 if (!logFile.exists()) {
-                    warn(String.format("Found an orphaned index file, %s, with no corresponding log file.", file.getAbsolutePath()))
+                    warn(String.format("Found an orphaned index file, %s, with no corresponding log file.", file.getAbsolutePath()));
                     file.delete();
                 }
             } else if (filename.endsWith(LogFileSuffix)) {
@@ -173,7 +176,7 @@ public class Log extends KafkaMetricsGroup {
                 boolean hasIndex = Log.indexFilename(dir, start).exists();
                 LogSegment segment = new LogSegment(dir, start, config.indexInterval, config.maxIndexSize, config.randomSegmentJitter, time);
                 if (!hasIndex) {
-                    error(String.format("Could not find index file corresponding to log file %s, rebuilding index...", segment.log.file.getAbsolutePath))
+                    error(String.format("Could not find index file corresponding to log file %s, rebuilding index...", segment.log.file.getAbsolutePath()));
                     segment.recover(config.maxMessageSize);
                 }
                 segments.put(start, segment);
@@ -181,7 +184,7 @@ public class Log extends KafkaMetricsGroup {
         }
         if (logSegments().size() == 0) {
             // no existing segments, create a new mutable segment beginning at offset 0;
-            segments.put(0L, new LogSegment(dir, 0, config.indexInterval, config.maxIndexSize, config.randomSegmentJitter, time));
+            segments.put(0L, new LogSegment(dir, 0L, config.indexInterval, config.maxIndexSize, config.randomSegmentJitter, time));
         } else {
             recoverLog();
             // reset the index size of the currently active log segment to allow more entries;
@@ -208,7 +211,7 @@ public class Log extends KafkaMetricsGroup {
         Iterator<LogSegment> unflushed = logSegments(this.recoveryPoint, Long.MAX_VALUE).iterator();
         while (unflushed.hasNext()) {
             LogSegment curr = unflushed.next();
-            info(String.format("Recovering unflushed segment %d in log %s.", curr.baseOffset, name))
+            info(String.format("Recovering unflushed segment %d in log %s.", curr.baseOffset, name));
             Integer truncatedBytes;
             try {
                 truncatedBytes = curr.recover(config.maxMessageSize);
@@ -221,8 +224,8 @@ public class Log extends KafkaMetricsGroup {
             if (truncatedBytes > 0) {
                 // we had an invalid message, delete all remaining log;
                 warn(String.format("Corruption found in segment %d of log %s, truncating to offset %d.", curr.baseOffset, name, curr.nextOffset()));
-//                unflushed.foreach(deleteSegment);
-                unflushed.forEachRemaining((s) -> deleteSegment(s));
+                unflushed.forEachRemaining(s -> deleteSegment(s));
+                unflushed.forEachRemaining(s -> deleteSegment(s));
             }
         }
     }
@@ -420,85 +423,90 @@ public class Log extends KafkaMetricsGroup {
         }
     }
 //
-//    /**
-//     * Read messages from the log
-//     *
-//     * @param startOffset The offset to begin reading at
-//     * @param maxLength The maximum number of bytes to read
-//     * @param maxOffset -The offset to read up to, exclusive. (i.e. the first offset NOT included in the resulting message set).
-//     *
-//     * @throws OffsetOutOfRangeException If startOffset is beyond the log end offset or before the base offset of the first segment.
-//     * @return The fetch data information including fetch starting offset metadata and messages read
-//     */
-//    public void  read(Long startOffset, Integer maxLength, Option maxOffset[Long] = None): FetchDataInfo = {
-//        trace(String.format("Reading %d bytes from offset %d in log %s of length %d bytes",maxLength, startOffset, name, size))
-//
-//        // check if the offset is valid and in range;
-//        val next = nextOffsetMetadata.messageOffset;
-//        if(startOffset == next)
-//            return FetchDataInfo(nextOffsetMetadata, MessageSet.Empty);
-//
-//        var entry = segments.floorEntry(startOffset);
-//
-//        // attempt to read beyond the log end offset is an error;
-//        if(startOffset > next || entry == null)
-//            throw new OffsetOutOfRangeException(String.format("Request for offset %d but we only have log segments in the range %d to %d.",startOffset, segments.firstKey, next))
-//
-//        // do the read on the segment with a base offset less than the target offset;
-//        // but if that segment doesn't contain any messages with an offset greater than that;
-//        // continue to read from successive segments until we get some messages or we reach the end of the log;
-//        while(entry != null) {
-//            val fetchInfo = entry.getValue.read(startOffset, maxOffset, maxLength);
-//            if(fetchInfo == null) {
-//                entry = segments.higherEntry(entry.getKey);
-//            } else {
-//                return fetchInfo;
-//            }
-//        }
-//
-//        // okay we are beyond the end of the last segment with no data fetched although the start offset is in range,
-//        // this can happen when all messages with offset larger than start offsets have been deleted.;
-//        // In this case, we will return the empty set with log end offset metadata;
-//        FetchDataInfo(nextOffsetMetadata, MessageSet.Empty);
-//    }
-//
-//    /**
-//     * Given a message offset, find its corresponding offset metadata in the log.
-//     * If the message offset is out of range, return unknown offset metadata
-//     */
-//    public void  convertToOffsetMetadata(Long offset): LogOffsetMetadata = {
-//        try {
-//            val fetchDataInfo = read(offset, 1);
-//            fetchDataInfo.fetchOffset;
-//        } catch {
-//            case OffsetOutOfRangeException e => LogOffsetMetadata.UnknownOffsetMetadata;
-//        }
-//    }
-//
-//    /**
-//     * Delete any log segments matching the given predicate function,
-//     * starting with the oldest segment and moving forward until a segment doesn't match.
-//     * @param predicate A function that takes in a single log segment and returns true iff it is deletable
-//     * @return The number of segments deleted
-//     */
-//    public void  deleteOldSegments(LogSegment predicate => Boolean): Integer = {
-//        // find any segments that match the user-supplied predicate UNLESS it is the final segment;
-//        // and it is empty (since we would just end up re-creating it;
-//        val lastSegment = activeSegment;
-//        val deletable = logSegments.takeWhile(s => predicate(s) && (s.baseOffset != lastSegment.baseOffset || s.size > 0));
-//        val numToDelete = deletable.size;
-//        if(numToDelete > 0) {
-//            lock synchronized {
-//                // we must always have at least one segment, so if we are going to delete all the segments, create a new one first;
-//                if(segments.size == numToDelete)
-//                    roll();
-//                // remove the segments for lookups;
-//                deletable.foreach(deleteSegment(_))
-//            }
-//        }
-//        numToDelete;
-//    }
-//
+
+    /**
+     * Read messages from the log
+     *
+     * @param startOffset The offset to begin reading at
+     * @param maxLength   The maximum number of bytes to read
+     * @param maxOffset   -The offset to read up to, exclusive. (i.e. the first offset NOT included in the resulting message set).
+     * @return The fetch data information including fetch starting offset metadata and messages read
+     * @throws OffsetOutOfRangeException If startOffset is beyond the log end offset or before the base offset of the first segment.
+     */
+    public FetchDataInfo read(Long startOffset, Integer maxLength, Optional<Long> maxOffset) {
+        trace(String.format("Reading %d bytes from offset %d in log %s of length %d bytes", maxLength, startOffset, name, size()));
+
+        // check if the offset is valid and in range;
+        Long next = nextOffsetMetadata.messageOffset;
+        if (startOffset == next) {
+            return new FetchDataInfo(nextOffsetMetadata, MessageSet.Empty);
+        }
+
+        Map.Entry<Long, LogSegment> entry = segments.floorEntry(startOffset);
+
+        // attempt to read beyond the log end offset is an error;
+        if (startOffset > next || entry == null) {
+            throw new OffsetOutOfRangeException(String.format("Request for offset %d but we only have log segments in the range %d to %d.", startOffset, segments.firstKey(), next));
+        }
+
+        // do the read on the segment with a base offset less than the target offset;
+        // but if that segment doesn't contain any messages with an offset greater than that;
+        // continue to read from successive segments until we get some messages or we reach the end of the log;
+        while (entry != null) {
+            FetchDataInfo fetchInfo = entry.getValue().read(startOffset, maxOffset, maxLength);
+            if (fetchInfo == null) {
+                entry = segments.higherEntry(entry.getKey());
+            } else {
+                return fetchInfo;
+            }
+        }
+
+        // okay we are beyond the end of the last segment with no data fetched although the start offset is in range,
+        // this can happen when all messages with offset larger than start offsets have been deleted.;
+        // In this case, we will return the empty set with log end offset metadata;
+        return new FetchDataInfo(nextOffsetMetadata, MessageSet.Empty);
+    }
+
+    /**
+     * Given a message offset, find its corresponding offset metadata in the log.
+     * If the message offset is out of range, return unknown offset metadata
+     */
+    public LogOffsetMetadata convertToOffsetMetadata(Long offset) {
+        try {
+            FetchDataInfo fetchDataInfo = read(offset, 1, Optional.empty());
+            return fetchDataInfo.fetchOffset;
+        } catch (OffsetOutOfRangeException e) {
+            return LogOffsetMetadata.UnknownOffsetMetadata;
+        }
+    }
+
+    /**
+     * Delete any log segments matching the given predicate function,
+     * starting with the oldest segment and moving forward until a segment doesn't match.
+     *
+     * @param predicate A function that takes in a single log segment and returns true iff it is deletable
+     * @return The number of segments deleted
+     */
+    public Integer deleteOldSegments(Converter<LogSegment, Boolean> predicate) throws IOException {
+        // find any segments that match the user-supplied predicate UNLESS it is the final segment;
+        // and it is empty (since we would just end up re-creating it;
+        LogSegment lastSegment = activeSegment();
+        // TODO: 2017/4/3 takewhile filter
+        List<LogSegment> deletable = logSegments().stream().filter(s -> predicate.convert(s) && (s.baseOffset != lastSegment.baseOffset || s.size() > 0)).collect(Collectors.toList());
+        Integer numToDelete = deletable.size();
+        if (numToDelete > 0) {
+            synchronized (lock) {
+                // we must always have at least one segment, so if we are going to delete all the segments, create a new one first;
+                if (segments.size() == numToDelete)
+                    roll();
+                // remove the segments for lookups;
+
+                deletable.forEach(s -> deleteSegment(s));
+            }
+        }
+        return numToDelete;
+    }
+
 
     /**
      * The size of the log in bytes
@@ -517,7 +525,6 @@ public class Log extends KafkaMetricsGroup {
     public Long logStartOffset() {
         return logSegments().stream().findFirst().get().baseOffset;
     }
-//
 
     /**
      * The offset metadata of the next message that will be appended to the log
@@ -545,7 +552,7 @@ public class Log extends KafkaMetricsGroup {
      *                     </ol>
      * @return The currently active segment after (perhaps) rolling to a new segment
      */
-    private LogSegment maybeRoll(Integer messagesSize) {
+    private LogSegment maybeRoll(Integer messagesSize) throws IOException {
         LogSegment segment = activeSegment();
         if (segment.size() > config.segmentSize - messagesSize
                 || segment.size() > 0
@@ -571,7 +578,7 @@ public class Log extends KafkaMetricsGroup {
      *
      * @return The newly rolled segment
      */
-    public LogSegment roll() {
+    public LogSegment roll() throws IOException {
         Long start = time.nanoseconds();
         synchronized (lock) {
             Long newOffset = logEndOffset();
@@ -583,34 +590,35 @@ public class Log extends KafkaMetricsGroup {
                     warn("Newly rolled segment file " + file.getName() + " already exists; deleting it first");
                     file.delete();
                 }
-
-                Map.Entry<Long, LogSegment> lastEnty = segments.lastEntry();
-                // TODO: 2017/4/3
-                if (lastEnty != null) {
-                    lastEnty.getValue().index.trimToValidSize();
-                }
-                LogSegment segment = new LogSegment(dir,
-                        newOffset,
-                        config.indexInterval,
-                        config.maxIndexSize,
-                        config.randomSegmentJitter,
-                        time);
-                LogSegment prev = addSegment(segment);
-                if (prev != null)
-                    throw new KafkaException(String.format("Trying to roll a new log segment for topic partition %s with start offset %d while it already exists.", name, newOffset))
-
-                // schedule an asynchronous flush of the old segment;
-                scheduler.schedule("flush-log", () -> flush(newOffset), 0L);
-
-                info(String.format("Rolled new log segment for '" + name + "' in %.0f ms.", (System.nanoTime() - start) / (1000.0 * 1000.0)));
-
-                return segment;
             }
-        }
 
-        /**
-         * The number of messages appended to the log since the last flush
-         */
+            Map.Entry<Long, LogSegment> lastEnty = segments.lastEntry();
+            // TODO: 2017/4/3
+            if (lastEnty != null) {
+                lastEnty.getValue().index.trimToValidSize();
+            }
+            LogSegment segment = new LogSegment(dir,
+                    newOffset,
+                    config.indexInterval,
+                    config.maxIndexSize,
+                    config.randomSegmentJitter,
+                    time);
+            LogSegment prev = addSegment(segment);
+            if (prev != null)
+                throw new KafkaException(String.format("Trying to roll a new log segment for topic partition %s with start offset %d while it already exists.", name, newOffset));
+
+            // schedule an asynchronous flush of the old segment;
+            scheduler.schedule("flush-log", () -> flush(newOffset), 0L);
+
+            info(String.format("Rolled new log segment for '" + name + "' in %.0f ms.", (System.nanoTime() - start) / (1000.0 * 1000.0)));
+
+            return segment;
+        }
+    }
+
+    /**
+     * The number of messages appended to the log since the last flush
+     */
 
     public Long unflushedMessages() {
         return this.logEndOffset() - this.recoveryPoint;
@@ -647,58 +655,60 @@ public class Log extends KafkaMetricsGroup {
      * Completely delete this log directory and all contents from the file system with no delay
      */
     void delete() {
-         synchronized(lock) {
-            logSegments().forEach((s)->s.delete());
+        synchronized (lock) {
+            logSegments().forEach((s) -> s.delete());
             segments.clear();
             Utils.rm(dir);
         }
     }
-//
-//    /**
-//     * Truncate this log so that it ends with the greatest offset < targetOffset.
-//     * @param targetOffset The offset to truncate to, an upper bound on all offsets in the log after truncation is complete.
-//     */
-//    private[log] public void  truncateTo(Long targetOffset) {
-//        info(String.format("Truncating log %s to offset %d.",name, targetOffset))
-//        if(targetOffset < 0)
-//            throw new IllegalArgumentException(String.format("Cannot truncate to a negative offset (%d).",targetOffset))
-//        if(targetOffset > logEndOffset) {
-//            info(String.format("Truncating %s to %d has no effect as the largest offset in the log is %d.",name, targetOffset, logEndOffset-1))
-//            return;
-//        }
-//        lock synchronized {
-//            if(segments.firstEntry.getValue.baseOffset > targetOffset) {
-//                truncateFullyAndStartAt(targetOffset);
-//            } else {
-//                val deletable = logSegments.filter(segment => segment.baseOffset > targetOffset);
-//                deletable.foreach(deleteSegment(_))
-//                activeSegment.truncateTo(targetOffset);
-//                updateLogEndOffset(targetOffset);
-//                this.recoveryPoint = math.min(targetOffset, this.recoveryPoint);
-//            }
-//        }
-//    }
-//
-//    /**
-//     *  Delete all data in the log and start at the new offset
-//     *  @param newOffset The new offset to start the log with
-//     */
-//    private[log] public void  truncateFullyAndStartAt(Long newOffset) {
-//        debug("Truncate and start log '" + name + "' to " + newOffset);
-//        lock synchronized {
-//            val segmentsToDelete = logSegments.toList;
-//            segmentsToDelete.foreach(deleteSegment(_))
-//            addSegment(new LogSegment(dir,
-//                    newOffset,
-//                    indexIntervalBytes = config.indexInterval,
-//                    maxIndexSize = config.maxIndexSize,
-//                    rollJitterMs = config.randomSegmentJitter,
-//                    time = time));
-//            updateLogEndOffset(newOffset);
-//            this.recoveryPoint = math.min(newOffset, this.recoveryPoint);
-//        }
-//    }
-//
+
+    /**
+     * Truncate this log so that it ends with the greatest offset < targetOffset.
+     *
+     * @param targetOffset The offset to truncate to, an upper bound on all offsets in the log after truncation is complete.
+     */
+    void truncateTo(Long targetOffset) throws IOException {
+        info(String.format("Truncating log %s to offset %d.", name, targetOffset));
+        if (targetOffset < 0)
+            throw new IllegalArgumentException(String.format("Cannot truncate to a negative offset (%d).", targetOffset));
+        if (targetOffset > logEndOffset()) {
+            info(String.format("Truncating %s to %d has no effect as the largest offset in the log is %d.", name, targetOffset, logEndOffset() - 1));
+            return;
+        }
+        synchronized (lock) {
+            if (segments.firstEntry().getValue().baseOffset > targetOffset) {
+                truncateFullyAndStartAt(targetOffset);
+            } else {
+                List<LogSegment> deletable = logSegments().stream().filter(segment -> segment.baseOffset > targetOffset).collect(Collectors.toList());
+                deletable.forEach(s -> deleteSegment(s));
+                activeSegment().truncateTo(targetOffset);
+                updateLogEndOffset(targetOffset);
+                this.recoveryPoint = Math.min(targetOffset, this.recoveryPoint);
+            }
+        }
+    }
+
+    /**
+     * Delete all data in the log and start at the new offset
+     *
+     * @param newOffset The new offset to start the log with
+     */
+    void truncateFullyAndStartAt(Long newOffset) throws IOException {
+        debug("Truncate and start log '" + name + "' to " + newOffset);
+        synchronized (lock) {
+            Collection<LogSegment> segmentsToDelete = logSegments();
+            segmentsToDelete.forEach(s -> deleteSegment(s));
+            addSegment(new LogSegment(dir,
+                    newOffset,
+                    config.indexInterval,
+                    config.maxIndexSize,
+                    config.randomSegmentJitter,
+                    time));
+            updateLogEndOffset(newOffset);
+            this.recoveryPoint = Math.min(newOffset, this.recoveryPoint);
+        }
+    }
+
 
     /**
      * The time this log is last known to have been fully flushed to disk
@@ -772,78 +782,42 @@ public class Log extends KafkaMetricsGroup {
         };
         scheduler.schedule("delete-file", deleteSeg, config.fileDeleteDelayMs);
     }
-//
-//    /**
-//     * Swap a new segment in place and delete one or more existing segments in a crash-safe manner. The old segments will
-//     * be asynchronously deleted.
-//     *
-//     * @param newSegment The new log segment to add to the log
-//     * @param oldSegments The old log segments to delete from the log
-//     */
-//    private[log] public void  replaceSegments(LogSegment newSegment, Seq oldSegments[LogSegment]) {
-//        lock synchronized {
-//            // need to do this in two phases to be crash safe AND do the delete asynchronously;
-//            // if we crash in the middle of this we complete the swap in loadSegments()
-//            newSegment.changeFileSuffixes(Log.CleanedFileSuffix, Log.SwapFileSuffix);
-//            addSegment(newSegment);
-//
-//            // delete the old files;
-//            for(seg <- oldSegments) {
-//                // remove the index entry;
-//                if(seg.baseOffset != newSegment.baseOffset)
-//                    segments.remove(seg.baseOffset);
-//                // delete segment;
-//                asyncDeleteSegment(seg);
-//            }
-//            // okay we are safe now, remove the swap suffix;
-//            newSegment.changeFileSuffixes(Log.SwapFileSuffix, "");
-//        }
-//    }
-//
-//    /**
-//     * Add the given segment to the segments in this log. If this segment replaces an existing segment, delete it.
-//     * @param segment The segment to add
-//     */
-//    public void  addSegment(LogSegment segment) = this.segments.put(segment.baseOffset, segment);
-//
-//
-//        /**
-//         * Make log segment file name from offset bytes. All this does is pad out the offset number with zeros
-//         * so that ls sorts the files numerically.
-//         * @param offset The offset to use in the file name
-//         * @return The filename
-//         */
-//        public void  filenamePrefixFromOffset(Long offset): String = {
-//        val nf = NumberFormat.getInstance();
-//        nf.setMinimumIntegerDigits(20);
-//        nf.setMaximumFractionDigits(0);
-//        nf.setGroupingUsed(false);
-//        nf.format(offset)
-//        }
-//
-//        /**
-//         * Construct a log file name in the given dir with the given base offset
-//         * @param dir The directory in which the log will reside
-//         * @param offset The base offset of the log file
-//         */
-//        public void  logFilename(File dir, Long offset) =
-//        new File(dir, filenamePrefixFromOffset(offset) + LogFileSuffix);
-//
-//        /**
-//         * Construct an index file name in the given dir using the given base offset
-//         * @param dir The directory in which the log will reside
-//         * @param offset The base offset of the log file
-//         */
-//        public void  indexFilename(File dir, Long offset) =
-//        new File(dir, filenamePrefixFromOffset(offset) + IndexFileSuffix);
-//
 
     /**
-     * Parse the topic and partition out of the directory name of a log
+     * Swap a new segment in place and delete one or more existing segments in a crash-safe manner. The old segments will
+     * be asynchronously deleted.
+     *
+     * @param newSegment  The new log segment to add to the log
+     * @param oldSegments The old log segments to delete from the log
      */
-    public static TopicAndPartition parseTopicPartitionName(String name) {
-        Integer index = name.lastIndexOf('-');
-        return new TopicAndPartition(name.substring(0, index), Integer.parseInt(name.substring(index + 1)));
+    void replaceSegments(LogSegment newSegment, List<LogSegment> oldSegments) {
+        synchronized (lock) {
+            // need to do this in two phases to be crash safe AND do the delete asynchronously;
+            // if we crash in the middle of this we complete the swap in loadSegments()
+            newSegment.changeFileSuffixes(Log.CleanedFileSuffix, Log.SwapFileSuffix);
+            addSegment(newSegment);
+
+            // delete the old files;
+            for (LogSegment seg : oldSegments) {
+                // remove the index entry;
+                if (seg.baseOffset != newSegment.baseOffset)
+                    segments.remove(seg.baseOffset);
+                // delete segment;
+                asyncDeleteSegment(seg);
+            }
+            // okay we are safe now, remove the swap suffix;
+            newSegment.changeFileSuffixes(Log.SwapFileSuffix, "");
+        }
+    }
+
+
+    /**
+     * Add the given segment to the segments in this log. If this segment replaces an existing segment, delete it.
+     *
+     * @param segment The segment to add
+     */
+    public LogSegment addSegment(LogSegment segment) {
+        return this.segments.put(segment.baseOffset, segment);
     }
 
 
@@ -854,7 +828,6 @@ public class Log extends KafkaMetricsGroup {
      * @param offset The offset to use in the file name
      * @return The filename
      */
-
     public static String filenamePrefixFromOffset(Long offset) {
         NumberFormat nf = NumberFormat.getInstance();
         nf.setMinimumIntegerDigits(20);
@@ -862,6 +835,7 @@ public class Log extends KafkaMetricsGroup {
         nf.setGroupingUsed(false);
         return nf.format(offset);
     }
+
 
     /**
      * Construct a log file name in the given dir with the given base offset
@@ -881,6 +855,14 @@ public class Log extends KafkaMetricsGroup {
      */
     public static File indexFilename(File dir, Long offset) {
         return new File(dir, filenamePrefixFromOffset(offset) + IndexFileSuffix);
+    }
+
+    /**
+     * Parse the topic and partition out of the directory name of a log
+     */
+    public static TopicAndPartition parseTopicPartitionName(String name) {
+        Integer index = name.lastIndexOf('-');
+        return new TopicAndPartition(name.substring(0, index), Integer.parseInt(name.substring(index + 1)));
     }
 
 

@@ -1,12 +1,10 @@
-package log;/**
+package kafka.log;/**
  * Created by zhoulf on 2017/3/30.
  */
 
 import com.google.common.collect.Lists;
 import kafka.common.InvalidOffsetException;
-import kafka.log.OffsetIndex;
-import kafka.log.OffsetPosition;
-import message.TestUtils;
+import kafka.message.TestUtils;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
