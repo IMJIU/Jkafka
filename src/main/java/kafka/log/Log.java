@@ -5,23 +5,19 @@ package kafka.log;/**
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.yammer.metrics.core.Gauge;
 import kafka.annotation.threadsafe;
 import kafka.common.*;
 import kafka.func.Action;
 import kafka.func.Converter;
-import kafka.func.Processor;
 import kafka.message.*;
 import kafka.metrics.KafkaMetricsGroup;
 import kafka.server.BrokerTopicStats;
 import kafka.server.FetchDataInfo;
 import kafka.server.LogOffsetMetadata;
 import kafka.utils.KafkaScheduler;
-import kafka.utils.Scheduler;
 import kafka.utils.Time;
 import kafka.utils.Utils;
-
-import javax.swing.text.Segment;
-import javax.swing.text.html.Option;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -93,29 +89,7 @@ public class Log extends KafkaMetricsGroup {
         tags = Maps.newHashMap();
         tags.put("topic", topicAndPartition.topic);
         tags.put("partition", topicAndPartition.partition.toString());
-        //    newGauge("NumLogSegments",
-//                     new Gauge[Int] {
-//        public void  value = numberOfSegments;
-//    },
-//    tags);
-//
-//    newGauge("LogStartOffset",
-//                     new Gauge[Long] {
-//        public void  value = logStartOffset;
-//    },
-//    tags);
-//
-//    newGauge("LogEndOffset",
-//                     new Gauge[Long] {
-//        public void  value = logEndOffset;
-//    },
-//    tags);
-//
-//    newGauge("Size",
-//                     new Gauge[Long] {
-//        public void  value = size;
-//    },
-//    tags);
+        newGuages();
     }
 
 
@@ -897,5 +871,40 @@ public class Log extends KafkaMetricsGroup {
      * Get TODO rid of CleanShutdownFile in 0.8.2
      */
     public static final String CleanShutdownFile = ".kafka_cleanshutdown";
+
+    private void newGuages() {
+        newGauge("NumLogSegments",
+                new Gauge<Integer>() {
+                    @Override
+                    public Integer value() {
+                        return numberOfSegments();
+                    }
+                },
+                tags);
+        newGauge("LogStartOffset",
+                new Gauge<Long>() {
+                    @Override
+                    public Long value() {
+                        return logStartOffset();
+                    }
+                },
+                tags);
+        newGauge("LogEndOffset",
+                new Gauge<Long>() {
+                    @Override
+                    public Long value() {
+                        return logEndOffset();
+                    }
+                },
+                tags);
+        newGauge("Size",
+                new Gauge<Long>() {
+                    @Override
+                    public Long value() {
+                        return size();
+                    }
+                },
+                tags);
+    }
 
 }

@@ -2,6 +2,7 @@ package kafka.metrics;
 
 import com.google.common.collect.Maps;
 import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Meter;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.Timer;
@@ -56,15 +57,10 @@ public class KafkaMetricsGroup extends Logging {
         return new MetricName(group, typeName, name, scope, nameBuilder.toString());
     }
 
-    //
-//    def newGauge[
-//    T](String name,Gauge metric[T],scala tags.collection.Map[String,String]=Map.empty)=
-//            Metrics.defaultRegistry().;
-//
-//    newGauge(metricName(name, tags),metric;
-//
-//    );
-//
+    public <T> Gauge<T> newGauge(String name, Gauge<T> metric, Map<String, String> tags){
+        return Metrics.defaultRegistry().newGauge(metricName(name, tags),metric);
+    }
+
     public Meter newMeter(String name, String eventType, TimeUnit timeUnit, Map<String, String> tags) {
         return Metrics.defaultRegistry().newMeter(metricName(name, tags), eventType, timeUnit);
     }
