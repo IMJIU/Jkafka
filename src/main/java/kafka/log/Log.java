@@ -228,7 +228,9 @@ public class Log extends KafkaMetricsGroup {
             logSegments().forEach((seg) -> seg.close());
         }
     }
-
+    public LogAppendInfo append(ByteBufferMessageSet messages){
+        return append(messages,true);
+    }
     /**
      * Append this message set to the active segment of the log, rolling over to a fresh segment if necessary.
      * <p>
@@ -241,9 +243,6 @@ public class Log extends KafkaMetricsGroup {
      * @throws KafkaStorageException If the append fails due to an I/O error.
      */
     public LogAppendInfo append(ByteBufferMessageSet messages, Boolean assignOffsets) {
-        if (assignOffsets == null) {
-            assignOffsets = true;
-        }
         LogAppendInfo appendInfo = analyzeAndValidateMessageSet(messages);//生成LogAppendInfo;
 
         // if we have any valid messages, append them to the log;

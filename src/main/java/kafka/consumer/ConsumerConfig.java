@@ -7,35 +7,35 @@ import kafka.common.Config;
  * Created by Administrator on 2017/4/4.
  */
 public class ConsumerConfig extends Config {
-    public Integer RefreshMetadataBackoffMs = 200;
-    public Integer SocketTimeout = 30 * 1000;
-    public Integer SocketBufferSize = 64 * 1024;
-    public Integer FetchSize = 1024 * 1024;
-    public Integer MaxFetchSize = 10 * FetchSize;
-    public Integer NumConsumerFetchers = 1;
-    public Integer DefaultFetcherBackoffMs = 1000;
-    public Boolean AutoCommit = true;
-    public Integer AutoCommitInterval = 60 * 1000;
-    public Integer MaxQueuedChunks = 2;
-    public Integer MaxRebalanceRetries = 4;
-    public String AutoOffsetReset = OffsetRequest.LargestTimeString;
-    public Integer ConsumerTimeoutMs = -1;
-    public Integer MinFetchBytes = 1;
-    public Integer MaxFetchWaitMs = 100;
-    public String MirrorTopicsWhitelist = "";
-    public String MirrorTopicsBlacklist = "";
-    public Integer MirrorConsumerNumThreads = 1;
-    public Integer OffsetsChannelBackoffMs = 1000;
-    public Integer OffsetsChannelSocketTimeoutMs = 10000;
-    public Integer OffsetsCommitMaxRetries = 5;
-    public String OffsetsStorage = "zookeeper";
+    public static final Integer RefreshMetadataBackoffMs = 200;
+    public static final Integer SocketTimeout = 30 * 1000;
+    public static final Integer SocketBufferSize = 64 * 1024;
+    public static final Integer FetchSize = 1024 * 1024;
+    public static final Integer MaxFetchSize = 10 * FetchSize;
+    public static final Integer NumConsumerFetchers = 1;
+    public static final Integer DefaultFetcherBackoffMs = 1000;
+    public static final Boolean AutoCommit = true;
+    public static final Integer AutoCommitInterval = 60 * 1000;
+    public static final Integer MaxQueuedChunks = 2;
+    public static final Integer MaxRebalanceRetries = 4;
+    public static final String AutoOffsetReset = OffsetRequest.LargestTimeString;
+    public static final Integer ConsumerTimeoutMs = -1;
+    public static final Integer MinFetchBytes = 1;
+    public static final Integer MaxFetchWaitMs = 100;
+    public static final String MirrorTopicsWhitelist = "";
+    public static final String MirrorTopicsBlacklist = "";
+    public static final Integer MirrorConsumerNumThreads = 1;
+    public static final Integer OffsetsChannelBackoffMs = 1000;
+    public static final Integer OffsetsChannelSocketTimeoutMs = 10000;
+    public static final Integer OffsetsCommitMaxRetries = 5;
+    public static final String OffsetsStorage = "zookeeper";
 
-    public String MirrorTopicsWhitelistProp = "mirror.topics.whitelist";
-    public String MirrorTopicsBlacklistProp = "mirror.topics.blacklist";
-    public Boolean ExcludeInternalTopics = true;
-    public String DefaultPartitionAssignmentStrategy = "range"; /* select between "range", and "roundrobin" */
-    public String MirrorConsumerNumThreadsProp = "mirror.consumer.numthreads";
-    public String DefaultClientId = "";
+    public static final String MirrorTopicsWhitelistProp = "mirror.topics.whitelist";
+    public static final String MirrorTopicsBlacklistProp = "mirror.topics.blacklist";
+    public static final Boolean ExcludeInternalTopics = true;
+    public static final String DefaultPartitionAssignmentStrategy = "range"; /* select between "range", and "roundrobin" */
+    public static final String MirrorConsumerNumThreadsProp = "mirror.consumer.numthreads";
+    public static final String DefaultClientId = "";
 //
 //        def validate(config: ConsumerConfig) {
 //            validateClientId(config.clientId)

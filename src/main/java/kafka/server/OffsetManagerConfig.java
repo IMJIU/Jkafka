@@ -1,10 +1,20 @@
 package kafka.server;
 
+import kafka.message.CompressionCodec;
+
 /**
  * Created by Administrator on 2017/4/4.
  */
 public class OffsetManagerConfig {
-
+        public static final Integer DefaultMaxMetadataSize = 4096;
+        public static final Integer DefaultLoadBufferSize = 5*1024*1024;
+        public static final Long DefaultOffsetsRetentionCheckIntervalMs = 600000L;
+        public static final Integer DefaultOffsetsTopicNumPartitions = 50;
+        public static final Integer DefaultOffsetsTopicSegmentBytes = 100*1024*1024;
+        public static final Short DefaultOffsetsTopicReplicationFactor = 3;
+        public static final CompressionCodec DefaultOffsetsTopicCompressionCodec = CompressionCodec.NoCompressionCodec;
+        public static final Integer DefaultOffsetCommitTimeoutMs = 5000;
+        public static final Short DefaultOffsetCommitRequiredAcks = (-1);
 /**
  * Configuration settings for in-built offset management
  * @param maxMetadataSize The maximum allowed metadata for any offset commit.
@@ -34,15 +44,7 @@ public class OffsetManagerConfig {
 //    offsetCommitRequiredAcks: Short = OffsetManagerConfig.DefaultOffsetCommitRequiredAcks)
 //
 //    object OffsetManagerConfig {
-//        val DefaultMaxMetadataSize = 4096
-//        val DefaultLoadBufferSize = 5*1024*1024
-//        val DefaultOffsetsRetentionCheckIntervalMs = 600000L
-//        val DefaultOffsetsTopicNumPartitions = 50
-//        val DefaultOffsetsTopicSegmentBytes = 100*1024*1024
-//        val DefaultOffsetsTopicReplicationFactor = 3.toShort
-//        val DefaultOffsetsTopicCompressionCodec = NoCompressionCodec
-//        val DefaultOffsetCommitTimeoutMs = 5000
-//        val DefaultOffsetCommitRequiredAcks = (-1).toShort
+
 //    }
 //
 //    class OffsetManager(val config: OffsetManagerConfig,

@@ -6,13 +6,8 @@ import kafka.message.CompressionCodec;
 import kafka.message.Message;
 import kafka.message.MessageSet;
 import kafka.utils.*;
-
 import java.util.*;
 
-
-/**
- * Created by Administrator on 2017/4/3.
- */
 public class KafkaConfig extends ZKConfig {
     VerifiableProperties props;
 
@@ -71,11 +66,9 @@ public class KafkaConfig extends ZKConfig {
         }
     }
 
-    /***********
-     * General Configuration
-     ***********/
+    /*********** General Configuration ***********/
 
-  /* the broker id for this server */
+    /* the broker id for this server */
     public Integer brokerId = props.getIntInRange("broker.id", Tuple.of(0, Integer.MAX_VALUE));
     /* the maximum size of message that the server can receive */
     public Integer messageMaxBytes = props.getIntInRange("message.max.bytes", 1000000 + MessageSet.LogOverhead, Tuple.of(0, Integer.MAX_VALUE));
@@ -96,7 +89,7 @@ public class KafkaConfig extends ZKConfig {
      * Socket Server Configuration
      ***********/
 
-  /* the port to listen and accept connections on */
+    /* the port to listen and accept connections on */
     public Integer port = props.getInt("port", 9092);
 
     /* hostname of broker. If this is set, it will only bind to this address. If this is not set,
@@ -127,17 +120,14 @@ public class KafkaConfig extends ZKConfig {
     public Integer maxConnectionsPerIp = props.getIntInRange("max.connections.per.ip", Integer.MAX_VALUE, Tuple.of(1, Integer.MAX_VALUE));
 
     /* per-ip or hostname overrides to the default maximum number of connections */
-    public Map<String, String> maxConnectionsPerIpOverrides = props.getMap("max.connections.per.ip.overrides").map(entry = > (entry., entry
-    ._2.toInt));
+    public Map<String, String> maxConnectionsPerIpOverrides = props.getMap("max.connections.per.ip.overrides");
 
     /* idle connections the timeout server socket processor threads close the connections that idle more than this */
     public Long connectionsMaxIdleMs = props.getLong("connections.max.idle.ms", 10 * 60 * 1000L);
 
-    /***********
-     * Log Configuration
-     ***********/
+    /*********** Log Configuration ***********/
 
-  /* the default number of log partitions per topic */
+    /* the default number of log partitions per topic */
     public Integer numPartitions = props.getIntInRange("num.partitions", 1, Tuple.of(1, Integer.MAX_VALUE));
 
     /* the directories in which the log data is kept */
@@ -145,8 +135,7 @@ public class KafkaConfig extends ZKConfig {
 
 
     /* the maximum size of a single log file */
-    public Integer logSegmentBytes = props.getIntInRange("log.segment.bytes", 1 * 1024 * 1024 * 1024, (Message.MinHeaderSize, Integer.MAX_VALUE)
-    );
+    public Integer logSegmentBytes = props.getIntInRange("log.segment.bytes", 1 * 1024 * 1024 * 1024, Tuple.of(Message.MinHeaderSize, Integer.MAX_VALUE));
 
     /* the maximum time before a new log segment is rolled out */
     public Long logRollTimeMillis = getLogRollTimeMillis();
@@ -161,8 +150,7 @@ public class KafkaConfig extends ZKConfig {
     public Long logRetentionBytes = props.getLong("log.retention.bytes", -1L);
 
     /* the frequency in minutes that the log cleaner checks whether any log is eligible for deletion */
-    public Long logCleanupIntervalMs = props.getLongInRange("log.retention.check.interval.ms", 5 * 60 * 1000, Tuple.of(1, Integer.MAX_VALUE)
-    );
+    public Long logCleanupIntervalMs = props.getLongInRange("log.retention.check.interval.ms", 5 * 60 * 1000L, Tuple.of(1L, Long.MAX_VALUE));
 
     /* the default cleanup policy for segments beyond the retention window, must be either "delete" or "compact" */
     public String logCleanupPolicy = props.getString("log.cleanup.policy", "delete");
@@ -244,7 +232,7 @@ public class KafkaConfig extends ZKConfig {
     public Long replicaLagTimeMaxMs = props.getLong("replica.lag.time.max.ms", 10000L);
 
     /* If the lag in messages between a leader and a follower exceeds this number, the leader will remove the follower from isr */
-    public Long replicaLagMaxMessages = props.getLong("replica.lag.max.messages", 4000);
+    public Long replicaLagMaxMessages = props.getLong("replica.lag.max.messages", 4000L);
 
     /* the socket timeout for network requests. Its value should be at least replica.fetch.wait.max.ms. */
     public Integer replicaSocketTimeoutMs = props.getInt("replica.socket.timeout.ms", ConsumerConfig.SocketTimeout);
@@ -326,7 +314,7 @@ public class KafkaConfig extends ZKConfig {
      * it will get a replication factor of min(alive brokers, configured replication factor)
      */
     public Short offsetsTopicReplicationFactor = props.getShortInRange("offsets.topic.replication.factor",
-            OffsetManagerConfig.DefaultOffsetsTopicReplicationFactor, Tuple.of(1, Short.MAX_VALUE));
+            OffsetManagerConfig.DefaultOffsetsTopicReplicationFactor, Tuple.of((short)1, Short.MAX_VALUE));
 
     /**
      * The number of partitions for the offset commit topic (should not change after deployment).
@@ -359,7 +347,7 @@ public class KafkaConfig extends ZKConfig {
 
     /* Offset commit will be delayed until all replicas for the offsets topic receive the commit or this timeout is
      * reached. This is similar to the producer request timeout. */
-    public Long offsetCommitTimeoutMs = props.getIntInRange("offsets.commit.timeout.ms",
+    public Integer offsetCommitTimeoutMs = props.getIntInRange("offsets.commit.timeout.ms",
             OffsetManagerConfig.DefaultOffsetCommitTimeoutMs, Tuple.of(1, Integer.MAX_VALUE));
 
     /**

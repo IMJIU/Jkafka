@@ -1,5 +1,6 @@
 package kafka.utils;
 
+import com.google.common.collect.Lists;
 import kafka.message.ByteBufferMessageSet;
 import kafka.message.CompressionCodec;
 import kafka.message.Message;
@@ -11,9 +12,13 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.net.ServerSocket;
 import java.nio.ByteBuffer;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Properties;
 import java.util.Random;
+import java.util.stream.Collectors;
 
 /**
  * Created by Administrator on 2017/3/26.
@@ -48,7 +53,7 @@ public class TestUtils {
         return f;
     }
 
-    public static void Assert.assertEquals(String msg, Iterator<MessageAndOffset> expected, Iterator<MessageAndOffset> actual) {
+    public static void assertEquals(String msg, Iterator<MessageAndOffset> expected, Iterator<MessageAndOffset> actual) {
         checkEquals(expected, actual);
     }
 
@@ -65,7 +70,7 @@ public class TestUtils {
             Assert.assertEquals(expected.next(), actual.next());
         }
 
-        // check if the expected iterator is longer;
+        // check if the expected iterator is longer
         if (expected.hasNext()) {
             int length1 = length;
             while (expected.hasNext()) {
@@ -75,7 +80,7 @@ public class TestUtils {
             Assert.assertFalse("Iterators have uneven length-- first has more: " + length1 + " > " + length, true);
         }
 
-        // check if the actual iterator was longer;
+        // check if the actual iterator was longer
         if (actual.hasNext()) {
             int length2 = length;
             while (actual.hasNext()) {
@@ -93,7 +98,7 @@ public class TestUtils {
             protected Message makeNext() {
                 if (iterator.hasNext())
                     return iterator.next().message;
-                else;
+                else
                     return allDone();
             }
         };
@@ -125,37 +130,47 @@ public class TestUtils {
     /**
      * Create a temporary directory
      */
-//    public void  tempDir(): File = {
-//        val f = new File(IoTmpDir, "kafka-" + random.nextInt(1000000));
-//        f.mkdirs();
-//        f.deleteOnExit();
+    public static File tempDir() {
+        File f = new File(IoTmpDir, "kafka-" + random.nextInt(1000000));
+        f.mkdirs();
+        f.deleteOnExit();
+
+        Runtime.getRuntime().addShutdownHook(new Thread() {
+            @Override
+            public void run() {
+                Utils.rm(f);
+            }
+        });
+        return f;
+    }
 //
-//        Runtime.getRuntime().addShutdownHook(new Thread() {
-//            override public void  run() = {
-//                Utils.rm(f);
-//            }
-//        });
-//
-//        f;
-//    }
-//
-//    /**
-//     * Choose a number of random available ports
-//     */
-//    public void  choosePorts Integer count): List<Int> = {
-//        val sockets =
-//        for(i <- 0 until count)
-//        yield new ServerSocket(0);
-//        val socketList = sockets.toList;
-//        val ports = socketList.map(_.getLocalPort);
-//        socketList.map(_.close);
-//        ports;
-//    }
-//
+
+    /**
+     * Choose a number of random available ports
+     */
+    public static List<Integer> choosePorts(Integer count) throws IOException {
+        List<ServerSocket> socketList = Lists.newArrayList();
+        for (int i = 0; i < count; i++) {
+            socketList.add(new ServerSocket(0));
+        }
+        List<Integer> ports = socketList.stream().map(s -> s.getLocalPort()).collect(Collectors.toList());
+        socketList.forEach(s -> {
+            try {
+                s.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+        return ports;
+    }
+
+    //
 //    /**
 //     * Choose an available port
 //     */
-//    public void  choosePort(): Integer = choosePorts(1).head;
+    public static Integer choosePort() throws IOException {
+        return choosePorts(1).get(0);
+    }
 //
 //    public void  tempTopic(): String = "testTopic" + random.nextInt(1000000);
 //
@@ -194,34 +209,41 @@ public class TestUtils {
 //        server;
 //    }
 //
-//    /**
-//     * Create a test config for the given node id
-//     */
-//    public void  createBrokerConfigs Integer numConfigs,
-//                            Boolean enableControlledShutdown = true): List<Properties> = {
-//        for((port, node) <- choosePorts(numConfigs).zipWithIndex)
-//        yield createBrokerConfig(node, port, enableControlledShutdown);
-//    }
+
+    /**
+     * Create a test config for the given node id
+     */
+    public static List<Properties> createBrokerConfigs(Integer numConfigs, Boolean enableControlledShutdown) throws IOException {
+        enableControlledShutdown = enableControlledShutdown == null ? true : enableControlledShutdown;
+        List<Integer> ports = choosePorts(numConfigs);
+        List<Properties> properties = Lists.newArrayList();
+        for (int node = 0; node < ports.size(); node++) {
+            properties.add(createBrokerConfig(node, ports.get(node), enableControlledShutdown));
+        }
+        return properties;
+    }
 //
 //    public void  getBrokerListStrFromConfigs(Seq configs<KafkaConfig>): String = {
 //        configs.map(c => formatAddress(c.hostName, c.port)).mkString(",")
 //    }
 //
-//    /**
-//     * Create a test config for the given node id
-//     */
-//    public void  createBrokerConfig Integer nodeId, Integer port = choosePort(),
-//    Boolean enableControlledShutdown = true): Properties = {
-//        val props = new Properties;
-//        props.put("broker.id", nodeId.toString);
-//        props.put("host.name", "localhost");
-//        props.put("port", port.toString);
-//        props.put("log.dir", TestUtils.tempDir().getAbsolutePath);
-//        props.put("zookeeper.connect", TestZKUtils.zookeeperConnect);
-//        props.put("replica.socket.timeout.ms", "1500");
-//        props.put("controlled.shutdown.enable", enableControlledShutdown.toString);
-//        props;
-//    }
+
+    /**
+     * Create a test config for the given node id
+     */
+    public static Properties createBrokerConfig(Integer nodeId, Integer port, Boolean enableControlledShutdown) throws IOException {
+        port = port == null ? choosePort() : port;
+        enableControlledShutdown = enableControlledShutdown == null ? true : enableControlledShutdown;
+        Properties props = new Properties();
+        props.put("broker.id", nodeId.toString());
+        props.put("host.name", "localhost");
+        props.put("port", port.toString());
+        props.put("log.dir", TestUtils.tempDir().getAbsolutePath());
+        props.put("zookeeper.connect", TestZKUtils.zookeeperConnect);
+        props.put("replica.socket.timeout.ms", "1500");
+        props.put("controlled.shutdown.enable", enableControlledShutdown.toString());
+        return props;
+    }
 //
 //    /**
 //     * Create a topic in zookeeper.

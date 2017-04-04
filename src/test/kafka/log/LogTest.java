@@ -1,15 +1,19 @@
 package kafka.log;
 
+import kafka.message.ByteBufferMessageSet;
 import kafka.utils.TestUtils;
 import kafka.server.KafkaConfig;
 import kafka.utils.MockTime;
 import kafka.utils.Utils;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
+import java.util.Properties;
 
 /**
  * Created by Administrator on 2017/4/3.
@@ -22,9 +26,9 @@ public class LogTest {
     LogConfig logConfig = new LogConfig();
 
     @Before
-    public void setUp() {
+    public void setUp() throws IOException {
         logDir = TestUtils.tempDir();
-        val props = TestUtils.createBrokerConfig(0, -1);
+        Properties props = TestUtils.createBrokerConfig(0, -1,true);
         config = new KafkaConfig(props);
     }
 
@@ -46,21 +50,21 @@ public class LogTest {
      */
     @Test
     public void testTimeBasedLogRoll() {
-        val set = TestUtils.singleMessageSet("test".getBytes());
+        ByteBufferMessageSet set = TestUtils.singleMessageSet("test".getBytes());
 
         // create a log;
-        val log = new Log(logDir,
-                logConfig.copy(segmentMs = 1 * 60 * 60L),
-                recoveryPoint = 0L,
-                scheduler = time.scheduler,
-                time = time);
-        Assert.assertEquals("Log begins with a single empty segment.", 1, log.numberOfSegments);
+        Log log = new Log(logDir,
+                logConfig.copy(1 * 60 * 60L),
+                 0L,
+                 time.scheduler,
+                time);
+        Assert.assertEquals("Log begins with a single empty segment.", 1, log.numberOfSegments());
         time.sleep(log.config.segmentMs + 1);
         log.append(set);
-        Assert.assertEquals("Log doesn't roll if doing so creates an empty segment.", 1, log.numberOfSegments)
+        Assert.assertEquals("Log doesn't roll if doing so creates an empty segment.", 1, log.numberOfSegments())
 
         log.append(set);
-        Assert.assertEquals("Log rolls on this append since time has expired.", 2, log.numberOfSegments);
+        Assert.assertEquals("Log rolls on this append since time has expired.", 2, log.numberOfSegments());
 
         for (int numSegments = 3; numSegments < 5; numSegments++) {
             time.sleep(log.config.segmentMs + 1);
@@ -68,7 +72,7 @@ public class LogTest {
             Assert.assertEquals("Changing time beyond rollMs and appending should create a new segment.", numSegments, log.numberOfSegments);
         }
 
-        val numSegments = log.numberOfSegments;
+        Integer numSegments = log.numberOfSegments();
         time.sleep(log.config.segmentMs + 1);
         log.append(new ByteBufferMessageSet());
         Assert.assertEquals("Appending an empty message set should not roll log even if succient time has passed.", numSegments, log.numberOfSegments)
@@ -80,11 +84,11 @@ public class LogTest {
      */
     @Test
     public void testTimeBasedLogRollJitter() {
-        val set = TestUtils.singleMessageSet("test".getBytes());
-        val maxJitter = 20 * 60L;
+        ByteBufferMessageSet set = TestUtils.singleMessageSet("test".getBytes());
+        Long maxJitter = 20 * 60L;
 
         // create a log;
-        val log = new Log(logDir,
+        Log log = new Log(logDir,
                 logConfig.copy(segmentMs = 1 * 60 * 60L, segmentJitterMs = maxJitter),
                 recoveryPoint = 0L,
                 scheduler = time.scheduler,
