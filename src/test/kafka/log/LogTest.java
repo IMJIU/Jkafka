@@ -28,7 +28,7 @@ public class LogTest {
     @Before
     public void setUp() throws IOException {
         logDir = TestUtils.tempDir();
-        Properties props = TestUtils.createBrokerConfig(0, -1,true);
+        Properties props = TestUtils.createBrokerConfig(0, -1, true);
         config = new KafkaConfig(props);
     }
 
@@ -38,7 +38,7 @@ public class LogTest {
     }
 
     public void createEmptyLogs(File dir, Integer[] offsets) throws IOException {
-        for (Integer offset:offsets) {
+        for (Integer offset : offsets) {
             Log.logFilename(dir, offset.longValue()).createNewFile();
             Log.indexFilename(dir, offset.longValue()).createNewFile();
         }
@@ -55,8 +55,8 @@ public class LogTest {
         // create a log;
         Log log = new Log(logDir,
                 logConfig.copy(1 * 60 * 60L),
-                 0L,
-                 time.scheduler,
+                0L,
+                time.scheduler,
                 time);
         Assert.assertEquals("Log begins with a single empty segment.", 1, log.numberOfSegments());
         time.sleep(log.config.segmentMs + 1);
