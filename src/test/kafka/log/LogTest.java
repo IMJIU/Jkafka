@@ -1,12 +1,15 @@
 package kafka.log;
 
-import kafka.message.TestUtils;
+import kafka.utils.TestUtils;
+import kafka.server.KafkaConfig;
 import kafka.utils.MockTime;
 import kafka.utils.Utils;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Test;
 
 import java.io.File;
+import java.io.IOException;
 
 /**
  * Created by Administrator on 2017/4/3.
@@ -30,10 +33,10 @@ public class LogTest {
         Utils.rm(logDir);
     }
 
-    public void createEmptyLogs(File dir, Integer offsets*) {
-        for (offset< -offsets) {
-            Log.logFilename(dir, offset).createNewFile();
-            Log.indexFilename(dir, offset).createNewFile();
+    public void createEmptyLogs(File dir, Integer[] offsets) throws IOException {
+        for (Integer offset:offsets) {
+            Log.logFilename(dir, offset.longValue()).createNewFile();
+            Log.indexFilename(dir, offset.longValue()).createNewFile();
         }
     }
 

@@ -4,7 +4,7 @@ package kafka.log;/**
 
 import com.google.common.collect.Lists;
 import kafka.common.InvalidOffsetException;
-import kafka.message.TestUtils;
+import kafka.utils.TestUtils;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;

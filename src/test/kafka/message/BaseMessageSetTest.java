@@ -2,10 +2,11 @@ package kafka.message;
 
 import com.google.common.collect.Lists;
 import kafka.log.FileMessageSet;
+import kafka.utils.TestUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
-import static kafka.message.TestUtils.checkEquals;
+import static kafka.utils.TestUtils.checkEquals;
 
 import java.io.File;
 import java.io.FileNotFoundException;

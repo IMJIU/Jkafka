@@ -1,6 +1,7 @@
 package kafka.message;
 
 import com.google.common.collect.Lists;
+import kafka.utils.TestUtils;
 import org.junit.Assert;
 import org.junit.Test;
 

@@ -13,4 +13,9 @@ public class Prediction {
             throw new IllegalArgumentException(msg);
         }
     }
+    public static void require(Boolean check) {
+        if (!check) {
+            throw new IllegalArgumentException();
+        }
+    }
 }

@@ -4,14 +4,14 @@ package kafka.utils;/**
 
 import com.google.common.collect.Maps;
 import kafka.func.Action;
-import kafka.func.ActionWithResult;
+import kafka.func.Fun;
 
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.locks.Lock;
+import java.util.stream.Collectors;
 import java.util.zip.CRC32;
 
 /**
@@ -34,8 +34,8 @@ public class Utils extends Logging {
      * @param fun A function
      * @return A Runnable that just executes the function
      */
-    public static Runnable runnable(Action action) {
-        return () -> action.invoke();
+    public static Runnable runnable(Action fun) {
+        return () -> fun.invoke();
     }
 //
 //        /**
@@ -439,29 +439,29 @@ public class Utils extends Logging {
      * This method gets comma separated values which contains key,value pairs and returns a map of
      * key value pairs. the format of allCSVal is val1 key1, val2 key2 ....
      */
-    public Map<String, String> parseCsvMap(String str) {
+    public static Map<String, String> parseCsvMap(String str) {
         HashMap map = Maps.newHashMap();
-        if ("".equals(str)) ;
+        if ("".equals(str))
+            return map;
+        List<String[]> keyVals = Arrays.asList(str.split("\\s*,\\s*")).stream().map(s -> s.split("\\s*:\\s*")).collect(Collectors.toList());
+        for (String[] arr : keyVals) {
+            map.put(arr[0], arr[1]);
+        }
         return map;
-        Integer keyVals = str.split("\\s*,\\s*").map(s = > s.split("\\s*:\\s*"));
-        keyVals.map(pair = > (pair(0), pair(1))).toMap;
     }
 //
-//    /**
-//     * Parse a comma separated string into a sequence of strings.
-//     * Whitespace surrounding the comma will be removed.
-//     */
-//    def parseCsvList(String csvList);
-//
-//    :Seq[String]=
-//
-//    {
-//        if (csvList == null || csvList.isEmpty);
-//            Seq.empty[String];
-//        else {
-//            csvList.split("\\s*,\\s*").filter(v = > !v.equals(""));
-//        }
-//    }
+
+    /**
+     * Parse a comma separated string into a sequence of strings.
+     * Whitespace surrounding the comma will be removed.
+     */
+    public static List<String> parseCsvList(String csvList) {
+        if (csvList == null || csvList.isEmpty())
+            return Collections.EMPTY_LIST;
+        else {
+            return Arrays.asList(csvList.split("\\s*,\\s*")).stream().filter(v -> !v.equals("")).collect(Collectors.toList());
+        }
+    }
 //
 //    /**
 //     * Create an instance of the class with the given class name
@@ -597,7 +597,7 @@ public class Utils extends Logging {
 //    /**
 //     * Execute the given function inside the lock
 //     */
-    public static <T> T inLock(Lock lock, ActionWithResult<T> process) {
+    public static <T> T inLock(Lock lock, Fun<T> process) {
         lock.lock();
         try {
             return process.invoke();

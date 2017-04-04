@@ -6,7 +6,7 @@ import com.google.common.collect.Lists;
 import kafka.message.*;
 import kafka.server.FetchDataInfo;
 import kafka.utils.Time;
-import kafka.message.TestUtils;
+import kafka.utils.TestUtils;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;

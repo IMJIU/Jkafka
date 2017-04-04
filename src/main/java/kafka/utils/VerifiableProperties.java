@@ -3,8 +3,10 @@ package kafka.utils;
 import com.google.common.collect.Sets;
 import kafka.func.Processor;
 import kafka.func.Tuple;
+import kafka.message.CompressionCodec;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Created by Administrator on 2017/4/3.
@@ -111,9 +113,9 @@ public class VerifiableProperties extends Logging {
      * Read an long from the properties instance. Throw an exception
      * if the value is not in the given range (inclusive)
      *
-     * @param name    The property name
-     * @param def The default value to use if the property is not found
-     * @param range   The range in which the value must fall (inclusive)
+     * @param name  The property name
+     * @param def   The default value to use if the property is not found
+     * @param range The range in which the value must fall (inclusive)
      * @return the long value
      * @throws IllegalArgumentException If the value is not in the given range
      */
@@ -190,20 +192,24 @@ public class VerifiableProperties extends Logging {
         return getProperty(name);
     }
 
+    public Map<String, String> getMap(String name) {
+        return getMap(name, s -> true);
+    }
+
     /**
      * Get a Map<String, String> from a property list in the form v2 k1, v2 k2, ...
      */
-    public Map<String, String> getMap(String name, Processor<String,Boolean> valid) {
+    public Map<String, String> getMap(String name, Processor<String, Boolean> valid) {
         try {
-            val m = Utils.parseCsvMap(getString(name, ""));
-            m.foreach {
-                case (key,value)=>
-                    if (!valid.process(value))
-                        throw new IllegalArgumentException(String.format("Invalid entry '%s' = '%s' for property '%s'", key, value, name))
-            }
-            m;
-        } catch {
-            case Exception e =>throw new IllegalArgumentException(String.format("Error parsing configuration property '%s': %s", name, e.getMessage))
+            Map<String, String> m = Utils.parseCsvMap(getString(name, ""));
+            // TODO: 2017/4/4     case (key,value)=>  if (!valid.process(value))
+            m.forEach((key, value) -> {
+                if (!valid.process(key))
+                    throw new IllegalArgumentException(String.format("Invalid entry '%s' = '%s' for property '%s'", key, value, name));
+            });
+            return m;
+        } catch (Exception e) {
+            throw new IllegalArgumentException(String.format("Error parsing configuration property '%s': %s", name, e.getMessage()));
         }
     }
 
@@ -211,40 +217,35 @@ public class VerifiableProperties extends Logging {
      * Parse compression codec from a property list in either. Codecs may be specified as integers, or as strings.
      * See <[kafka.message.CompressionCodec]> for more details.
      *
-     * @param name    The property name
-     * @param default Default compression codec
+     * @param name The property name
+     * @param def  Default compression codec
      * @return compression codec
      */
-    public void getCompressionCodec(String name, public void CompressionCodec ault)
-
-    =
-
-    {
-        val prop = getString(name, NoCompressionCodec.name);
+    // TODO: 2017/4/4  def unused
+    public CompressionCodec getCompressionCodec(String name, CompressionCodec def) {
+        String prop = getString(name, CompressionCodec.NoCompressionCodec.name());
         try {
-            CompressionCodec.getCompressionCodec(prop.toInt);
-        } catch {
-        case NumberFormatException nfe =>
-            CompressionCodec.getCompressionCodec(prop);
-    }
+            return CompressionCodec.getCompressionCodec(Integer.parseInt(prop));
+        } catch (NumberFormatException nfe) {
+            return CompressionCodec.getCompressionCodec(prop);
+        }
     }
 
     public void verify() {
-        info("Verifying properties")
-        val propNames = {
-        import JavaConversions._;
-        Collections.list(props.propertyNames).map(_.toString).sorted;
-        }
-        for (key< -propNames) {
+        info("Verifying properties");
+        List<String> propNames = Collections.list(props.propertyNames()).stream()
+                .map(p -> p.toString()).sorted().collect(Collectors.toList());
+
+        for (String key : propNames) {
             if (!referenceSet.contains(key) && !key.startsWith("external"))
-                warn(String.format("Property %s is not valid", key))
-            else ;
-            info(String.format("Property %s is overridden to %s", key, props.getProperty(key)))
+                warn(String.format("Property %s is not valid", key));
+            else
+                info(String.format("Property %s is overridden to %s", key, props.getProperty(key)));
         }
     }
 
     @Override
-    public String toString(){
+    public String toString() {
         return props.toString();
     }
 

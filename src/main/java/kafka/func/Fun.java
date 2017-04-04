@@ -7,6 +7,6 @@ package kafka.func;/**
  * @create 2017-03-29 14:10
  **/
 @FunctionalInterface
-public interface ActionWithResult<T>{
+public interface Fun<T>{
     T invoke();
 }

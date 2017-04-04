@@ -3,7 +3,7 @@ package kafka.log;
 import com.google.common.collect.Lists;
 import kafka.message.*;
 import kafka.message.BaseMessageSetTest;
-import kafka.message.TestUtils;
+import kafka.utils.TestUtils;
 import org.junit.Assert;
 import org.junit.Test;
 

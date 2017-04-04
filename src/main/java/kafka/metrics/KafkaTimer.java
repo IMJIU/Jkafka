@@ -2,7 +2,7 @@ package kafka.metrics;
 
 import com.yammer.metrics.core.Timer;
 import com.yammer.metrics.core.TimerContext;
-import kafka.func.ActionWithResult;
+import kafka.func.Fun;
 
 /**
  * Created by Administrator on 2017/3/29.
@@ -14,7 +14,7 @@ public class KafkaTimer {
         this.metric = metric;
     }
 
-    public <A> A time(ActionWithResult<A> p) {
+    public <A> A time(Fun<A> p) {
         TimerContext ctx = metric.time();
         try {
             return p.invoke();
