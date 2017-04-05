@@ -18,6 +18,7 @@ import org.junit.Test;
 import javax.swing.text.Segment;
 import java.io.File;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -505,27 +506,26 @@ public class LogTest {
      * Verify that when we truncate a log the index of the last segment is resized to the max index size to allow more appends
      */
     @Test
-    public void testIndexResizingAtTruncation() {
-        val set = TestUtils.singleMessageSet("test".getBytes());
-        val setSize = set.sizeInBytes;
-        val msgPerSeg = 10;
-        val segmentSize = msgPerSeg * setSize  // each segment will be 10 messages;
-        val config = logConfig.copy(segmentSize = segmentSize);
-        val log = new Log(logDir, config, recoveryPoint = 0L, scheduler = time.scheduler, time = time);
-        Assert.assertEquals("There should be exactly 1 segment.", 1, log.numberOfSegments);
-        for (i< -1 to msgPerSeg)
-        log.append(set);
-        Assert.assertEquals("There should be exactly 1 segment.", 1, log.numberOfSegments);
-        for (i< -1 to msgPerSeg)
-        log.append(set);
-        Assert.assertEquals("There should be exactly 2 segment.", 2, log.numberOfSegments);
-        Assert.assertEquals("The index of the first segment should be trimmed to empty", 0, log.logSegments.toList(0).index.maxEntries);
-        log.truncateTo(0);
-        Assert.assertEquals("There should be exactly 1 segment.", 1, log.numberOfSegments);
-        Assert.assertEquals("The index of segment 1 should be resized to maxIndexSize", log.config.maxIndexSize / 8, log.logSegments.toList(0).index.maxEntries);
-        for (i< -1 to msgPerSeg)
-        log.append(set);
-        Assert.assertEquals("There should be exactly 1 segment.", 1, log.numberOfSegments);
+    public void testIndexResizingAtTruncation() throws IOException {
+        ByteBufferMessageSet set = TestUtils.singleMessageSet("test".getBytes());
+        Integer setSize = set.sizeInBytes();
+        Integer msgPerSeg = 10;
+        Integer segmentSize = msgPerSeg * setSize;  // each segment will be 10 messages;
+        Log log = new Log(logDir, getLogConfig(segmentSize), 0L, time.scheduler, time);
+        Assert.assertEquals("There should be exactly 1 segment.", new Integer(1), log.numberOfSegments());
+        for (int i = -1; i <= msgPerSeg; i++)
+            log.append(set);
+        Assert.assertEquals("There should be exactly 1 segment.", new Integer(1), log.numberOfSegments());
+        for (int i = -1; i <= msgPerSeg; i++)
+            log.append(set);
+        Assert.assertEquals("There should be exactly 2 segment.", new Integer(2), log.numberOfSegments());
+        Assert.assertEquals("The index of the first segment should be trimmed to empty", new Integer(0), log.logSegments().stream().findFirst().get().index.maxEntries);
+        log.truncateTo(0L);
+        Assert.assertEquals("There should be exactly 1 segment.", new Integer(1), log.numberOfSegments());
+        Assert.assertEquals("The index of segment 1 should be resized to maxIndexSize", new Long(log.config.maxIndexSize / 8), log.logSegments().stream().findFirst().get().index.maxEntries);
+        for (int i = -1; i <= msgPerSeg; i++)
+            log.append(set);
+        Assert.assertEquals("There should be exactly 1 segment.", new Integer(1), log.numberOfSegments());
     }
 
     /**
@@ -533,20 +533,17 @@ public class LogTest {
      */
     @Test
     public void testBogusIndexSegmentsAreRemoved() {
-        val bogusIndex1 = Log.indexFilename(logDir, 0);
-        val bogusIndex2 = Log.indexFilename(logDir, 5);
+        File bogusIndex1 = Log.indexFilename(logDir, 0L);
+        File bogusIndex2 = Log.indexFilename(logDir, 5L);
 
-        val set = TestUtils.singleMessageSet("test".getBytes());
-        val log = new Log(logDir,
-                logConfig.copy(segmentSize = set.sizeInBytes * 5,
-                        maxIndexSize = 1000,
-                        indexInterval = 1),
-                recoveryPoint = 0L,
-                time.scheduler,
-                time);
+        ByteBufferMessageSet set = TestUtils.singleMessageSet("test".getBytes());
+        LogConfig config = getLogConfig(set.sizeInBytes() * 5);
+        config.indexInterval = 1;
+        config.maxIndexSize = 1000;
+        Log log = new Log(logDir, config, 0L, time.scheduler, time);
 
-        assertTrue("The first index file should have been replaced with a larger file", bogusIndex1.length > 0);
-        assertFalse("The second index file should have been deleted.", bogusIndex2.exists);
+        Assert.assertTrue("The first index file should have been replaced with a larger file", bogusIndex1.length() > 0);
+        Assert.assertFalse("The second index file should have been deleted.", bogusIndex2.exists());
 
         // check that we can append to the log;
         for (int i = 0; i < 10; i++)
@@ -602,78 +599,69 @@ public class LogTest {
         log.deleteOldSegments(s -> true);
 
         Assert.assertEquals("Only one segment should remain.", new Integer(1), log.numberOfSegments());
-        Assert.assertTrue("All log and index files should end in .deleted", segments.stream().allMatch(s->s.log.file.getName().endsWith(Log.DeletedFileSuffix)) &&
-            segments.stream().allMatch(s->s.index.file.getName().endsWith(Log.DeletedFileSuffix)));
-        Assert.assertTrue("The .deleted files should still be there.", segments.stream().allMatch(s->s.log.file.exists()) &&
-        segments.stream().allMatch(s->s.index.file.exists()));
-        Assert.assertTrue("The original file should be gone.", oldFiles.stream().allMatch(s->!s.exists()));
+        Assert.assertTrue("All log and index files should end in .deleted", segments.stream().allMatch(s -> s.log.file.getName().endsWith(Log.DeletedFileSuffix)) &&
+                segments.stream().allMatch(s -> s.index.file.getName().endsWith(Log.DeletedFileSuffix)));
+        Assert.assertTrue("The .deleted files should still be there.", segments.stream().allMatch(s -> s.log.file.exists()) &&
+                segments.stream().allMatch(s -> s.index.file.exists()));
+        Assert.assertTrue("The original file should be gone.", oldFiles.stream().allMatch(s -> !s.exists()));
 
         // when enough time passes the files should be deleted;
-        List<File> deletedFiles = segments.stream().map(s->s.log.file).collect(Collectors.toList());
-        deletedFiles.addAll(segments.stream().map(s->s.index.file).collect(Collectors.toList()));
+        List<File> deletedFiles = segments.stream().map(s -> s.log.file).collect(Collectors.toList());
+        deletedFiles.addAll(segments.stream().map(s -> s.index.file).collect(Collectors.toList()));
         time.sleep(asyncDeleteMs + 1);
-        Assert.assertTrue("Files should all be gone.", deletedFiles.stream().allMatch(s->!s.exists()));
+        Assert.assertTrue("Files should all be gone.", deletedFiles.stream().allMatch(s -> !s.exists()));
     }
 
     /**
      * Any files ending in .deleted should be removed when the log is re-opened.
      */
     @Test
-    public void testOpenDeletesObsoleteFiles() {
-        val set = TestUtils.singleMessageSet("test".getBytes());
-        val config = logConfig.copy(segmentSize = set.sizeInBytes * 5, maxIndexSize = 1000);
-        var log = new Log(logDir,
-                config,
-                recoveryPoint = 0L,
-                time.scheduler,
-                time);
+    public void testOpenDeletesObsoleteFiles() throws IOException {
+        ByteBufferMessageSet set = TestUtils.singleMessageSet("test".getBytes());
+        LogConfig config = getLogConfig(set.sizeInBytes() * 5);
+        config.maxIndexSize = 1000;
+        Log log = new Log(logDir, config, 0L, time.scheduler, time);
 
         // append some messages to create some segments;
         for (int i = 0; i < 100; i++)
             log.append(set);
 
-        log.deleteOldSegments((s) = > true);
+        log.deleteOldSegments(s -> true);
         log.close();
-
-        log = new Log(logDir,
-                config,
-                recoveryPoint = 0L,
-                time.scheduler,
-                time);
-        Assert.assertEquals("The deleted segments should be gone.", 1, log.numberOfSegments);
+        log = new Log(logDir, config, 0L, time.scheduler, time);
+        Assert.assertEquals("The deleted segments should be gone.", new Integer(1), log.numberOfSegments());
     }
 
     @Test
     public void testAppendMessageWithNullPayload() {
-        val log = new Log(logDir,
-                LogConfig(),
-                recoveryPoint = 0L,
-                time.scheduler,
-                time);
-        log.append(new ByteBufferMessageSet(new Message(bytes = null)));
-        val messageSet = log.read(0, 4096, None).messageSet;
-        Assert.assertEquals(0, messageSet.head.offset);
-        assertTrue("Message payload should be null.", messageSet.head.message.isNull);
+        Log log = new Log(logDir, new LogConfig(), 0L, time.scheduler, time);
+        byte[] b = null;
+        log.append(new ByteBufferMessageSet(new Message(b)));
+        MessageSet messageSet = log.read(0L, 4096, Optional.empty()).messageSet;
+        Assert.assertEquals(new Long(0), messageSet.head().offset);
+        Assert.assertTrue("Message payload should be null.", messageSet.head().message.isNull());
     }
 
     @Test
     public void testCorruptLog() {
         // append some messages to create some segments;
-        val config = logConfig.copy(indexInterval = 1, maxMessageSize = 64 * 1024, segmentSize = 1000);
-        val set = TestUtils.singleMessageSet("test".getBytes());
-        val recoveryPoint = 50L;
+        LogConfig config = getLogConfig(1000);
+        config.indexInterval = 1;
+        config.maxIndexSize = 64 * 1024;
+        ByteBufferMessageSet set = TestUtils.singleMessageSet("test".getBytes());
+        Long recoveryPoint = 50L;
         for (int iteration = 0; iteration < 50; iteration++) {
             // create a log and write some messages to it;
             logDir.mkdirs();
-            var log = new Log(logDir,
+            Log log = new Log(logDir,
                     config,
                     recoveryPoint = 0L,
                     time.scheduler,
                     time);
-            val numMessages = 50 + TestUtils.random.nextInt(50);
-            for (i< -0 until numMessages)
-            log.append(set);
-            val messages = log.logSegments.flatMap(_.log.iterator.toList);
+            Integer numMessages = 50 + TestUtils.random.nextInt(50);
+            for (int i = 0; i < numMessages; i++)
+                log.append(set);
+            val messages = log.logSegments().stream().flatMap(s->s.log.iterator().toList);
             log.close();
 
             // corrupt index and log by appending random bytes;
