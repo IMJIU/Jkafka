@@ -1,6 +1,11 @@
 package kafka.log;
 
-import kafka.message.ByteBufferMessageSet;
+import com.google.common.collect.Lists;
+import kafka.common.MessageSetSizeTooLargeException;
+import kafka.common.MessageSizeTooLargeException;
+import kafka.common.OffsetOutOfRangeException;
+import kafka.message.*;
+import kafka.server.FetchDataInfo;
 import kafka.utils.TestUtils;
 import kafka.server.KafkaConfig;
 import kafka.utils.MockTime;
@@ -10,10 +15,15 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import javax.swing.text.Segment;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Created by Administrator on 2017/4/3.
@@ -26,10 +36,19 @@ public class LogTest {
     LogConfig logConfig = new LogConfig();
 
     @Before
-    public void setUp() throws IOException {
+    public void setUp() throws Exception {
         logDir = TestUtils.tempDir();
         Properties props = TestUtils.createBrokerConfig(0, -1, true);
         config = new KafkaConfig(props);
+    }
+
+    public LogConfig copy() {
+        try {
+            return logConfig.clone();
+        } catch (CloneNotSupportedException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     @After
@@ -37,7 +56,7 @@ public class LogTest {
         Utils.rm(logDir);
     }
 
-    public void createEmptyLogs(File dir, Integer[] offsets) throws IOException {
+    public void createEmptyLogs(File dir, Integer... offsets) throws IOException {
         for (Integer offset : offsets) {
             Log.logFilename(dir, offset.longValue()).createNewFile();
             Log.indexFilename(dir, offset.longValue()).createNewFile();
@@ -49,33 +68,34 @@ public class LogTest {
      * using the mock clock to force the log to roll and checks the number of segments.
      */
     @Test
-    public void testTimeBasedLogRoll() {
+    public void testTimeBasedLogRoll() throws CloneNotSupportedException {
         ByteBufferMessageSet set = TestUtils.singleMessageSet("test".getBytes());
-
+        LogConfig config = logConfig.clone();
+        config.segmentMs = 1 * 60 * 60L;
         // create a log;
         Log log = new Log(logDir,
-                logConfig.copy(1 * 60 * 60L),
+                config,
                 0L,
                 time.scheduler,
                 time);
-        Assert.assertEquals("Log begins with a single empty segment.", 1, log.numberOfSegments());
+        Assert.assertEquals("Log begins with a single empty segment.", new Integer(1), log.numberOfSegments());
         time.sleep(log.config.segmentMs + 1);
         log.append(set);
-        Assert.assertEquals("Log doesn't roll if doing so creates an empty segment.", 1, log.numberOfSegments())
+        Assert.assertEquals("Log doesn't roll if doing so creates an empty segment.", new Integer(1), log.numberOfSegments());
 
         log.append(set);
-        Assert.assertEquals("Log rolls on this append since time has expired.", 2, log.numberOfSegments());
+        Assert.assertEquals("Log rolls on this append since time has expired.", new Integer(2), log.numberOfSegments());
 
         for (int numSegments = 3; numSegments < 5; numSegments++) {
             time.sleep(log.config.segmentMs + 1);
             log.append(set);
-            Assert.assertEquals("Changing time beyond rollMs and appending should create a new segment.", numSegments, log.numberOfSegments);
+            Assert.assertEquals("Changing time beyond rollMs and appending should create a new segment.", new Integer(numSegments), log.numberOfSegments());
         }
 
         Integer numSegments = log.numberOfSegments();
         time.sleep(log.config.segmentMs + 1);
         log.append(new ByteBufferMessageSet());
-        Assert.assertEquals("Appending an empty message set should not roll log even if succient time has passed.", numSegments, log.numberOfSegments)
+        Assert.assertEquals("Appending an empty message set should not roll log even if succient time has passed.", numSegments, log.numberOfSegments());
     }
 
     /**
@@ -83,25 +103,26 @@ public class LogTest {
      * using the mock clock to force the log to roll and checks the number of segments.
      */
     @Test
-    public void testTimeBasedLogRollJitter() {
+    public void testTimeBasedLogRollJitter() throws Exception {
         ByteBufferMessageSet set = TestUtils.singleMessageSet("test".getBytes());
         Long maxJitter = 20 * 60L;
-
+        LogConfig config = logConfig.clone();
+        config.segmentMs = 1 * 60 * 60L;
         // create a log;
         Log log = new Log(logDir,
-                logConfig.copy(segmentMs = 1 * 60 * 60L, segmentJitterMs = maxJitter),
-                recoveryPoint = 0L,
-                scheduler = time.scheduler,
+                config,
+                0L,
+                time.scheduler,
                 time = time);
-        Assert.assertEquals("Log begins with a single empty segment.", 1, log.numberOfSegments);
+        Assert.assertEquals("Log begins with a single empty segment.", new Integer(1), log.numberOfSegments());
         log.append(set);
 
         time.sleep(log.config.segmentMs - maxJitter);
         log.append(set);
-        Assert.assertEquals("Log does not roll on this append because it occurs earlier than max jitter", 1, log.numberOfSegments);
-        time.sleep(maxJitter - log.activeSegment.rollJitterMs + 1);
+        Assert.assertEquals("Log does not roll on this append because it occurs earlier than max jitter", new Integer(1), log.numberOfSegments());
+        time.sleep(maxJitter - log.activeSegment().rollJitterMs + 1);
         log.append(set);
-        Assert.assertEquals("Log should roll after segmentMs adjusted by random jitter", 2, log.numberOfSegments);
+        Assert.assertEquals("Log should roll after segmentMs adjusted by random jitter", new Integer(2), log.numberOfSegments());
     }
 
     /**
@@ -109,30 +130,31 @@ public class LogTest {
      */
     @Test
     public void testSizeBasedLogRoll() {
-        val set = TestUtils.singleMessageSet("test".getBytes);
-        val setSize = set.sizeInBytes;
-        val msgPerSeg = 10;
-        val segmentSize = msgPerSeg * (setSize - 1) // each segment will be 10 messages;
-
+        ByteBufferMessageSet set = TestUtils.singleMessageSet("test".getBytes());
+        Integer setSize = set.sizeInBytes();
+        Integer msgPerSeg = 10;
+        Integer segmentSize = msgPerSeg * (setSize - 1); // each segment will be 10 messages;
+        LogConfig copy = copy();
+        copy.segmentSize = segmentSize;
         // create a log;
-        val log = new Log(logDir, logConfig.copy(segmentSize = segmentSize), recoveryPoint = 0L, time.scheduler, time = time);
-        Assert.assertEquals("There should be exactly 1 segment.", 1, log.numberOfSegments);
+        Log log = new Log(logDir, copy, 0L, time.scheduler, time);
+        Assert.assertEquals("There should be exactly 1 segment.", new Integer(1), log.numberOfSegments());
 
         // segments expire in size;
-        for (i< -1 to(msgPerSeg + 1)){
+        for (int i = -1; i <= msgPerSeg + 1; i++) {
             log.append(set);
         }
-        Assert.assertEquals("There should be exactly 2 segments.", 2, log.numberOfSegments);
+        Assert.assertEquals("There should be exactly 2 segments.", new Integer(2), log.numberOfSegments());
     }
 
     /**
      * Test that we can open and append to an empty log
      */
     @Test
-    public void testLoadEmptyLog() {
+    public void testLoadEmptyLog() throws IOException {
         createEmptyLogs(logDir, 0);
-        val log = new Log(logDir, logConfig, recoveryPoint = 0L, time.scheduler, time = time);
-        log.append(TestUtils.singleMessageSet("test".getBytes));
+        Log log = new Log(logDir, logConfig, 0L, time.scheduler, time);
+        log.append(TestUtils.singleMessageSet("test".getBytes()));
     }
 
     /**
@@ -140,17 +162,19 @@ public class LogTest {
      */
     @Test
     public void testAppendAndReadWithSequentialOffsets() {
-        val log = new Log(logDir, logConfig.copy(segmentSize = 71), recoveryPoint = 0L, time.scheduler, time = time);
-        val messages = (0 until 100 by 2).map(id = > new Message(id.toString.getBytes)).toArray;
+        LogConfig copy = copy();
+        copy.segmentSize = 71;
+        Log log = new Log(logDir, copy, 0L, time.scheduler, time);
+        List<Message> messages = Stream.iterate(0, n -> n + 2).limit(100).map(id -> new Message(id.toString().getBytes())).collect(Collectors.toList());
 
-        for (i< -0 until messages.length)
-        log.append(new ByteBufferMessageSet(NoCompressionCodec, messages = messages(i)));
-        for (i< -0 until messages.length){
-            val read = log.read(i, 100, Some(i + 1)).messageSet.head;
-            Assert.assertEquals("Offset read should match order appended.", i, read.offset);
-            Assert.assertEquals("Message should match appended.", messages(i), read.message);
+        for (int i = 0; i < messages.size(); i++)
+            log.append(new ByteBufferMessageSet(CompressionCodec.NoCompressionCodec, messages.get(i)));
+        for (long i = 0; i < messages.size(); i++) {
+            MessageAndOffset read = log.read(i, 100, Optional.of(i + 1L)).messageSet.head();
+            Assert.assertEquals("Offset read should match order appended.", new Long(i), read.offset);
+            Assert.assertEquals("Message should match appended.", messages.get((int) i), read.message);
         }
-        Assert.assertEquals("Reading beyond the last message returns nothing.", 0, log.read(messages.length, 100, None).messageSet.size);
+        Assert.assertEquals("Reading beyond the last message returns nothing.", 0, log.read((long) messages.size(), 100, Optional.empty()).messageSet.toMessageAndOffsetList().size());
     }
 
     /**
@@ -159,18 +183,27 @@ public class LogTest {
      */
     @Test
     public void testAppendAndReadWithNonSequentialOffsets() {
-        val log = new Log(logDir, logConfig.copy(segmentSize = 71), recoveryPoint = 0L, time.scheduler, time = time);
-        val messageIds = ((0 until 50)++(50 until 200 by 7)).toArray;
-        val messages = messageIds.map(id = > new Message(id.toString.getBytes));
+        LogConfig copy = copy();
+        copy.segmentSize = 71;
+        Log log = new Log(logDir, copy, 0L, time.scheduler, time);
+        List<Integer> messageIds = Stream.iterate(0, n -> n + 1).limit(50).collect(Collectors.toList());
+        messageIds.addAll(Stream.iterate(50, n -> n + 7).limit(200).collect(Collectors.toList()));
+        List<Message> messages = messageIds.stream().map(id -> new Message(id.toString().getBytes())).collect(Collectors.toList());
 
         // now test the case that we give the offsets and use non-sequential offsets;
-        for (i< -0 until messages.length)
-        log.append(new ByteBufferMessageSet(NoCompressionCodec, new AtomicLong(messageIds(i)), messages = messages(i)), assignOffsets = false);
-        for (i< -50 until messageIds.max){
-            val idx = messageIds.indexWhere(_ >= i);
-            val read = log.read(i, 100, None).messageSet.head;
-            Assert.assertEquals("Offset read should match message id.", messageIds(idx), read.offset);
-            Assert.assertEquals("Message should match appended.", messages(idx), read.message);
+        for (int i = 0; i < messages.size(); i++)
+            log.append(new ByteBufferMessageSet(CompressionCodec.NoCompressionCodec, new AtomicLong(messageIds.get(i)), messages.get(i)), false);
+        for (int i = 50; i < messageIds.get(messageIds.size() - 1); i++) {
+            Integer idx = null;
+            for (Integer mid : messageIds) {
+                if (mid >= i) {
+                    idx = i;
+                    break;
+                }
+            }
+            MessageAndOffset read = log.read((long) i, 100, Optional.empty()).messageSet.head();
+            Assert.assertEquals("Offset read should match message id.", messageIds.get(idx), read.offset);
+            Assert.assertEquals("Message should match appended.", messages.get(idx), read.message);
         }
     }
 
@@ -181,17 +214,19 @@ public class LogTest {
      * first segment has the greatest lower bound on the offset.
      */
     @Test
-    public void testReadAtLogGap() {
-        val log = new Log(logDir, logConfig.copy(segmentSize = 300), recoveryPoint = 0L, time.scheduler, time = time);
+    public void testReadAtLogGap() throws IOException {
+        LogConfig copy = copy();
+        copy.segmentSize = 300;
+        Log log = new Log(logDir, copy, 0L, time.scheduler, time);
 
         // keep appending until we have two segments with only a single message in the second segment;
-        while (log.numberOfSegments == 1) ;
-        log.append(new ByteBufferMessageSet(NoCompressionCodec, messages = new Message("42".getBytes)));
+        while (log.numberOfSegments() == 1)
+            log.append(new ByteBufferMessageSet(CompressionCodec.NoCompressionCodec, new Message("42".getBytes())));
 
         // now manually truncate off all but one message from the first segment to create a gap in the messages;
-        log.logSegments.head.truncateTo(1);
+        log.logSegments().stream().findFirst().get().truncateTo(1L);
 
-        Assert.assertEquals("A read should now return the last message in the log", log.logEndOffset - 1, log.read(1, 200, None).messageSet.head.offset);
+        Assert.assertEquals("A read should now return the last message in the log", new Long(log.logEndOffset() - 1), log.read(1L, 200, Optional.empty()).messageSet.head().offset);
     }
 
     /**
@@ -200,22 +235,28 @@ public class LogTest {
      * - reading beyond the log end offset should throw an OffsetOutOfRangeException
      */
     @Test
-    public void testReadOutOfRange() {
+    public void testReadOutOfRange() throws IOException {
         createEmptyLogs(logDir, 1024);
-        val log = new Log(logDir, logConfig.copy(segmentSize = 1024), recoveryPoint = 0L, time.scheduler, time = time);
-        Assert.assertEquals("Reading just beyond end of log should produce 0 byte read.", 0, log.read(1024, 1000).messageSet.sizeInBytes);
+        Log log = new Log(logDir, getLogConfig(1024), 0L, time.scheduler, time);
+        Assert.assertEquals("Reading just beyond end of log should produce 0 byte read.", new Integer(0), log.read(1024L, 1000).messageSet.sizeInBytes());
         try {
-            log.read(0, 1024);
-            fail("Expected exception on invalid read.");
-        } catch {
-            case OffsetOutOfRangeException e =>"This is good.";
+            log.read(0L, 1024);
+            Assert.fail("Expected exception on invalid read.");
+        } catch (OffsetOutOfRangeException e) {
+            System.out.println("This is good.");
         }
         try {
-            log.read(1025, 1000);
-            fail("Expected exception on invalid read.");
-        } catch {
-            case OffsetOutOfRangeException e => // This is good.;
+            log.read(1025L, 1000);
+            Assert.fail("Expected exception on invalid read.");
+        } catch (OffsetOutOfRangeException e) {
+            System.out.println("This is good.");
         }
+    }
+
+    private LogConfig getLogConfig(Integer size) {
+        LogConfig copy = copy();
+        copy.segmentSize = size;
+        return copy;
     }
 
     /**
@@ -225,27 +266,25 @@ public class LogTest {
     @Test
     public void testLogRolls() {
     /* create a multipart log with 100 messages */
-        val log = new Log(logDir, logConfig.copy(segmentSize = 100), recoveryPoint = 0L, time.scheduler, time = time);
-        val numMessages = 100;
-        val messageSets = (0 until numMessages).map(i = > TestUtils.singleMessageSet(i.toString.getBytes));
-        messageSets.foreach(log.append(_))
-        log.flush;
+        Log log = new Log(logDir, getLogConfig(100), 0L, time.scheduler, time);
+        Integer numMessages = 100;
+        List<ByteBufferMessageSet> messageSets = Stream.iterate(0, n -> n++).map(i -> TestUtils.singleMessageSet(i.toString().getBytes())).collect(Collectors.toList());
+        messageSets.forEach(m -> log.append(m));
+        log.flush();
 
     /* do successive reads to ensure all our messages are there */
-        var offset = 0L;
-        for (i< -0 until numMessages){
-            val messages = log.read(offset, 1024 * 1024).messageSet;
-            Assert.assertEquals("Offsets not equal", offset, messages.head.offset);
-            Assert.assertEquals("Messages not equal at offset " + offset, messageSets(i).head.message, messages.head.message);
-            offset = messages.head.offset + 1;
+        Long offset = 0L;
+        for (int i = 0; i < numMessages; i++) {
+            MessageSet messages = log.read(offset, 1024 * 1024).messageSet;
+            Assert.assertEquals("Offsets not equal", offset, messages.head().offset);
+            Assert.assertEquals("Messages not equal at offset " + offset, messageSets.get(i).head().message, messages.head().message);
+            offset = messages.head().offset + 1;
         }
-        val lastRead = log.read(startOffset = numMessages, maxLength = 1024 * 1024, maxOffset = Some(numMessages + 1)).messageSet;
-        Assert.assertEquals("Should be no more messages", 0, lastRead.size);
+        MessageSet lastRead = log.read(numMessages.longValue(), 1024 * 1024, Optional.of(numMessages + 1L)).messageSet;
+        Assert.assertEquals("Should be no more messages", 0, lastRead.toMessageAndOffsetList().size());
 
         // check that rolling the log forced a flushed the log--the flush is asyn so retry in case of failure;
-        TestUtils.retry(1000L) {
-            assertTrue("Log role should have forced flush", log.recoveryPoint >= log.activeSegment.baseOffset)
-        }
+        TestUtils.retry(1000L, () -> Assert.assertTrue("Log role should have forced flush", log.recoveryPoint >= log.activeSegment().baseOffset));
     }
 
     /**
@@ -254,47 +293,50 @@ public class LogTest {
     @Test
     public void testCompressedMessages() {
     /* this log should roll after every messageset */
-        val log = new Log(logDir, logConfig.copy(segmentSize = 100), recoveryPoint = 0L, time.scheduler, time = time);
+        Log log = new Log(logDir, getLogConfig(100), 0L, time.scheduler, time);
 
     /* append 2 compressed message sets, each with two messages giving offsets 0, 1, 2, 3 */
-        log.append(new ByteBufferMessageSet(DefaultCompressionCodec, new Message("hello".getBytes), new Message("there".getBytes)));
-        log.append(new ByteBufferMessageSet(DefaultCompressionCodec, new Message("alpha".getBytes), new Message("beta".getBytes)));
+        log.append(new ByteBufferMessageSet(CompressionCodec.GZIPCompressionCodec, new Message("hello".getBytes()), new Message("there".getBytes())));
+        log.append(new ByteBufferMessageSet(CompressionCodec.GZIPCompressionCodec, new Message("alpha".getBytes()), new Message("beta".getBytes())));
 
-        public void read Integer offset)=
-        ByteBufferMessageSet.decompress(log.read(offset, 4096).messageSet.head.message);
+
 
     /* we should always get the first message in the compressed set when reading any offset in the set */
-        Assert.assertEquals("Read at offset 0 should produce 0", 0, read(0).head.offset);
-        Assert.assertEquals("Read at offset 1 should produce 0", 0, read(1).head.offset);
-        Assert.assertEquals("Read at offset 2 should produce 2", 2, read(2).head.offset);
-        Assert.assertEquals("Read at offset 3 should produce 2", 2, read(3).head.offset);
+        Assert.assertEquals("Read at offset 0 should produce 0", new Long(0), read(log, 0L).head().offset);
+        Assert.assertEquals("Read at offset 1 should produce 0", new Long(0), read(log, 1L).head().offset);
+        Assert.assertEquals("Read at offset 2 should produce 2", new Long(2), read(log, 2L).head().offset);
+        Assert.assertEquals("Read at offset 3 should produce 2", new Long(2), read(log, 3L).head().offset);
+    }
+
+    public ByteBufferMessageSet read(Log log, Long offset) {
+        return ByteBufferMessageSet.decompress(log.read(offset, 4096).messageSet.head().message);
     }
 
     /**
      * Test garbage collecting old segments
      */
     @Test
-    public void testThatGarbageCollectingSegmentsDoesntChangeOffset() {
-        for (messagesToAppend< -List(0, 1, 25)) {
+    public void testThatGarbageCollectingSegmentsDoesntChangeOffset() throws IOException {
+        for (Integer messagesToAppend : Lists.newArrayList(0, 1, 25)) {
             logDir.mkdirs();
             // first test a log segment starting at 0;
-            val log = new Log(logDir, logConfig.copy(segmentSize = 100), recoveryPoint = 0L, time.scheduler, time = time);
-            for (i< -0 until messagesToAppend)
-            log.append(TestUtils.singleMessageSet(i.toString.getBytes));
+            Log log = new Log(logDir, getLogConfig(100), 0L, time.scheduler, time);
+            for (int i = 0; i < messagesToAppend; i++)
+                log.append(TestUtils.singleMessageSet(("" + i).getBytes()));
 
-            var currOffset = log.logEndOffset;
+            Long currOffset = log.logEndOffset();
             Assert.assertEquals(currOffset, messagesToAppend);
 
             // time goes by; the log file is deleted;
-            log.deleteOldSegments(_ = > true);
+            log.deleteOldSegments((s) -> true);
 
-            Assert.assertEquals("Deleting segments shouldn't have changed the logEndOffset", currOffset, log.logEndOffset);
-            Assert.assertEquals("We should still have one segment left", 1, log.numberOfSegments);
-            Assert.assertEquals("Further collection shouldn't delete anything", 0, log.deleteOldSegments(_ = > true));
-            Assert.assertEquals("Still no change in the logEndOffset", currOffset, log.logEndOffset);
+            Assert.assertEquals("Deleting segments shouldn't have changed the logEndOffset", currOffset, log.logEndOffset());
+            Assert.assertEquals("We should still have one segment left", new Integer(1), log.numberOfSegments());
+            Assert.assertEquals("Further collection shouldn't delete anything", new Integer(0), log.deleteOldSegments((s) -> true));
+            Assert.assertEquals("Still no change in the logEndOffset", currOffset, log.logEndOffset());
             Assert.assertEquals("Should still be able to append and should get the logEndOffset assigned to the new append",
                     currOffset,
-                    log.append(TestUtils.singleMessageSet("hello".toString.getBytes)).firstOffset);
+                    log.append(TestUtils.singleMessageSet("hello".toString().getBytes())).firstOffset);
 
             // cleanup the log;
             log.delete();
@@ -307,16 +349,15 @@ public class LogTest {
      */
     @Test
     public void testMessageSetSizeCheck() {
-        val messageSet = new ByteBufferMessageSet(NoCompressionCodec, new Message("You".getBytes), new Message("bethe".getBytes));
+        ByteBufferMessageSet messageSet = new ByteBufferMessageSet(CompressionCodec.NoCompressionCodec, new Message("You".getBytes()), new Message("bethe".getBytes()));
         // append messages to log;
-        val configSegmentSize = messageSet.sizeInBytes - 1;
-        val log = new Log(logDir, logConfig.copy(segmentSize = configSegmentSize), recoveryPoint = 0L, time.scheduler, time = time);
-
+        Integer configSegmentSize = messageSet.sizeInBytes() - 1;
+        Log log = new Log(logDir, getLogConfig(configSegmentSize), 0L, time.scheduler, time);
         try {
             log.append(messageSet);
-            fail("message set should throw MessageSetSizeTooLargeException.");
-        } catch {
-            case MessageSetSizeTooLargeException e => // this is good;
+            Assert.fail("message set should throw MessageSetSizeTooLargeException.");
+        } catch (MessageSetSizeTooLargeException e) {
+            System.out.println("this is good");
         }
     }
 
@@ -326,21 +367,21 @@ public class LogTest {
      */
     @Test
     public void testMessageSizeCheck() {
-        val first = new ByteBufferMessageSet(NoCompressionCodec, new Message("You".getBytes), new Message("bethe".getBytes));
-        val second = new ByteBufferMessageSet(NoCompressionCodec, new Message("change".getBytes));
+        ByteBufferMessageSet first = new ByteBufferMessageSet(CompressionCodec.NoCompressionCodec, new Message("You".getBytes()), new Message("bethe".getBytes()));
+        ByteBufferMessageSet second = new ByteBufferMessageSet(CompressionCodec.NoCompressionCodec, new Message("change".getBytes()));
 
         // append messages to log;
-        val maxMessageSize = second.sizeInBytes - 1;
-        val log = new Log(logDir, logConfig.copy(maxMessageSize = maxMessageSize), recoveryPoint = 0L, time.scheduler, time = time);
+        Integer maxMessageSize = second.sizeInBytes() - 1;
+        Log log = new Log(logDir, getLogConfig(maxMessageSize), 0L, time.scheduler, time);
 
         // should be able to append the small message;
         log.append(first);
 
         try {
             log.append(second);
-            fail("Second message set should throw MessageSizeTooLargeException.");
-        } catch {
-            case MessageSizeTooLargeException e => // this is good;
+            Assert.fail("Second message set should throw MessageSizeTooLargeException.");
+        } catch (MessageSizeTooLargeException e) {
+            System.out.println("this is good");
         }
     }
 
@@ -349,31 +390,33 @@ public class LogTest {
      */
     @Test
     public void testLogRecoversToCorrectOffset() {
-        val numMessages = 100;
-        val messageSize = 100;
-        val segmentSize = 7 * messageSize;
-        val indexInterval = 3 * messageSize;
-        val config = logConfig.copy(segmentSize = segmentSize, indexInterval = indexInterval, maxIndexSize = 4096);
-        var log = new Log(logDir, config, recoveryPoint = 0L, time.scheduler, time);
-        for (i< -0 until numMessages)
-        log.append(TestUtils.singleMessageSet(TestUtils.randomBytes(messageSize)));
-        Assert.assertEquals(String.format("After appending %d messages to an empty log, the log end offset should be %d", numMessages, numMessages), numMessages, log.logEndOffset)
-        val lastIndexOffset = log.activeSegment.index.lastOffset;
-        val numIndexEntries = log.activeSegment.index.entries;
-        val lastOffset = log.logEndOffset;
+        Integer numMessages = 100;
+        Integer messageSize = 100;
+        Integer segmentSize = 7 * messageSize;
+        Integer indexInterval = 3 * messageSize;
+        LogConfig config = getLogConfig(segmentSize);
+        config.indexInterval = indexInterval;
+        config.maxIndexSize = 4096;
+        Log log = new Log(logDir, config,  0L, time.scheduler, time);
+        for (int i = 0;i<numMessages;i++)
+            log.append(TestUtils.singleMessageSet(TestUtils.randomBytes(messageSize)));
+        Assert.assertEquals(String.format("After appending %d messages to an empty log, the log end offset should be %d", numMessages, numMessages), numMessages, log.logEndOffset());
+        Long lastIndexOffset = log.activeSegment().index.lastOffset;
+        Integer numIndexEntries = log.activeSegment().index.entries();
+        Long lastOffset = log.logEndOffset();
         log.close();
 
-        log = new Log(logDir, config, recoveryPoint = lastOffset, time.scheduler, time);
-        Assert.assertEquals(String.format("Should have %d messages when log is reopened w/o recovery", numMessages), numMessages, log.logEndOffset)
-        Assert.assertEquals("Should have same last index offset as before.", lastIndexOffset, log.activeSegment.index.lastOffset)
-        Assert.assertEquals("Should have same number of index entries as before.", numIndexEntries, log.activeSegment.index.entries)
+        log = new Log(logDir, config,lastOffset, time.scheduler, time);
+        Assert.assertEquals(String.format("Should have %d messages when log is reopened w/o recovery", numMessages), numMessages, log.logEndOffset());
+        Assert.assertEquals("Should have same last index offset as before.", lastIndexOffset, log.activeSegment().index.lastOffset);
+        Assert.assertEquals("Should have same number of index entries as before.", numIndexEntries, log.activeSegment().index.entries());
         log.close();
 
         // test recovery case;
-        log = new Log(logDir, config, recoveryPoint = 0L, time.scheduler, time);
-        Assert.assertEquals(String.format("Should have %d messages when log is reopened with recovery", numMessages), numMessages, log.logEndOffset)
-        Assert.assertEquals("Should have same last index offset as before.", lastIndexOffset, log.activeSegment.index.lastOffset)
-        Assert.assertEquals("Should have same number of index entries as before.", numIndexEntries, log.activeSegment.index.entries)
+        log = new Log(logDir, config, 0L, time.scheduler, time);
+        Assert.assertEquals(String.format("Should have %d messages when log is reopened with recovery", numMessages), numMessages, log.logEndOffset());
+        Assert.assertEquals("Should have same last index offset as before.", lastIndexOffset, log.activeSegment().index.lastOffset);
+        Assert.assertEquals("Should have same number of index entries as before.", numIndexEntries, log.activeSegment().index.entries());
         log.close();
     }
 

@@ -15,7 +15,9 @@ public class KafkaScheduler extends Logging implements Scheduler {
     public Integer threads;
     public String threadNamePrefix = "kafka-scheduler-";
     public Boolean daemon = true;
+    public KafkaScheduler(){
 
+    }
     /**
      * It has a pool of kafka-scheduler- threads that do the actual work.
      *

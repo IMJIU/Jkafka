@@ -14,7 +14,7 @@ import java.util.Set;
  * @author
  * @create 2017-04-01 30 22
  **/
-public class LogConfig {
+public class LogConfig implements Cloneable{
     public Integer segmentSize;
     public Long segmentMs;
     public Long segmentJitterMs;
@@ -236,5 +236,10 @@ public class LogConfig {
             throw new InvalidConfigException("Wrong value " + minIsr + " of min.insync.replicas in topic configuration; " +
                     " Valid values are at least 1");
         }
+    }
+
+    @Override
+    protected LogConfig clone() throws CloneNotSupportedException {
+        return (LogConfig)super.clone();
     }
 }

@@ -19,10 +19,9 @@ import java.util.concurrent.TimeUnit;
  * <p>
  * Incrementing the time to the exact next execution time of a task will result in that task executing (it as if execution itself takes no time).
  */
-public class MockScheduler implements Scheduler {
+public class MockScheduler extends KafkaScheduler {
 
     public Time time;
-
     public MockScheduler(Time time) {
         this.time = time;
     }

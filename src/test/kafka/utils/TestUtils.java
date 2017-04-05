@@ -1,6 +1,7 @@
 package kafka.utils;
 
 import com.google.common.collect.Lists;
+import kafka.func.Action;
 import kafka.message.ByteBufferMessageSet;
 import kafka.message.CompressionCodec;
 import kafka.message.Message;
@@ -308,15 +309,17 @@ public class TestUtils {
 //    public void  singleMessageSet(Array payload<Byte>, CompressionCodec codec = NoCompressionCodec, Array key<Byte> = null) =
 //            new ByteBufferMessageSet(compressionCodec = codec, messages = new Message(payload, key));
 //
-//    /**
-//     * Generate an array of random bytes
-//     * @param numBytes The size of the array
-//     */
-//    public void  randomBytes Integer numBytes): Array<Byte> = {
-//        val bytes = new Array<Byte>(numBytes);
-//                seededRandom.nextBytes(bytes);
-//        bytes;
-//    }
+
+    /**
+     * Generate an array of random bytes
+     *
+     * @param numBytes The size of the array
+     */
+    public static byte[] randomBytes(Integer numBytes) {
+        byte[] bytes = new byte[numBytes];
+        seededRandom.nextBytes(bytes);
+        return bytes;
+    }
 //
 //    /**
 //     * Generate a random string of letters and digits of the given length
@@ -643,30 +646,34 @@ public class TestUtils {
 //        return leader;
 //    }
 //
-//    /**
-//     * Execute the given block. If it throws an assert error, retry. Repeat
-//     * until no error is thrown or the time limit ellapses
-//     */
-//    public void  retry(Long maxWaitMs)(block: => Unit) {
-//        var wait = 1L;
-//        val startTime = System.currentTimeMillis();
-//        while(true) {
-//            try {
-//                block;
-//                return;
-//            } catch {
-//                case AssertionFailedError e =>
-//                    val ellapsed = System.currentTimeMillis - startTime;
-//                    if(ellapsed > maxWaitMs) {
-//                        throw e;
-//                    } else {
-//                        info("Attempt failed, sleeping for " + wait + ", and then retrying.")
-//                        Thread.sleep(wait);
-//                        wait += math.min(wait, 1000);
-//                    }
-//            }
-//        }
-//    }
+
+    /**
+     * Execute the given block. If it throws an assert error, retry. Repeat
+     * until no error is thrown or the time limit ellapses
+     */
+    public static void retry(Long maxWaitMs, Action block) {
+        Long wait = 1L;
+        Long startTime = System.currentTimeMillis();
+        while (true) {
+            try {
+                block.invoke();
+                return;
+            } catch (AssertionError e) {
+                Long ellapsed = System.currentTimeMillis() - startTime;
+                if (ellapsed > maxWaitMs) {
+                    throw e;
+                } else {
+                    System.out.println("Attempt failed, sleeping for " + wait + ", and then retrying.");
+                    try {
+                        Thread.sleep(wait);
+                    } catch (InterruptedException e1) {
+                        e1.printStackTrace();
+                    }
+                    wait += Math.min(wait, 1000);
+                }
+            }
+        }
+    }
 //
 //    /**
 //     * Wait until the given condition is true or throw an exception if the given wait time elapses.

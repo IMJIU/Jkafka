@@ -439,7 +439,9 @@ public class Log extends KafkaMetricsGroup {
         // In this case, we will return the empty set with log end offset metadata;
         return new FetchDataInfo(nextOffsetMetadata, MessageSet.Empty);
     }
-
+    public FetchDataInfo read(Long startOffset, Integer maxLength) {
+        return read(startOffset,maxLength,Optional.empty());
+    }
     /**
      * Given a message offset, find its corresponding offset metadata in the log.
      * If the message offset is out of range, return unknown offset metadata
