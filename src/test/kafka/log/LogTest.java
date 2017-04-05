@@ -18,6 +18,7 @@ import org.junit.Test;
 import javax.swing.text.Segment;
 import java.io.File;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
@@ -397,8 +398,8 @@ public class LogTest {
         LogConfig config = getLogConfig(segmentSize);
         config.indexInterval = indexInterval;
         config.maxIndexSize = 4096;
-        Log log = new Log(logDir, config,  0L, time.scheduler, time);
-        for (int i = 0;i<numMessages;i++)
+        Log log = new Log(logDir, config, 0L, time.scheduler, time);
+        for (int i = 0; i < numMessages; i++)
             log.append(TestUtils.singleMessageSet(TestUtils.randomBytes(messageSize)));
         Assert.assertEquals(String.format("After appending %d messages to an empty log, the log end offset should be %d", numMessages, numMessages), numMessages, log.logEndOffset());
         Long lastIndexOffset = log.activeSegment().index.lastOffset;
@@ -406,7 +407,7 @@ public class LogTest {
         Long lastOffset = log.logEndOffset();
         log.close();
 
-        log = new Log(logDir, config,lastOffset, time.scheduler, time);
+        log = new Log(logDir, config, lastOffset, time.scheduler, time);
         Assert.assertEquals(String.format("Should have %d messages when log is reopened w/o recovery", numMessages), numMessages, log.logEndOffset());
         Assert.assertEquals("Should have same last index offset as before.", lastIndexOffset, log.activeSegment().index.lastOffset);
         Assert.assertEquals("Should have same number of index entries as before.", numIndexEntries, log.activeSegment().index.entries());
@@ -426,22 +427,23 @@ public class LogTest {
     @Test
     public void testIndexRebuild() {
         // publish the messages and close the log;
-        val numMessages = 200;
-        val config = logConfig.copy(segmentSize = 200, indexInterval = 1);
-        var log = new Log(logDir, config, recoveryPoint = 0L, time.scheduler, time);
-        for (i< -0 until numMessages)
-        log.append(TestUtils.singleMessageSet(TestUtils.randomBytes(10)));
-        val indexFiles = log.logSegments.map(_.index.file);
+        Integer numMessages = 200;
+        LogConfig config = getLogConfig(200);
+        config.indexInterval = 1;
+        Log log = new Log(logDir, config, 0L, time.scheduler, time);
+        for (int i = 0; i < numMessages; i++)
+            log.append(TestUtils.singleMessageSet(TestUtils.randomBytes(10)));
+        List<File> indexFiles = log.logSegments().stream().map((s) -> s.index.file).collect(Collectors.toList());
         log.close();
 
         // delete all the index files;
-        indexFiles.foreach(_.delete())
+        indexFiles.forEach(f -> f.delete());
 
         // reopen the log;
-        log = new Log(logDir, config, recoveryPoint = 0L, time.scheduler, time);
-        Assert.assertEquals(String.format("Should have %d messages when log is reopened", numMessages), numMessages, log.logEndOffset)
-        for (i< -0 until numMessages)
-        Assert.assertEquals(i, log.read(i, 100, None).messageSet.head.offset);
+        log = new Log(logDir, config, 0L, time.scheduler, time);
+        Assert.assertEquals(String.format("Should have %d messages when log is reopened", numMessages), numMessages, log.logEndOffset());
+        for (int i = 0; i < numMessages; i++)
+            Assert.assertEquals(new Long(i), log.read((long) i, 100, Optional.empty()).messageSet.head().offset);
         log.close();
     }
 
@@ -449,54 +451,54 @@ public class LogTest {
      * Test the Log truncate operations
      */
     @Test
-    public void testTruncateTo() {
-        val set = TestUtils.singleMessageSet("test".getBytes());
-        val setSize = set.sizeInBytes;
-        val msgPerSeg = 10;
-        val segmentSize = msgPerSeg * setSize  // each segment will be 10 messages;
+    public void testTruncateTo() throws IOException {
+        ByteBufferMessageSet set = TestUtils.singleMessageSet("test".getBytes());
+        Integer setSize = set.sizeInBytes();
+        Integer msgPerSeg = 10;
+        Integer segmentSize = msgPerSeg * setSize;  // each segment will be 10 messages;
 
         // create a log;
-        val log = new Log(logDir, logConfig.copy(segmentSize = segmentSize), recoveryPoint = 0L, scheduler = time.scheduler, time = time);
-        Assert.assertEquals("There should be exactly 1 segment.", 1, log.numberOfSegments);
+        Log log = new Log(logDir, getLogConfig(segmentSize), 0L, time.scheduler, time);
+        Assert.assertEquals("There should be exactly 1 segment.", new Integer(1), log.numberOfSegments());
 
-        for (i< -1 to msgPerSeg)
-        log.append(set);
+        for (int i = -1; i <= msgPerSeg; i++)
+            log.append(set);
 
-        Assert.assertEquals("There should be exactly 1 segments.", 1, log.numberOfSegments);
-        Assert.assertEquals("Log end offset should be equal to number of messages", msgPerSeg, log.logEndOffset);
+        Assert.assertEquals("There should be exactly 1 segments.", new Integer(1), log.numberOfSegments());
+        Assert.assertEquals("Log end offset should be equal to number of messages", msgPerSeg, log.logEndOffset());
 
-        val lastOffset = log.logEndOffset;
-        val size = log.size;
-        log.truncateTo(log.logEndOffset) // keep the entire log;
-        Assert.assertEquals("Should not change offset", lastOffset, log.logEndOffset);
-        Assert.assertEquals("Should not change log size", size, log.size);
-        log.truncateTo(log.logEndOffset + 1) // try to truncate beyond lastOffset;
-        Assert.assertEquals("Should not change offset but should log error", lastOffset, log.logEndOffset);
-        Assert.assertEquals("Should not change log size", size, log.size);
-        log.truncateTo(msgPerSeg / 2) // truncate somewhere in between;
-        Assert.assertEquals("Should change offset", log.logEndOffset, msgPerSeg / 2);
-        assertTrue("Should change log size", log.size < size);
-        log.truncateTo(0) // truncate the entire log;
-        Assert.assertEquals("Should change offset", 0, log.logEndOffset);
-        Assert.assertEquals("Should change log size", 0, log.size);
+        Long lastOffset = log.logEndOffset();
+        Long size = log.size();
+        log.truncateTo(log.logEndOffset()); // keep the entire log;
+        Assert.assertEquals("Should not change offset", lastOffset, log.logEndOffset());
+        Assert.assertEquals("Should not change log size", size, log.size());
+        log.truncateTo(log.logEndOffset() + 1); // try to truncate beyond lastOffset;
+        Assert.assertEquals("Should not change offset but should log error", lastOffset, log.logEndOffset());
+        Assert.assertEquals("Should not change log size", size, log.size());
+        log.truncateTo(msgPerSeg / 2L); // truncate somewhere in between;
+        Assert.assertEquals("Should change offset", log.logEndOffset(), new Long(msgPerSeg / 2));
+        Assert.assertTrue("Should change log size", log.size() < size);
+        log.truncateTo(0L); // truncate the entire log;
+        Assert.assertEquals("Should change offset", new Long(0), log.logEndOffset());
+        Assert.assertEquals("Should change log size", new Long(0), log.size());
 
-        for (i< -1 to msgPerSeg)
-        log.append(set);
+        for (int i = -1; i <= msgPerSeg; i++)
+            log.append(set);
 
-        Assert.assertEquals("Should be back to original offset", log.logEndOffset, lastOffset);
-        Assert.assertEquals("Should be back to original size", log.size, size);
-        log.truncateFullyAndStartAt(log.logEndOffset - (msgPerSeg - 1));
-        Assert.assertEquals("Should change offset", log.logEndOffset, lastOffset - (msgPerSeg - 1));
-        Assert.assertEquals("Should change log size", log.size, 0);
+        Assert.assertEquals("Should be back to original offset", log.logEndOffset(), lastOffset);
+        Assert.assertEquals("Should be back to original size", log.size(), size);
+        log.truncateFullyAndStartAt(log.logEndOffset() - (msgPerSeg - 1));
+        Assert.assertEquals("Should change offset", log.logEndOffset(), new Long(lastOffset - (msgPerSeg - 1)));
+        Assert.assertEquals("Should change log size", log.size(), new Long(0));
 
-        for (i< -1 to msgPerSeg)
-        log.append(set);
+        for (int i = -1; i <= msgPerSeg; i++)
+            log.append(set);
 
-        assertTrue("Should be ahead of to original offset", log.logEndOffset > msgPerSeg);
-        Assert.assertEquals("log size should be same as before", size, log.size)
-        log.truncateTo(0) // truncate before first start offset in the log;
-        Assert.assertEquals("Should change offset", 0, log.logEndOffset);
-        Assert.assertEquals("Should change log size", log.size, 0);
+        Assert.assertTrue("Should be ahead of to original offset", log.logEndOffset() > msgPerSeg);
+        Assert.assertEquals("log size should be same as before", size, log.size());
+        log.truncateTo(0L); // truncate before first start offset in the log;
+        Assert.assertEquals("Should change offset", new Long(0), log.logEndOffset());
+        Assert.assertEquals("Should change log size", log.size(), new Long(0));
     }
 
     /**
@@ -557,70 +559,60 @@ public class LogTest {
      * Verify that truncation works correctly after re-opening the log
      */
     @Test
-    public void testReopenThenTruncate() {
-        val set = TestUtils.singleMessageSet("test".getBytes());
-        val config = logConfig.copy(segmentSize = set.sizeInBytes * 5,
-                maxIndexSize = 1000,
-                indexInterval = 10000);
+    public void testReopenThenTruncate() throws IOException {
+        ByteBufferMessageSet set = TestUtils.singleMessageSet("test".getBytes());
+        LogConfig config = getLogConfig(set.sizeInBytes() * 5);
+        config.indexInterval = 10000;
+        config.maxIndexSize = 1000;
 
         // create a log;
-        var log = new Log(logDir,
-                config,
-                recoveryPoint = 0L,
-                time.scheduler,
-                time);
+        Log log = new Log(logDir, config, 0L, time.scheduler, time);
 
         // add enough messages to roll over several segments then close and re-open and attempt to truncate;
         for (int i = 0; i < 100; i++)
             log.append(set);
         log.close();
-        log = new Log(logDir,
-                config,
-                recoveryPoint = 0L,
-                time.scheduler,
-                time);
-        log.truncateTo(3);
-        Assert.assertEquals("All but one segment should be deleted.", 1, log.numberOfSegments);
-        Assert.assertEquals("Log end offset should be 3.", 3, log.logEndOffset);
+        log = new Log(logDir, config, 0L, time.scheduler, time);
+        log.truncateTo(3L);
+        Assert.assertEquals("All but one segment should be deleted.", new Integer(1), log.numberOfSegments());
+        Assert.assertEquals("Log end offset should be 3.", new Long(1), log.logEndOffset());
     }
 
     /**
      * Test that deleted files are deleted after the appropriate time.
      */
     @Test
-    public void testAsyncDelete() {
-        val set = TestUtils.singleMessageSet("test".getBytes());
-        val asyncDeleteMs = 1000;
-        val config = logConfig.copy(segmentSize = set.sizeInBytes * 5,
-                fileDeleteDelayMs = asyncDeleteMs,
-                maxIndexSize = 1000,
-                indexInterval = 10000);
-        val log = new Log(logDir,
-                config,
-                recoveryPoint = 0L,
-                time.scheduler,
-                time);
+    public void testAsyncDelete() throws IOException {
+        ByteBufferMessageSet set = TestUtils.singleMessageSet("test".getBytes());
+        Long asyncDeleteMs = 1000L;
+        LogConfig config = getLogConfig(set.sizeInBytes() * 5);
+        config.indexInterval = 10000;
+        config.maxIndexSize = 1000;
+        config.fileDeleteDelayMs = asyncDeleteMs;
+        Log log = new Log(logDir, config, 0L, time.scheduler, time);
 
         // append some messages to create some segments;
         for (int i = 0; i < 100; i++)
             log.append(set);
 
         // files should be renamed;
-        val segments = log.logSegments.toArray;
-        val oldFiles = segments.map(_.log.file)++ segments.map(_.index.file);
-        log.deleteOldSegments((s) = > true);
+        Collection<LogSegment> segments = log.logSegments();
+        List<File> oldFiles = segments.stream().map(s -> s.log.file).collect(Collectors.toList());
+        oldFiles.addAll(segments.stream().map(s -> s.index.file).collect(Collectors.toList()));
+        log.deleteOldSegments(s -> true);
 
-        Assert.assertEquals("Only one segment should remain.", 1, log.numberOfSegments);
-        assertTrue("All log and index files should end in .deleted", segments.forall(_.log.file.getName.endsWith(Log.DeletedFileSuffix)) &&;
-        segments.forall(_.index.file.getName.endsWith(Log.DeletedFileSuffix)))
-        assertTrue("The .deleted files should still be there.", segments.forall(_.log.file.exists) &&;
-        segments.forall(_.index.file.exists))
-        assertTrue("The original file should be gone.", oldFiles.forall(!_.exists))
+        Assert.assertEquals("Only one segment should remain.", new Integer(1), log.numberOfSegments());
+        Assert.assertTrue("All log and index files should end in .deleted", segments.stream().allMatch(s->s.log.file.getName().endsWith(Log.DeletedFileSuffix)) &&
+            segments.stream().allMatch(s->s.index.file.getName().endsWith(Log.DeletedFileSuffix)));
+        Assert.assertTrue("The .deleted files should still be there.", segments.stream().allMatch(s->s.log.file.exists()) &&
+        segments.stream().allMatch(s->s.index.file.exists()));
+        Assert.assertTrue("The original file should be gone.", oldFiles.stream().allMatch(s->!s.exists()));
 
         // when enough time passes the files should be deleted;
-        val deletedFiles = segments.map(_.log.file)++ segments.map(_.index.file);
+        List<File> deletedFiles = segments.stream().map(s->s.log.file).collect(Collectors.toList());
+        deletedFiles.addAll(segments.stream().map(s->s.index.file).collect(Collectors.toList()));
         time.sleep(asyncDeleteMs + 1);
-        assertTrue("Files should all be gone.", deletedFiles.forall(!_.exists))
+        Assert.assertTrue("Files should all be gone.", deletedFiles.stream().allMatch(s->!s.exists()));
     }
 
     /**
