@@ -15,9 +15,13 @@ public class KafkaScheduler extends Logging implements Scheduler {
     public Integer threads;
     public String threadNamePrefix = "kafka-scheduler-";
     public Boolean daemon = true;
-    public KafkaScheduler(){
 
+    private volatile ScheduledThreadPoolExecutor executor = null;
+    private AtomicInteger schedulerThreadId = new AtomicInteger(0);
+
+    public KafkaScheduler() {
     }
+
     /**
      * It has a pool of kafka-scheduler- threads that do the actual work.
      *
@@ -31,17 +35,13 @@ public class KafkaScheduler extends Logging implements Scheduler {
         this.daemon = daemon;
     }
 
-
-    private volatile ScheduledThreadPoolExecutor executor = null;
-    private AtomicInteger schedulerThreadId = new AtomicInteger(0);
-
-
     @Override
     public void startup() {
         debug("Initializing task scheduler.");
         synchronized (this) {
-            if (executor != null)
+            if (executor != null) {
                 throw new IllegalStateException("This scheduler has already been started!");
+            }
             executor = new ScheduledThreadPoolExecutor(threads);
             executor.setContinueExistingPeriodicTasksAfterShutdownPolicy(false);
             executor.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
@@ -64,7 +64,6 @@ public class KafkaScheduler extends Logging implements Scheduler {
 
     @Override
     public void schedule(String name, final Action action, Long delay, Long period, TimeUnit unit) {
-
         debug(String.format("Scheduling task %s with initial delay %d ms and period %d ms.",
                 name, TimeUnit.MILLISECONDS.convert(delay, unit), TimeUnit.MILLISECONDS.convert(period, unit)));
         ensureStarted();

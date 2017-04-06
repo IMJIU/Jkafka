@@ -15,9 +15,11 @@ import kafka.metrics.KafkaMetricsGroup;
 import kafka.server.BrokerTopicStats;
 import kafka.server.FetchDataInfo;
 import kafka.server.LogOffsetMetadata;
+import kafka.utils.Itor;
 import kafka.utils.KafkaScheduler;
 import kafka.utils.Time;
 import kafka.utils.Utils;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -229,9 +231,11 @@ public class Log extends KafkaMetricsGroup {
             logSegments().forEach((seg) -> seg.close());
         }
     }
-    public LogAppendInfo append(ByteBufferMessageSet messages){
-        return append(messages,true);
+
+    public LogAppendInfo append(ByteBufferMessageSet messages) {
+        return append(messages, true);
     }
+
     /**
      * Append this message set to the active segment of the log, rolling over to a fresh segment if necessary.
      * <p>
@@ -243,7 +247,7 @@ public class Log extends KafkaMetricsGroup {
      * @return Information about the appended messages including the first and last offset.
      * @throws KafkaStorageException If the append fails due to an I/O error.
      */
-    public LogAppendInfo append(ByteBufferMessageSet messages, Boolean assignOffsets) {
+    public LogAppendInfo append(ByteBufferMessageSet messages, boolean assignOffsets) {
         LogAppendInfo appendInfo = analyzeAndValidateMessageSet(messages);//生成LogAppendInfo;
 
         // if we have any valid messages, append them to the log;
@@ -275,8 +279,7 @@ public class Log extends KafkaMetricsGroup {
 
                 // re-validate message sizes since after re-compression some may exceed the limit;
                 Iterator<MessageAndOffset> it = validMessages.shallowIterator();
-                while (it.hasNext()) {
-                    MessageAndOffset messageAndOffset = it.next();
+                Itor.loop(it, messageAndOffset -> {
                     if (MessageSet.entrySize(messageAndOffset.message) > config.maxMessageSize) {
                         // we record the original message set size instead of trimmed size;
                         // to be consistent with pre-compression bytesRejectedRate recording;
@@ -285,14 +288,13 @@ public class Log extends KafkaMetricsGroup {
                         throw new MessageSizeTooLargeException(String.format("Message size is %d bytes which exceeds the maximum configured message size of %d.",
                                 MessageSet.entrySize(messageAndOffset.message), config.maxMessageSize));
                     }
-                }
+                });
 
                 // check messages set size may be exceed config.segmentSize;
                 if (validMessages.sizeInBytes() > config.segmentSize) {
                     throw new MessageSetSizeTooLargeException(String.format("Message set size is %d bytes which exceeds the maximum configured segment size of %d.",
                             validMessages.sizeInBytes(), config.segmentSize));
                 }
-
 
                 // maybe roll the log if this segment is full;
                 LogSegment segment = maybeRoll(validMessages.sizeInBytes());
@@ -303,12 +305,11 @@ public class Log extends KafkaMetricsGroup {
                 // increment the log end offset;
                 updateLogEndOffset(appendInfo.lastOffset + 1);
 
-                trace(String.format("Appended message set to log %s with first offset: %d, next offset: %d, and messages: %s",
-                        this.name, appendInfo.firstOffset, nextOffsetMetadata.messageOffset, validMessages));
+                trace(String.format("Appended message set to log %s with first offset: %d, next offset: %d, and messages: %s", this.name, appendInfo.firstOffset, nextOffsetMetadata.messageOffset, validMessages));
 
-                if (unflushedMessages() >= config.flushInterval)
+                if (unflushedMessages() >= config.flushInterval) {
                     flush();
-
+                }
                 return appendInfo;
             }
         } catch (Exception e) {
@@ -358,8 +359,7 @@ public class Log extends KafkaMetricsGroup {
             if (messageSize > config.maxMessageSize) {
 //                BrokerTopicStats.getBrokerTopicStats(topicAndPartition.topic).bytesRejectedRate.mark(messages.sizeInBytes());
 //                BrokerTopicStats.getBrokerAllTopicsStats.bytesRejectedRate.mark(messages.sizeInBytes());
-                throw new MessageSizeTooLargeException(String.format("Message size is %d bytes which exceeds the maximum configured message size of %d."
-                        , messageSize, config.maxMessageSize));
+                throw new MessageSizeTooLargeException(String.format("Message size is %d bytes which exceeds the maximum configured message size of %d.", messageSize, config.maxMessageSize));
             }
 
             // check the validity of the message by checking CRC;
@@ -412,7 +412,7 @@ public class Log extends KafkaMetricsGroup {
 
         // check if the offset is valid and in range;
         Long next = nextOffsetMetadata.messageOffset;
-        if (startOffset == next) {
+        if (startOffset.equals(next)) {
             return new FetchDataInfo(nextOffsetMetadata, MessageSet.Empty);
         }
 
@@ -440,9 +440,11 @@ public class Log extends KafkaMetricsGroup {
         // In this case, we will return the empty set with log end offset metadata;
         return new FetchDataInfo(nextOffsetMetadata, MessageSet.Empty);
     }
+
     public FetchDataInfo read(Long startOffset, Integer maxLength) {
-        return read(startOffset,maxLength,Optional.empty());
+        return read(startOffset, maxLength, Optional.empty());
     }
+
     /**
      * Given a message offset, find its corresponding offset metadata in the log.
      * If the message offset is out of range, return unknown offset metadata
@@ -530,10 +532,9 @@ public class Log extends KafkaMetricsGroup {
      */
     private LogSegment maybeRoll(Integer messagesSize) throws IOException {
         LogSegment segment = activeSegment();
-        if (segment.size() > config.segmentSize - messagesSize
-                || segment.size() > 0
-                && time.milliseconds() - segment.created > config.segmentMs - segment.rollJitterMs ||
-                segment.index.isFull()) {
+        if (segment.size() + messagesSize > config.segmentSize
+                || (segment.size() > 0 && time.milliseconds() - segment.created > config.segmentMs - segment.rollJitterMs)
+                || segment.index.isFull()) {
             debug(String.format("Rolling new log segment in %s (log_size = %d/%d, index_size = %d/%d, age_ms = %d/%d).",
                     name,
                     segment.size(),
@@ -561,24 +562,16 @@ public class Log extends KafkaMetricsGroup {
             File logFile = logFilename(dir, newOffset);
             File indexFile = indexFilename(dir, newOffset);
             List<File> fileList = Lists.newArrayList(logFile, indexFile);
-            for (File file : fileList) {
-                if (file.exists()) {
-                    warn("Newly rolled segment file " + file.getName() + " already exists; deleting it first");
-                    file.delete();
-                }
-            }
+            fileList.stream().filter(f -> f.exists()).forEach(f -> {
+                warn("Newly rolled segment file " + f.getName() + " already exists; deleting it first");
+                f.delete();
+            });
 
-            Map.Entry<Long, LogSegment> lastEnty = segments.lastEntry();
-            // TODO: 2017/4/3
-            if (lastEnty != null) {
-                lastEnty.getValue().index.trimToValidSize();
+            Map.Entry<Long, LogSegment> lastEntry = segments.lastEntry();
+            if (lastEntry != null) {
+                lastEntry.getValue().index.trimToValidSize();
             }
-            LogSegment segment = new LogSegment(dir,
-                    newOffset,
-                    config.indexInterval,
-                    config.maxIndexSize,
-                    config.randomSegmentJitter,
-                    time);
+            LogSegment segment = new LogSegment(dir, newOffset, config.indexInterval, config.maxIndexSize, config.randomSegmentJitter, time);
             LogSegment prev = addSegment(segment);
             if (prev != null)
                 throw new KafkaException(String.format("Trying to roll a new log segment for topic partition %s with start offset %d while it already exists.", name, newOffset));
@@ -613,12 +606,11 @@ public class Log extends KafkaMetricsGroup {
      * @param offset The offset to flush up to (non-inclusive); the new recovery point
      */
     public void flush(Long offset) {
-        if (offset <= this.recoveryPoint)
+        if (offset <= this.recoveryPoint) {
             return;
-        debug("Flushing log '" + name + " up to offset " + offset + ", last flushed: " + lastFlushTime() + " current time: " +
-                time.milliseconds() + " unflushed = " + unflushedMessages());
-        for (LogSegment segment : logSegments(this.recoveryPoint, offset))
-            segment.flush();
+        }
+        debug("Flushing log '" + name + " up to offset " + offset + ", last flushed: " + lastFlushTime() + " current time: " + time.milliseconds() + " unflushed = " + unflushedMessages());
+        logSegments(this.recoveryPoint, offset).forEach(s -> s.flush());
         synchronized (lock) {
             if (offset > this.recoveryPoint) {
                 this.recoveryPoint = offset;
@@ -715,10 +707,11 @@ public class Log extends KafkaMetricsGroup {
     public Collection<LogSegment> logSegments(Long from, Long to) {
         synchronized (lock) {
             Long floor = segments.floorKey(from);
-            if (floor == null)
+            if (floor == null) {
                 return segments.headMap(to).values();
-            else
+            } else {
                 return segments.subMap(floor, true, to, false).values();
+            }
         }
     }
 

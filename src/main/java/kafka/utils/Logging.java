@@ -17,7 +17,6 @@ public class Logging {
     // Force initialization to register Log4jControllerMBean
     private Log4jController log4jController;
 
-    //
     private String msgWithLogIdent(String msg) {
         if (logIdent == null) {
             return msg;
@@ -26,7 +25,6 @@ public class Logging {
         }
     }
 
-    //
     public void trace(String msg) {
         if (logger.isTraceEnabled())
             logger.trace(msgWithLogIdent(msg));

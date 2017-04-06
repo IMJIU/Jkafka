@@ -224,8 +224,9 @@ public class LogSegment extends Logging {
         // after truncation, reset and allocate more space for the (new currently  active) index;
         index.resize(index.maxIndexSize);
         Integer bytesTruncated = log.truncateTo(mapping.position);
-        if (log.sizeInBytes() == 0)
+        if (log.sizeInBytes() == 0) {
             created = time.milliseconds();
+        }
         bytesSinceLastIndexEntry = 0;
         return bytesTruncated;
     }

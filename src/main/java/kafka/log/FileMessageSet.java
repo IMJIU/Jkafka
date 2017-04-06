@@ -289,9 +289,10 @@ public class FileMessageSet extends MessageSet {
      */
     public Integer truncateTo(Integer targetSize) throws IOException {
         Integer originalSize = sizeInBytes();
-        if (targetSize > originalSize || targetSize < 0)
+        if (targetSize > originalSize || targetSize < 0) {
             throw new KafkaException("Attempt to truncate log segment to " + targetSize + " bytes failed, " +
                     " size of this log segment is " + originalSize + " bytes.");
+        }
         channel.truncate(targetSize);
         channel.position(targetSize);
         _size.set(targetSize);
