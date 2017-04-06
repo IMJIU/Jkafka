@@ -9,10 +9,7 @@ import kafka.message.MessageAndOffset;
 import kafka.utils.IteratorTemplate;
 import org.junit.Assert;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.RandomAccessFile;
+import java.io.*;
 import java.net.ServerSocket;
 import java.nio.ByteBuffer;
 import java.util.Iterator;
@@ -240,7 +237,7 @@ public class TestUtils {
         props.put("host.name", "localhost");
         props.put("port", port.toString());
         props.put("log.dir", TestUtils.tempDir().getAbsolutePath());
-        props.put("zookeeper.connect", TestZKUtils.zookeeperConnect);
+        props.put("zookeeper.connect", TestZKUtils.zookeeperConnect());
         props.put("replica.socket.timeout.ms", "1500");
         props.put("controlled.shutdown.enable", enableControlledShutdown.toString());
         return props;
@@ -749,12 +746,12 @@ public class TestUtils {
 //        file.close();
 //    }
 //
-//    public void  appendNonsenseToFile(File fileName, Integer size) {
-//        val file = new FileOutputStream(fileName, true);
-//        for(i <- 0 until size)
-//        file.write(random.nextInt(255));
-//        file.close();
-//    }
+    public static void  appendNonsenseToFile(File fileName, Integer size) throws IOException {
+        FileOutputStream file = new FileOutputStream(fileName, true);
+        for(int i = 0;i<size;i++)
+            file.write(random.nextInt(255));
+        file.close();
+    }
 //
 //    public void  checkForPhantomInSyncReplicas(ZkClient zkClient, String topic, Integer partitionToBeReassigned, Seq assignedReplicas<Int>) {
 //        val inSyncReplicas = ZkUtils.getInSyncReplicasForPartition(zkClient, topic, partitionToBeReassigned);

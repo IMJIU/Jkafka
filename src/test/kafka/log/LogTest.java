@@ -75,11 +75,7 @@ public class LogTest {
         LogConfig config = logConfig.clone();
         config.segmentMs = 1 * 60 * 60L;
         // create a log;
-        Log log = new Log(logDir,
-                config,
-                0L,
-                time.scheduler,
-                time);
+        Log log = new Log(logDir,config,0L, time.scheduler,  time);
         Assert.assertEquals("Log begins with a single empty segment.", new Integer(1), log.numberOfSegments());
         time.sleep(log.config.segmentMs + 1);
         log.append(set);
@@ -255,9 +251,9 @@ public class LogTest {
         }
     }
 
-    private LogConfig getLogConfig(Integer size) {
+    private LogConfig getLogConfig(Integer segmentSize) {
         LogConfig copy = copy();
-        copy.segmentSize = size;
+        copy.segmentSize = segmentSize;
         return copy;
     }
 
@@ -643,7 +639,7 @@ public class LogTest {
     }
 
     @Test
-    public void testCorruptLog() {
+    public void testCorruptLog() throws IOException {
         // append some messages to create some segments;
         LogConfig config = getLogConfig(1000);
         config.indexInterval = 1;
@@ -653,55 +649,49 @@ public class LogTest {
         for (int iteration = 0; iteration < 50; iteration++) {
             // create a log and write some messages to it;
             logDir.mkdirs();
-            Log log = new Log(logDir,
-                    config,
-                    recoveryPoint = 0L,
-                    time.scheduler,
-                    time);
+            Log log = new Log(logDir, config, 0L, time.scheduler, time);
             Integer numMessages = 50 + TestUtils.random.nextInt(50);
             for (int i = 0; i < numMessages; i++)
                 log.append(set);
-            val messages = log.logSegments().stream().flatMap(s->s.log.iterator().toList);
+            List<MessageAndOffset> messages = log.logSegments().stream().flatMap(s->s.log.toMessageAndOffsetList().stream()).collect(Collectors.toList());
             log.close();
 
             // corrupt index and log by appending random bytes;
-            TestUtils.appendNonsenseToFile(log.activeSegment.index.file, TestUtils.random.nextInt(1024) + 1);
-            TestUtils.appendNonsenseToFile(log.activeSegment.log.file, TestUtils.random.nextInt(1024) + 1);
+            TestUtils.appendNonsenseToFile(log.activeSegment().index.file, TestUtils.random.nextInt(1024) + 1);
+            TestUtils.appendNonsenseToFile(log.activeSegment().log.file, TestUtils.random.nextInt(1024) + 1);
 
             // attempt recovery;
             log = new Log(logDir, config, recoveryPoint, time.scheduler, time);
-            Assert.assertEquals(numMessages, log.logEndOffset);
-            Assert.assertEquals("Messages in the log after recovery should be the same.", messages, log.logSegments.flatMap(_.log.iterator.toList));
+            Assert.assertEquals(numMessages, log.logEndOffset());
+            Assert.assertEquals("Messages in the log after recovery should be the same.", messages, log.logSegments().stream().flatMap(s->s.log.toMessageAndOffsetList().stream()));
             Utils.rm(logDir);
         }
     }
 
     @Test
-    public void testCleanShutdownFile() {
+    public void testCleanShutdownFile() throws IOException {
         // append some messages to create some segments;
-        val config = logConfig.copy(indexInterval = 1, maxMessageSize = 64 * 1024, segmentSize = 1000);
-        val set = TestUtils.singleMessageSet("test".getBytes());
-        val parentLogDir = logDir.getParentFile;
-        assertTrue("Data directory %s must exist", parentLogDir.isDirectory);
-        val cleanShutdownFile = new File(parentLogDir, Log.CleanShutdownFile);
+        LogConfig config = getLogConfig(1000);
+        config.indexInterval = 1;
+        config.maxIndexSize = 64 * 1024;
+        ByteBufferMessageSet set = TestUtils.singleMessageSet("test".getBytes());
+        File parentLogDir = logDir.getParentFile();
+        Assert.assertTrue("Data directory %s must exist", parentLogDir.isDirectory());
+        File cleanShutdownFile = new File(parentLogDir, Log.CleanShutdownFile);
         cleanShutdownFile.createNewFile();
-        assertTrue(".kafka_cleanshutdown must exist", cleanShutdownFile.exists());
-        var recoveryPoint = 0L;
+        Assert.assertTrue(".kafka_cleanshutdown must exist", cleanShutdownFile.exists());
+        Long recoveryPoint = 0L;
         // create a log and write some messages to it;
-        var log = new Log(logDir,
-                config,
-                recoveryPoint = 0L,
-                time.scheduler,
-                time);
+        Log log = new Log(logDir,config, 0L,  time.scheduler,  time);
         for (int i = 0; i < 100; i++)
             log.append(set);
         log.close();
 
         // check if recovery was attempted. Even if the recovery point is 0L, recovery should not be attempted as the;
         // clean shutdown file exists.;
-        recoveryPoint = log.logEndOffset;
+        recoveryPoint = log.logEndOffset();
         log = new Log(logDir, config, 0L, time.scheduler, time);
-        Assert.assertEquals(recoveryPoint, log.logEndOffset);
+        Assert.assertEquals(recoveryPoint, log.logEndOffset());
         cleanShutdownFile.delete();
     }
 }

@@ -5,28 +5,33 @@ package kafka.utils;
  */
 public class ZKConfig {
     public VerifiableProperties props;
-
-    public ZKConfig(VerifiableProperties props) {
-        this.props = props;
-    }
-
     /**
      * ZK host string
      */
-    public String zkConnect = props.getString("zookeeper.connect");
+    public String zkConnect ;
 
     /**
      * zookeeper session timeout
      */
-    public Integer zkSessionTimeoutMs = props.getInt("zookeeper.session.timeout.ms", 6000);
+    public Integer zkSessionTimeoutMs ;
 
     /**
      * the max time that the client waits to establish a connection to zookeeper
      */
-    public Integer zkConnectionTimeoutMs = props.getInt("zookeeper.connection.timeout.ms", zkSessionTimeoutMs);
+    public Integer zkConnectionTimeoutMs;
 
     /**
      * how far a ZK follower can be behind a ZK leader
      */
-    public Integer zkSyncTimeMs = props.getInt("zookeeper.sync.time.ms", 2000);
+    public Integer zkSyncTimeMs;
+
+    public ZKConfig(VerifiableProperties props) {
+        this.props = props;
+        zkConnect = props.getString("zookeeper.connect");
+        zkSessionTimeoutMs = props.getInt("zookeeper.session.timeout.ms", 6000);
+        zkConnectionTimeoutMs = props.getInt("zookeeper.connection.timeout.ms", zkSessionTimeoutMs);
+        zkSyncTimeMs = props.getInt("zookeeper.sync.time.ms", 2000);
+    }
+
+
 }

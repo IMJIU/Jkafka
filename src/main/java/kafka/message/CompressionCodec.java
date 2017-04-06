@@ -11,8 +11,8 @@ public enum CompressionCodec {
     GZIPCompressionCodec(1, "gzip"),
     SnappyCompressionCodec(2, "snappy"),
     LZ4CompressionCodec(3, "none");
-    private int codec;
-    private String name;
+    public int codec;
+    public String name;
 
     CompressionCodec(int c, String n) {
         this.codec = c;
@@ -41,10 +41,6 @@ public enum CompressionCodec {
         if (name.equals(LZ4CompressionCodec.name))
             return LZ4CompressionCodec;
         throw new kafka.common.UnknownCodecException("%d is an unknown compression codec".format(name));
-    }
-
-    public int codec() {
-        return codec;
     }
 }
 

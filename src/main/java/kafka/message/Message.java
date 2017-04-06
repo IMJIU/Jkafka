@@ -59,8 +59,8 @@ public class Message {
         buffer.position(MagicOffset);
         buffer.put(CurrentMagicValue);
         byte attributes = 0;
-        if (codec.codec() > 0) {
-            attributes = new Integer(attributes | (CompressionCodeMask & codec.codec())).byteValue();
+        if (codec.codec > 0) {
+            attributes = new Integer(attributes | (CompressionCodeMask & codec.codec)).byteValue();
         }
         buffer.put(attributes);
         if (key == null) {

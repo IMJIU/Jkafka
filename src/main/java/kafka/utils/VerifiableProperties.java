@@ -166,7 +166,7 @@ public class VerifiableProperties extends Logging {
         else {
             String v = getProperty(name);
             Prediction.require(v == "true" || v == "false", "Unacceptable value for property '" + name + "', boolean values must be either 'true' or 'false");
-            return getBoolean(v);
+            return Boolean.parseBoolean(v);
         }
     }
 
@@ -223,7 +223,7 @@ public class VerifiableProperties extends Logging {
      */
     // TODO: 2017/4/4  def unused
     public CompressionCodec getCompressionCodec(String name, CompressionCodec def) {
-        String prop = getString(name, CompressionCodec.NoCompressionCodec.name());
+        String prop = getString(name, CompressionCodec.NoCompressionCodec.name);
         try {
             return CompressionCodec.getCompressionCodec(Integer.parseInt(prop));
         } catch (NumberFormatException nfe) {
