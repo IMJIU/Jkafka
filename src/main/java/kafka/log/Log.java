@@ -52,12 +52,13 @@ public class Log extends KafkaMetricsGroup {
      * @param scheduler     The thread pool scheduler used for background actions
      * @param time          The time instance used for checking the clock
      */
-    public Log(File dir, LogConfig config, Long recoveryPoint, KafkaScheduler scheduler, Time time) {
+    public Log(File dir, LogConfig config, Long recoveryPoint, KafkaScheduler scheduler, Time time) throws IOException {
         this.dir = dir;
         this.config = config;
         this.recoveryPoint = recoveryPoint;
         this.scheduler = scheduler;
         this.time = time;
+        init();
     }
 
     /* A lock that guards all modifications to the log */

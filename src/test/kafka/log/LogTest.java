@@ -70,7 +70,7 @@ public class LogTest {
      * using the mock clock to force the log to roll and checks the number of segments.
      */
     @Test
-    public void testTimeBasedLogRoll() throws CloneNotSupportedException {
+    public void testTimeBasedLogRoll() throws CloneNotSupportedException, IOException {
         ByteBufferMessageSet set = TestUtils.singleMessageSet("test".getBytes());
         LogConfig config = logConfig.clone();
         config.segmentMs = 1 * 60 * 60L;
@@ -127,7 +127,7 @@ public class LogTest {
      * Test that appending more than the maximum segment size rolls the log
      */
     @Test
-    public void testSizeBasedLogRoll() {
+    public void testSizeBasedLogRoll() throws IOException {
         ByteBufferMessageSet set = TestUtils.singleMessageSet("test".getBytes());
         Integer setSize = set.sizeInBytes();
         Integer msgPerSeg = 10;
@@ -159,7 +159,7 @@ public class LogTest {
      * This test case appends a bunch of messages and checks that we can read them all back using sequential offsets.
      */
     @Test
-    public void testAppendAndReadWithSequentialOffsets() {
+    public void testAppendAndReadWithSequentialOffsets() throws IOException {
         LogConfig copy = copy();
         copy.segmentSize = 71;
         Log log = new Log(logDir, copy, 0L, time.scheduler, time);
@@ -180,7 +180,7 @@ public class LogTest {
      * from any offset less than the logEndOffset including offsets not appended.
      */
     @Test
-    public void testAppendAndReadWithNonSequentialOffsets() {
+    public void testAppendAndReadWithNonSequentialOffsets() throws IOException {
         LogConfig copy = copy();
         copy.segmentSize = 71;
         Log log = new Log(logDir, copy, 0L, time.scheduler, time);
@@ -262,7 +262,7 @@ public class LogTest {
      * and then reads them all back and checks that the message read and offset matches what was appended.
      */
     @Test
-    public void testLogRolls() {
+    public void testLogRolls() throws IOException {
     /* create a multipart log with 100 messages */
         Log log = new Log(logDir, getLogConfig(100), 0L, time.scheduler, time);
         Integer numMessages = 100;
@@ -289,7 +289,7 @@ public class LogTest {
      * Test reads at offsets that fall within compressed message set boundaries.
      */
     @Test
-    public void testCompressedMessages() {
+    public void testCompressedMessages() throws IOException {
     /* this log should roll after every messageset */
         Log log = new Log(logDir, getLogConfig(100), 0L, time.scheduler, time);
 
@@ -346,7 +346,7 @@ public class LogTest {
      * appending a message set larger than the config.segmentSize setting and checking that an exception is thrown.
      */
     @Test
-    public void testMessageSetSizeCheck() {
+    public void testMessageSetSizeCheck() throws IOException {
         ByteBufferMessageSet messageSet = new ByteBufferMessageSet(CompressionCodec.NoCompressionCodec, new Message("You".getBytes()), new Message("bethe".getBytes()));
         // append messages to log;
         Integer configSegmentSize = messageSet.sizeInBytes() - 1;
@@ -364,7 +364,7 @@ public class LogTest {
      * setting and checking that an exception is thrown.
      */
     @Test
-    public void testMessageSizeCheck() {
+    public void testMessageSizeCheck() throws IOException {
         ByteBufferMessageSet first = new ByteBufferMessageSet(CompressionCodec.NoCompressionCodec, new Message("You".getBytes()), new Message("bethe".getBytes()));
         ByteBufferMessageSet second = new ByteBufferMessageSet(CompressionCodec.NoCompressionCodec, new Message("change".getBytes()));
 
@@ -387,7 +387,7 @@ public class LogTest {
      * Append a bunch of messages to a log and then re-open it both with and without recovery and check that the log re-initializes correctly.
      */
     @Test
-    public void testLogRecoversToCorrectOffset() {
+    public void testLogRecoversToCorrectOffset() throws IOException {
         Integer numMessages = 100;
         Integer messageSize = 100;
         Integer segmentSize = 7 * messageSize;
@@ -422,7 +422,7 @@ public class LogTest {
      * Test that if we manually delete an index segment it is rebuilt when the log is re-opened
      */
     @Test
-    public void testIndexRebuild() {
+    public void testIndexRebuild() throws IOException {
         // publish the messages and close the log;
         Integer numMessages = 200;
         LogConfig config = getLogConfig(200);
@@ -528,7 +528,7 @@ public class LogTest {
      * When we open a log any index segments without an associated log segment should be deleted.
      */
     @Test
-    public void testBogusIndexSegmentsAreRemoved() {
+    public void testBogusIndexSegmentsAreRemoved() throws IOException {
         File bogusIndex1 = Log.indexFilename(logDir, 0L);
         File bogusIndex2 = Log.indexFilename(logDir, 5L);
 
@@ -629,7 +629,7 @@ public class LogTest {
     }
 
     @Test
-    public void testAppendMessageWithNullPayload() {
+    public void testAppendMessageWithNullPayload() throws IOException {
         Log log = new Log(logDir, new LogConfig(), 0L, time.scheduler, time);
         byte[] b = null;
         log.append(new ByteBufferMessageSet(new Message(b)));
