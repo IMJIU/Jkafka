@@ -99,6 +99,16 @@ public class LogTest {
         Assert.assertEquals("A read should now return the last message in the log", new Long(log.logEndOffset() - 1), log.read(1L, 200, Optional.empty()).messageSet.head().offset);
     }
 
+    @Test
+    public void testAppendMessageWithNullPayload() throws IOException {
+        Log log = new Log(logDir, new LogConfig(), 0L, time.scheduler, time);
+        byte[] b = null;
+        log.append(new ByteBufferMessageSet(new Message(b)));
+        MessageSet messageSet = log.read(0L, 4096, Optional.empty()).messageSet;
+        Assert.assertEquals(new Long(0), messageSet.head().offset);
+        Assert.assertTrue("Message payload should be null.", messageSet.head().message.isNull());
+    }
+
     /**
      * Test reading at the boundary of the log, specifically
      * - reading from the logEndOffset should give an empty message set
@@ -349,11 +359,11 @@ public class LogTest {
         Log log = new Log(logDir, getLogConfig(segmentSize), 0L, time.scheduler, time);
         Assert.assertEquals("There should be exactly 1 segment.", new Integer(1), log.numberOfSegments());
 
-        for (int i = -1; i <= msgPerSeg; i++)
+        for (int i = 1; i <= msgPerSeg; i++)
             log.append(set);
 
         Assert.assertEquals("There should be exactly 1 segments.", new Integer(1), log.numberOfSegments());
-        Assert.assertEquals("Log end offset should be equal to number of messages", msgPerSeg, log.logEndOffset());
+        Assert.assertEquals("Log end offset should be equal to number of messages", new Long(msgPerSeg), log.logEndOffset());
 
         Long lastOffset = log.logEndOffset();
         Long size = log.size();
@@ -370,7 +380,7 @@ public class LogTest {
         Assert.assertEquals("Should change offset", new Long(0), log.logEndOffset());
         Assert.assertEquals("Should change log size", new Long(0), log.size());
 
-        for (int i = -1; i <= msgPerSeg; i++)
+        for (int i = 1; i <= msgPerSeg; i++)
             log.append(set);
 
         Assert.assertEquals("Should be back to original offset", log.logEndOffset(), lastOffset);
@@ -379,7 +389,7 @@ public class LogTest {
         Assert.assertEquals("Should change offset", log.logEndOffset(), new Long(lastOffset - (msgPerSeg - 1)));
         Assert.assertEquals("Should change log size", log.size(), new Long(0));
 
-        for (int i = -1; i <= msgPerSeg; i++)
+        for (int i = 1; i <= msgPerSeg; i++)
             log.append(set);
 
         Assert.assertTrue("Should be ahead of to original offset", log.logEndOffset() > msgPerSeg);
@@ -400,17 +410,17 @@ public class LogTest {
         Integer segmentSize = msgPerSeg * setSize;  // each segment will be 10 messages;
         Log log = new Log(logDir, getLogConfig(segmentSize), 0L, time.scheduler, time);
         Assert.assertEquals("There should be exactly 1 segment.", new Integer(1), log.numberOfSegments());
-        for (int i = -1; i <= msgPerSeg; i++)
+        for (int i = 1; i <= msgPerSeg; i++)
             log.append(set);
         Assert.assertEquals("There should be exactly 1 segment.", new Integer(1), log.numberOfSegments());
-        for (int i = -1; i <= msgPerSeg; i++)
+        for (int i = 1; i <= msgPerSeg; i++)
             log.append(set);
         Assert.assertEquals("There should be exactly 2 segment.", new Integer(2), log.numberOfSegments());
         Assert.assertEquals("The index of the first segment should be trimmed to empty", new Integer(0), log.logSegments().stream().findFirst().get().index.maxEntries);
         log.truncateTo(0L);
         Assert.assertEquals("There should be exactly 1 segment.", new Integer(1), log.numberOfSegments());
         Assert.assertEquals("The index of segment 1 should be resized to maxIndexSize", new Long(log.config.maxIndexSize / 8), log.logSegments().stream().findFirst().get().index.maxEntries);
-        for (int i = -1; i <= msgPerSeg; i++)
+        for (int i = 1; i <= msgPerSeg; i++)
             log.append(set);
         Assert.assertEquals("There should be exactly 1 segment.", new Integer(1), log.numberOfSegments());
     }
@@ -519,15 +529,7 @@ public class LogTest {
         Assert.assertEquals("The deleted segments should be gone.", new Integer(1), log.numberOfSegments());
     }
 
-    @Test
-    public void testAppendMessageWithNullPayload() throws IOException {
-        Log log = new Log(logDir, new LogConfig(), 0L, time.scheduler, time);
-        byte[] b = null;
-        log.append(new ByteBufferMessageSet(new Message(b)));
-        MessageSet messageSet = log.read(0L, 4096, Optional.empty()).messageSet;
-        Assert.assertEquals(new Long(0), messageSet.head().offset);
-        Assert.assertTrue("Message payload should be null.", messageSet.head().message.isNull());
-    }
+
 
     @Test
     public void testCorruptLog() throws IOException {
@@ -591,115 +593,115 @@ public class LogTest {
         copy.segmentSize = segmentSize;
         return copy;
     }
-//
-//    /**
-//     * Tests for time based log roll. This test appends messages then changes the time
-//     * using the mock clock to force the log to roll and checks the number of segments.
-//     */
-//    @Test
-//    public void testTimeBasedLogRoll() throws CloneNotSupportedException, IOException {
-//        ByteBufferMessageSet set = TestUtils.singleMessageSet("test".getBytes());
-//        LogConfig config = logConfig.clone();
-//        config.segmentMs = 1 * 60 * 60L;
-//        // create a log;
-//        Log log = new Log(logDir,config,0L, time.scheduler,  time);
-//        Assert.assertEquals("Log begins with a single empty segment.", new Integer(1), log.numberOfSegments());
-//        time.sleep(log.config.segmentMs + 1);
-//        log.append(set);
-//        Assert.assertEquals("Log doesn't roll if doing so creates an empty segment.", new Integer(1), log.numberOfSegments());
-//
-//        log.append(set);
-//        Assert.assertEquals("Log rolls on this append since time has expired.", new Integer(2), log.numberOfSegments());
-//
-//        for (int numSegments = 3; numSegments < 5; numSegments++) {
-//            time.sleep(log.config.segmentMs + 1);
-//            log.append(set);
-//            Assert.assertEquals("Changing time beyond rollMs and appending should create a new segment.", new Integer(numSegments), log.numberOfSegments());
-//        }
-//
-//        Integer numSegments = log.numberOfSegments();
-//        time.sleep(log.config.segmentMs + 1);
-//        log.append(new ByteBufferMessageSet());
-//        Assert.assertEquals("Appending an empty message set should not roll log even if succient time has passed.", numSegments, log.numberOfSegments());
-//    }
-//
-//    /**
-//     * Test for jitter s for time based log roll. This test appends messages then changes the time
-//     * using the mock clock to force the log to roll and checks the number of segments.
-//     */
-//    @Test
-//    public void testTimeBasedLogRollJitter() throws Exception {
-//        ByteBufferMessageSet set = TestUtils.singleMessageSet("test".getBytes());
-//        Long maxJitter = 20 * 60L;
-//        LogConfig config = logConfig.clone();
-//        config.segmentMs = 1 * 60 * 60L;
-//        // create a log;
-//        Log log = new Log(logDir,
-//                config,
-//                0L,
-//                time.scheduler,
-//                time = time);
-//        Assert.assertEquals("Log begins with a single empty segment.", new Integer(1), log.numberOfSegments());
-//        log.append(set);
-//
-//        time.sleep(log.config.segmentMs - maxJitter);
-//        log.append(set);
-//        Assert.assertEquals("Log does not roll on this append because it occurs earlier than max jitter", new Integer(1), log.numberOfSegments());
-//        time.sleep(maxJitter - log.activeSegment().rollJitterMs + 1);
-//        log.append(set);
-//        Assert.assertEquals("Log should roll after segmentMs adjusted by random jitter", new Integer(2), log.numberOfSegments());
-//    }
-//
-//    /**
-//     * Test that appending more than the maximum segment size rolls the log
-//     */
-//    @Test
-//    public void testSizeBasedLogRoll() throws IOException {
-//        ByteBufferMessageSet set = TestUtils.singleMessageSet("test".getBytes());
-//        Integer setSize = set.sizeInBytes();
-//        Integer msgPerSeg = 10;
-//        Integer segmentSize = msgPerSeg * (setSize - 1); // each segment will be 10 messages;
-//        LogConfig copy = copy();
-//        copy.segmentSize = segmentSize;
-//        // create a log;
-//        Log log = new Log(logDir, copy, 0L, time.scheduler, time);
-//        Assert.assertEquals("There should be exactly 1 segment.", new Integer(1), log.numberOfSegments());
-//
-//        // segments expire in size;
-//        for (int i = -1; i <= msgPerSeg + 1; i++) {
-//            log.append(set);
-//        }
-//        Assert.assertEquals("There should be exactly 2 segments.", new Integer(2), log.numberOfSegments());
-//    }
-//
-//
-//
-//    /**
-//     * Test that covers reads and writes on a multisegment log. This test appends a bunch of messages
-//     * and then reads them all back and checks that the message read and offset matches what was appended.
-//     */
-//    @Test
-//    public void testLogRolls() throws IOException {
-//    /* create a multipart log with 100 messages */
-//        Log log = new Log(logDir, getLogConfig(100), 0L, time.scheduler, time);
-//        Integer numMessages = 100;
-//        List<ByteBufferMessageSet> messageSets = Stream.iterate(0, n -> n++).map(i -> TestUtils.singleMessageSet(i.toString().getBytes())).collect(Collectors.toList());
-//        messageSets.forEach(m -> log.append(m));
-//        log.flush();
-//
-//    /* do successive reads to ensure all our messages are there */
-//        Long offset = 0L;
-//        for (int i = 0; i < numMessages; i++) {
-//            MessageSet messages = log.read(offset, 1024 * 1024).messageSet;
-//            Assert.assertEquals("Offsets not equal", offset, messages.head().offset);
-//            Assert.assertEquals("Messages not equal at offset " + offset, messageSets.get(i).head().message, messages.head().message);
-//            offset = messages.head().offset + 1;
-//        }
-//        MessageSet lastRead = log.read(numMessages.longValue(), 1024 * 1024, Optional.of(numMessages + 1L)).messageSet;
-//        Assert.assertEquals("Should be no more messages", 0, lastRead.toMessageAndOffsetList().size());
-//
-//        // check that rolling the log forced a flushed the log--the flush is asyn so retry in case of failure;
-//        TestUtils.retry(1000L, () -> Assert.assertTrue("Log role should have forced flush", log.recoveryPoint >= log.activeSegment().baseOffset));
-//    }
+
+    /**
+     * Tests for time based log roll. This test appends messages then changes the time
+     * using the mock clock to force the log to roll and checks the number of segments.
+     */
+    @Test
+    public void testTimeBasedLogRoll() throws CloneNotSupportedException, IOException {
+        ByteBufferMessageSet set = TestUtils.singleMessageSet("test".getBytes());
+        LogConfig config = logConfig.clone();
+        config.segmentMs = 1 * 60 * 60L;
+        // create a log;
+        Log log = new Log(logDir,config,0L, time.scheduler,  time);
+        Assert.assertEquals("Log begins with a single empty segment.", new Integer(1), log.numberOfSegments());
+        time.sleep(log.config.segmentMs + 1);
+        log.append(set);
+        Assert.assertEquals("Log doesn't roll if doing so creates an empty segment.", new Integer(1), log.numberOfSegments());
+
+        log.append(set);
+        Assert.assertEquals("Log rolls on this append since time has expired.", new Integer(2), log.numberOfSegments());
+
+        for (int numSegments = 3; numSegments < 5; numSegments++) {
+            time.sleep(log.config.segmentMs + 1);
+            log.append(set);
+            Assert.assertEquals("Changing time beyond rollMs and appending should create a new segment.", new Integer(numSegments), log.numberOfSegments());
+        }
+
+        Integer numSegments = log.numberOfSegments();
+        time.sleep(log.config.segmentMs + 1);
+        log.append(new ByteBufferMessageSet());
+        Assert.assertEquals("Appending an empty message set should not roll log even if succient time has passed.", numSegments, log.numberOfSegments());
+    }
+
+    /**
+     * Test for jitter s for time based log roll. This test appends messages then changes the time
+     * using the mock clock to force the log to roll and checks the number of segments.
+     */
+    @Test
+    public void testTimeBasedLogRollJitter() throws Exception {
+        ByteBufferMessageSet set = TestUtils.singleMessageSet("test".getBytes());
+        Long maxJitter = 20 * 60L;
+        LogConfig config = logConfig.clone();
+        config.segmentMs = 1 * 60 * 60L;
+        // create a log;
+        Log log = new Log(logDir,
+                config,
+                0L,
+                time.scheduler,
+                time = time);
+        Assert.assertEquals("Log begins with a single empty segment.", new Integer(1), log.numberOfSegments());
+        log.append(set);
+
+        time.sleep(log.config.segmentMs - maxJitter);
+        log.append(set);
+        Assert.assertEquals("Log does not roll on this append because it occurs earlier than max jitter", new Integer(1), log.numberOfSegments());
+        time.sleep(maxJitter - log.activeSegment().rollJitterMs + 1);
+        log.append(set);
+        Assert.assertEquals("Log should roll after segmentMs adjusted by random jitter", new Integer(2), log.numberOfSegments());
+    }
+
+    /**
+     * Test that appending more than the maximum segment size rolls the log
+     */
+    @Test
+    public void testSizeBasedLogRoll() throws IOException {
+        ByteBufferMessageSet set = TestUtils.singleMessageSet("test".getBytes());
+        Integer setSize = set.sizeInBytes();
+        Integer msgPerSeg = 10;
+        Integer segmentSize = msgPerSeg * (setSize - 1); // each segment will be 10 messages;
+        LogConfig copy = copy();
+        copy.segmentSize = segmentSize;
+        // create a log;
+        Log log = new Log(logDir, copy, 0L, time.scheduler, time);
+        Assert.assertEquals("There should be exactly 1 segment.", new Integer(1), log.numberOfSegments());
+
+        // segments expire in size;
+        for (int i = -1; i <= msgPerSeg + 1; i++) {
+            log.append(set);
+        }
+        Assert.assertEquals("There should be exactly 2 segments.", new Integer(2), log.numberOfSegments());
+    }
+
+
+
+    /**
+     * Test that covers reads and writes on a multisegment log. This test appends a bunch of messages
+     * and then reads them all back and checks that the message read and offset matches what was appended.
+     */
+    @Test
+    public void testLogRolls() throws IOException {
+    /* create a multipart log with 100 messages */
+        Log log = new Log(logDir, getLogConfig(100), 0L, time.scheduler, time);
+        Integer numMessages = 100;
+        List<ByteBufferMessageSet> messageSets = Stream.iterate(0, n -> n++).map(i -> TestUtils.singleMessageSet(i.toString().getBytes())).collect(Collectors.toList());
+        messageSets.forEach(m -> log.append(m));
+        log.flush();
+
+    /* do successive reads to ensure all our messages are there */
+        Long offset = 0L;
+        for (int i = 0; i < numMessages; i++) {
+            MessageSet messages = log.read(offset, 1024 * 1024).messageSet;
+            Assert.assertEquals("Offsets not equal", offset, messages.head().offset);
+            Assert.assertEquals("Messages not equal at offset " + offset, messageSets.get(i).head().message, messages.head().message);
+            offset = messages.head().offset + 1;
+        }
+        MessageSet lastRead = log.read(numMessages.longValue(), 1024 * 1024, Optional.of(numMessages + 1L)).messageSet;
+        Assert.assertEquals("Should be no more messages", 0, lastRead.toMessageAndOffsetList().size());
+
+        // check that rolling the log forced a flushed the log--the flush is asyn so retry in case of failure;
+        TestUtils.retry(1000L, () -> Assert.assertTrue("Log role should have forced flush", log.recoveryPoint >= log.activeSegment().baseOffset));
+    }
 
 }
