@@ -296,8 +296,9 @@ public class OffsetIndex extends Logging {
                 int position = this.mmap.position();
 
       /* Windows won't let us modify the file length while the file is mmapped :-( */
-                if (Os.isWindows)
+                if (Os.isWindows) {
                     forceUnmap(this.mmap);
+                }
                 try {
                     raf.setLength(roundedNewSize);
                     this.mmap = raf.getChannel().map(FileChannel.MapMode.READ_WRITE, 0, roundedNewSize);

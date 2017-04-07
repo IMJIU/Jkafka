@@ -10,10 +10,12 @@ import kafka.utils.TestUtils;
 import kafka.server.KafkaConfig;
 import kafka.utils.MockTime;
 import kafka.utils.Utils;
+import org.apache.log4j.Logger;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.slf4j.LoggerFactory;
 
 import javax.swing.text.Segment;
 import java.io.File;
@@ -31,7 +33,7 @@ import java.util.stream.Stream;
  * Created by Administrator on 2017/4/3.
  */
 public class LogTest {
-
+    org.slf4j.Logger logger2 = LoggerFactory.getLogger(LogTest.class);
     File logDir = null;
     MockTime time = new MockTime(0L);
     KafkaConfig config = null;
@@ -129,12 +131,14 @@ public class LogTest {
         LogConfig copy = copy();
         copy.segmentSize = 71;
         Log log = new Log(logDir, copy, 0L, time.scheduler, time);
+        //50个 0-100
         List<Message> messages = Stream.iterate(0, n -> n + 2).limit(100).map(id -> new Message(id.toString().getBytes())).collect(Collectors.toList());
 
         for (int i = 0; i < messages.size(); i++)
             log.append(new ByteBufferMessageSet(CompressionCodec.NoCompressionCodec, messages.get(i)));
         for (long i = 0; i < messages.size(); i++) {
             MessageAndOffset read = log.read(i, 100, Optional.of(i + 1L)).messageSet.head();
+            logger2.warn("offset {} message {}", read.offset, read.message.toString());
             Assert.assertEquals("Offset read should match order appended.", new Long(i), read.offset);
             Assert.assertEquals("Message should match appended.", messages.get((int) i), read.message);
         }
@@ -147,26 +151,25 @@ public class LogTest {
      */
     @Test
     public void testAppendAndReadWithNonSequentialOffsets() throws IOException {
-        LogConfig copy = copy();
-        copy.segmentSize = 71;
-        Log log = new Log(logDir, copy, 0L, time.scheduler, time);
+        Log log = new Log(logDir, getLogConfig(71), 0L, time.scheduler, time);
         List<Integer> messageIds = Stream.iterate(0, n -> n + 1).limit(50).collect(Collectors.toList());
         messageIds.addAll(Stream.iterate(50, n -> n + 7).limit(200).collect(Collectors.toList()));
         List<Message> messages = messageIds.stream().map(id -> new Message(id.toString().getBytes())).collect(Collectors.toList());
 
         // now test the case that we give the offsets and use non-sequential offsets;
-        for (int i = 0; i < messages.size(); i++)
+        for (int i = 0; i < messages.size(); i++) {
             log.append(new ByteBufferMessageSet(CompressionCodec.NoCompressionCodec, new AtomicLong(messageIds.get(i)), messages.get(i)), false);
+        }
         for (int i = 50; i < messageIds.get(messageIds.size() - 1); i++) {
             Integer idx = null;
-            for (Integer mid : messageIds) {
-                if (mid >= i) {
-                    idx = i;
+            for (int j = 0; j < messageIds.size(); j++) {
+                if (messageIds.get(j) >= i) {
+                    idx = j;
                     break;
                 }
             }
             MessageAndOffset read = log.read((long) i, 100, Optional.empty()).messageSet.head();
-            Assert.assertEquals("Offset read should match message id.", new Long(messageIds.get(idx).longValue()), read.offset);
+            Assert.assertEquals("Offset read should match message id.", new Long(messageIds.get(idx)), read.offset);
             Assert.assertEquals("Message should match appended.", messages.get(idx), read.message);
         }
     }
@@ -210,7 +213,7 @@ public class LogTest {
                 log.append(TestUtils.singleMessageSet(("" + i).getBytes()));
 
             Long currOffset = log.logEndOffset();
-            Assert.assertEquals(currOffset, messagesToAppend);
+            Assert.assertEquals(currOffset, new Long(messagesToAppend));
 
             // time goes by; the log file is deleted;
             log.deleteOldSegments((s) -> true);
@@ -256,8 +259,9 @@ public class LogTest {
         ByteBufferMessageSet second = new ByteBufferMessageSet(CompressionCodec.NoCompressionCodec, new Message("change".getBytes()));
 
         // append messages to log;
-        Integer maxMessageSize = second.sizeInBytes() - 1;
-        Log log = new Log(logDir, getLogConfig(maxMessageSize), 0L, time.scheduler, time);
+        LogConfig config = copy();
+        config.maxMessageSize = second.sizeInBytes() - 1;
+        Log log = new Log(logDir, config, 0L, time.scheduler, time);
 
         // should be able to append the small message;
         log.append(first);
@@ -285,21 +289,21 @@ public class LogTest {
         Log log = new Log(logDir, config, 0L, time.scheduler, time);
         for (int i = 0; i < numMessages; i++)
             log.append(TestUtils.singleMessageSet(TestUtils.randomBytes(messageSize)));
-        Assert.assertEquals(String.format("After appending %d messages to an empty log, the log end offset should be %d", numMessages, numMessages), numMessages, log.logEndOffset());
+        Assert.assertEquals(String.format("After appending %d messages to an empty log, the log end offset should be %d", numMessages, numMessages), new Long(numMessages), log.logEndOffset());
         Long lastIndexOffset = log.activeSegment().index.lastOffset;
         Integer numIndexEntries = log.activeSegment().index.entries();
         Long lastOffset = log.logEndOffset();
         log.close();
 
         log = new Log(logDir, config, lastOffset, time.scheduler, time);
-        Assert.assertEquals(String.format("Should have %d messages when log is reopened w/o recovery", numMessages), numMessages, log.logEndOffset());
+        Assert.assertEquals(String.format("Should have %d messages when log is reopened w/o recovery", numMessages), new Long(numMessages), log.logEndOffset());
         Assert.assertEquals("Should have same last index offset as before.", lastIndexOffset, log.activeSegment().index.lastOffset);
         Assert.assertEquals("Should have same number of index entries as before.", numIndexEntries, log.activeSegment().index.entries());
         log.close();
 
         // test recovery case;
         log = new Log(logDir, config, 0L, time.scheduler, time);
-        Assert.assertEquals(String.format("Should have %d messages when log is reopened with recovery", numMessages), numMessages, log.logEndOffset());
+        Assert.assertEquals(String.format("Should have %d messages when log is reopened with recovery", numMessages), new Long(numMessages), log.logEndOffset());
         Assert.assertEquals("Should have same last index offset as before.", lastIndexOffset, log.activeSegment().index.lastOffset);
         Assert.assertEquals("Should have same number of index entries as before.", numIndexEntries, log.activeSegment().index.entries());
         log.close();
@@ -325,7 +329,7 @@ public class LogTest {
 
         // reopen the log;
         log = new Log(logDir, config, 0L, time.scheduler, time);
-        Assert.assertEquals(String.format("Should have %d messages when log is reopened", numMessages), numMessages, log.logEndOffset());
+        Assert.assertEquals(String.format("Should have %d messages when log is reopened", numMessages), new Long(numMessages), log.logEndOffset());
         for (int i = 0; i < numMessages; i++)
             Assert.assertEquals(new Long(i), log.read((long) i, 100, Optional.empty()).messageSet.head().offset);
         log.close();
@@ -540,7 +544,7 @@ public class LogTest {
             Integer numMessages = 50 + TestUtils.random.nextInt(50);
             for (int i = 0; i < numMessages; i++)
                 log.append(set);
-            List<MessageAndOffset> messages = log.logSegments().stream().flatMap(s->s.log.toMessageAndOffsetList().stream()).collect(Collectors.toList());
+            List<MessageAndOffset> messages = log.logSegments().stream().flatMap(s -> s.log.toMessageAndOffsetList().stream()).collect(Collectors.toList());
             log.close();
 
             // corrupt index and log by appending random bytes;
@@ -550,7 +554,7 @@ public class LogTest {
             // attempt recovery;
             log = new Log(logDir, config, recoveryPoint, time.scheduler, time);
             Assert.assertEquals(numMessages, log.logEndOffset());
-            Assert.assertEquals("Messages in the log after recovery should be the same.", messages, log.logSegments().stream().flatMap(s->s.log.toMessageAndOffsetList().stream()));
+            Assert.assertEquals("Messages in the log after recovery should be the same.", messages, log.logSegments().stream().flatMap(s -> s.log.toMessageAndOffsetList().stream()));
             Utils.rm(logDir);
         }
     }
@@ -569,7 +573,7 @@ public class LogTest {
         Assert.assertTrue(".kafka_cleanshutdown must exist", cleanShutdownFile.exists());
         Long recoveryPoint = 0L;
         // create a log and write some messages to it;
-        Log log = new Log(logDir,config, 0L,  time.scheduler,  time);
+        Log log = new Log(logDir, config, 0L, time.scheduler, time);
         for (int i = 0; i < 100; i++)
             log.append(set);
         log.close();

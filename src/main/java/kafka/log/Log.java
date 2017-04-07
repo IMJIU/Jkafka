@@ -278,8 +278,7 @@ public class Log extends KafkaMetricsGroup {
                 }
 
                 // re-validate message sizes since after re-compression some may exceed the limit;
-                Iterator<MessageAndOffset> it = validMessages.shallowIterator();
-                Itor.loop(it, messageAndOffset -> {
+                Itor.loop(validMessages.shallowIterator(), messageAndOffset -> {
                     if (MessageSet.entrySize(messageAndOffset.message) > config.maxMessageSize) {
                         // we record the original message set size instead of trimmed size;
                         // to be consistent with pre-compression bytesRejectedRate recording;
@@ -312,7 +311,7 @@ public class Log extends KafkaMetricsGroup {
                 }
                 return appendInfo;
             }
-        } catch (Exception e) {
+        } catch (IOException e) {
             throw new KafkaStorageException(String.format("I/O exception in append to log '%s'", name), e);
         }
     }
@@ -561,8 +560,7 @@ public class Log extends KafkaMetricsGroup {
             Long newOffset = logEndOffset();
             File logFile = logFilename(dir, newOffset);
             File indexFile = indexFilename(dir, newOffset);
-            List<File> fileList = Lists.newArrayList(logFile, indexFile);
-            fileList.stream().filter(f -> f.exists()).forEach(f -> {
+            Lists.newArrayList(logFile, indexFile).stream().filter(f -> f.exists()).forEach(f -> {
                 warn("Newly rolled segment file " + f.getName() + " already exists; deleting it first");
                 f.delete();
             });
@@ -573,8 +571,9 @@ public class Log extends KafkaMetricsGroup {
             }
             LogSegment segment = new LogSegment(dir, newOffset, config.indexInterval, config.maxIndexSize, config.randomSegmentJitter, time);
             LogSegment prev = addSegment(segment);
-            if (prev != null)
+            if (prev != null) {
                 throw new KafkaException(String.format("Trying to roll a new log segment for topic partition %s with start offset %d while it already exists.", name, newOffset));
+            }
 
             // schedule an asynchronous flush of the old segment;
             scheduler.schedule("flush-log", () -> flush(newOffset), 0L);

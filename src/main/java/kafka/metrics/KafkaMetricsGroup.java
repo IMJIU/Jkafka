@@ -6,6 +6,7 @@ import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Meter;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.Timer;
+import kafka.utils.Itor;
 import kafka.utils.Logging;
 
 import java.util.Iterator;
@@ -166,6 +167,9 @@ public class KafkaMetricsGroup extends Logging {
             }
         }
         if (filteredTags.size() > 0) {
+            if(sb.charAt(sb.length()-1)==','){
+                return Optional.of(sb.deleteCharAt(sb.length()-1).toString());
+            }
             return Optional.of(sb.toString());
         } else {
             return Optional.empty();
