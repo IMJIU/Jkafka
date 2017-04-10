@@ -162,7 +162,7 @@ public class KafkaMetricsGroup extends Logging {
         StringBuilder sb = new StringBuilder();
         while (it.hasNext()) {
             Map.Entry<String, String> entry = it.next();
-            if (it.next().getValue() == "") {
+            if (entry.getValue() == "") {
                 it.remove();
             } else {
                 sb.append(String.format("%s=%s", entry.getKey(), entry.getValue())).append(",");

@@ -555,7 +555,7 @@ public class LogTest {
 
             // attempt recovery;
             log = new Log(logDir, config, recoveryPoint, time.scheduler, time);
-            Assert.assertEquals(numMessages, log.logEndOffset());
+            Assert.assertEquals(new Long(numMessages), log.logEndOffset());
             Assert.assertEquals("Messages in the log after recovery should be the same.", messages, log.logSegments().stream().flatMap(s -> s.log.toMessageAndOffsetList().stream()));
             Utils.rm(logDir);
         }
@@ -636,11 +636,7 @@ public class LogTest {
         LogConfig config = logConfig.clone();
         config.segmentMs = 1 * 60 * 60L;
         // create a log;
-        Log log = new Log(logDir,
-                config,
-                0L,
-                time.scheduler,
-                time = time);
+        Log log = new Log(logDir,config, 0L,  time.scheduler,time);
         Assert.assertEquals("Log begins with a single empty segment.", new Integer(1), log.numberOfSegments());
         log.append(set);
 
