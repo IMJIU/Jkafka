@@ -5,7 +5,6 @@ package kafka.log;/**
 import com.google.common.collect.Lists;
 import kafka.message.*;
 import kafka.server.FetchDataInfo;
-import kafka.utils.KafkaTime;
 import kafka.utils.Time;
 import kafka.utils.TestUtils;
 import org.junit.After;

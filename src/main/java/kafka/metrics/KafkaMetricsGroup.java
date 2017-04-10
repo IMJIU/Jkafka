@@ -61,7 +61,9 @@ public class KafkaMetricsGroup extends Logging {
     public <T> Gauge<T> newGauge(String name, Gauge<T> metric, Map<String, String> tags){
         return Metrics.defaultRegistry().newGauge(metricName(name, tags),metric);
     }
-
+    public Meter newMeter(String name, String eventType, TimeUnit timeUnit) {
+        return Metrics.defaultRegistry().newMeter(metricName(name,Maps.newHashMap()), eventType, timeUnit);
+    }
     public Meter newMeter(String name, String eventType, TimeUnit timeUnit, Map<String, String> tags) {
         return Metrics.defaultRegistry().newMeter(metricName(name, tags), eventType, timeUnit);
     }

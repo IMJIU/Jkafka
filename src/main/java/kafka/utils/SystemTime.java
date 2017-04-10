@@ -6,7 +6,7 @@ package kafka.utils;/**
  * @author
  * @create 2017-03-29 11:00
  **/
-public class KafkaTime extends Time {
+public class SystemTime extends Time {
 
     public Long milliseconds() {
         return System.currentTimeMillis();
