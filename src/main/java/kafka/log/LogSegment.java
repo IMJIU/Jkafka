@@ -65,7 +65,6 @@ public class LogSegment extends Logging {
     public Long size() {
         return log.sizeInBytes().longValue();
     }
-//
 
     /**
      * Append the given messages starting with the given offset. Add

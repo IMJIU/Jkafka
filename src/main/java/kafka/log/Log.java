@@ -339,6 +339,7 @@ public class Log extends KafkaMetricsGroup {
         Long firstOffset = 0L, lastOffset = -1L;
         CompressionCodec codec = CompressionCodec.NoCompressionCodec;
         boolean monotonic = true;
+
         Iterator<MessageAndOffset> it = messages.shallowIterator();
         while (it.hasNext()) {
             MessageAndOffset messageAndOffset = it.next();
@@ -356,8 +357,8 @@ public class Log extends KafkaMetricsGroup {
             // Check if the message sizes are valid.;
             Integer messageSize = MessageSet.entrySize(m);
             if (messageSize > config.maxMessageSize) {
-//                BrokerTopicStats.getBrokerTopicStats(topicAndPartition.topic).bytesRejectedRate.mark(messages.sizeInBytes());
-//                BrokerTopicStats.getBrokerAllTopicsStats.bytesRejectedRate.mark(messages.sizeInBytes());
+                BrokerTopicStats.getBrokerTopicStats(topicAndPartition.topic).bytesRejectedRate.mark(messages.sizeInBytes());
+                BrokerTopicStats.getBrokerAllTopicsStats().bytesRejectedRate.mark(messages.sizeInBytes());
                 throw new MessageSizeTooLargeException(String.format("Message size is %d bytes which exceeds the maximum configured message size of %d.", messageSize, config.maxMessageSize));
             }
 
@@ -373,7 +374,6 @@ public class Log extends KafkaMetricsGroup {
         }
         return new LogAppendInfo(firstOffset, lastOffset, codec, shallowMessageCount, validBytesCount, monotonic);
     }
-//
 
     /**
      * Trim any invalid bytes from the end of this message set (if there are any)
@@ -395,7 +395,6 @@ public class Log extends KafkaMetricsGroup {
             return new ByteBufferMessageSet(validByteBuffer);
         }
     }
-//
 
     /**
      * Read messages from the log
