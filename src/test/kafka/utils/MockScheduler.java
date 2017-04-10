@@ -72,7 +72,7 @@ public class MockScheduler extends KafkaScheduler {
 }
 
 
-class MockTask implements Comparator<MockTask> {
+class MockTask implements Comparable<MockTask> {
     public String name;
     public Action func;
     public Long nextExecution;
@@ -90,13 +90,12 @@ class MockTask implements Comparator<MockTask> {
     }
 
     @Override
-    public int compare(MockTask a, MockTask b) {
-        if (a.nextExecution == b.nextExecution)
+    public int compareTo(MockTask b) {
+        if (nextExecution == b.nextExecution)
             return 0;
-        else if (a.nextExecution < b.nextExecution)
+        else if (nextExecution < b.nextExecution)
             return -1;
         else
             return 1;
-
     }
 }
