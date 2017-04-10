@@ -674,8 +674,6 @@ public class LogTest {
         Assert.assertEquals("There should be exactly 2 segments.", new Integer(2), log.numberOfSegments());
     }
 
-
-
     /**
      * Test that covers reads and writes on a multisegment log. This test appends a bunch of messages
      * and then reads them all back and checks that the message read and offset matches what was appended.
@@ -685,7 +683,7 @@ public class LogTest {
     /* create a multipart log with 100 messages */
         Log log = new Log(logDir, getLogConfig(100), 0L, time.scheduler, time);
         Integer numMessages = 100;
-        List<ByteBufferMessageSet> messageSets = Stream.iterate(0, n -> n++).map(i -> TestUtils.singleMessageSet(i.toString().getBytes())).collect(Collectors.toList());
+        List<ByteBufferMessageSet> messageSets = Stream.iterate(0, n -> n++).limit(numMessages).map(i -> TestUtils.singleMessageSet(i.toString().getBytes())).collect(Collectors.toList());
         messageSets.forEach(m -> log.append(m));
         log.flush();
 

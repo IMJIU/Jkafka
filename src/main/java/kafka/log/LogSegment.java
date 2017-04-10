@@ -29,8 +29,8 @@ public class LogSegment extends Logging {
     public Long baseOffset;
     public Integer indexIntervalBytes;
     public Long rollJitterMs;
-    public Time time;
-    public Long created = time.milliseconds();
+    public Time time ;
+    public Long created ;
     /* the number of bytes since we last added an entry in the offset index */
     private Integer bytesSinceLastIndexEntry = 0;
 
@@ -50,6 +50,7 @@ public class LogSegment extends Logging {
         this.indexIntervalBytes = indexIntervalBytes;
         this.rollJitterMs = rollJitterMs;
         this.time = time;
+        created = time.milliseconds();
     }
 
     public LogSegment(File dir, Long startOffset, Integer indexIntervalBytes, Integer maxIndexSize, Long rollJitterMs, Time time) throws IOException {

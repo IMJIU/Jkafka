@@ -46,7 +46,7 @@ public class MockScheduler extends KafkaScheduler {
     public void tick() {
         synchronized (this) {
             Long now = time.milliseconds();
-            while (!tasks.isEmpty() && tasks.stream().findFirst().get().nextExecution <= now) {
+            while (!tasks.isEmpty() && tasks.peek().nextExecution <= now) {
         /* pop and execute the task with the lowest next execution time */
                 MockTask curr = tasks.poll();
                 curr.func.invoke();
@@ -59,10 +59,10 @@ public class MockScheduler extends KafkaScheduler {
         }
     }
 
-    public void schedule(String name, Action action,
-                         Long delay, Long period,
-                         TimeUnit unit
-    ) {
+    public void schedule(String name, final Action action, Long delay) {
+        schedule(name, action, delay, -1L, TimeUnit.MILLISECONDS);
+    }
+    public void schedule(String name, Action action,Long delay, Long period, TimeUnit unit ) {
         synchronized (this) {
             tasks.add(new MockTask(name, action, time.milliseconds() + delay, period));
             tick();

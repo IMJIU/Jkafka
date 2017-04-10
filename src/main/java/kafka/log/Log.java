@@ -67,7 +67,7 @@ public class Log extends KafkaMetricsGroup {
     private Object lock = new Object();
 
     /* last time it was flushed */
-    private AtomicLong lastflushedTime = new AtomicLong(time.milliseconds());
+    private AtomicLong lastflushedTime ;
 
     /* the actual segments of the log */
     private ConcurrentNavigableMap<Long, LogSegment> segments = new ConcurrentSkipListMap<Long, LogSegment>();
@@ -81,6 +81,7 @@ public class Log extends KafkaMetricsGroup {
     public String name;
 
     public void init() throws IOException {
+        lastflushedTime = new AtomicLong(time.milliseconds());
         loadSegments();
         name = dir.getName();
         nextOffsetMetadata = new LogOffsetMetadata(activeSegment().nextOffset(), activeSegment().baseOffset, activeSegment().size().intValue());

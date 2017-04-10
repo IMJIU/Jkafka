@@ -16,7 +16,7 @@ public class MockTime extends Time {
     private static volatile Long currentMs;
     public static MockScheduler scheduler;
 
-    public MockTime(java.lang.Long currentMs) {
+    public MockTime(Long currentMs) {
         this.currentMs = currentMs;
         scheduler = new MockScheduler(this);
     }
@@ -26,16 +26,18 @@ public class MockTime extends Time {
         scheduler = new MockScheduler(this);
     }
 
-    public static Long milliseconds() {
+    @Override
+    public  Long milliseconds() {
         return currentMs;
     }
 
-    public static Long nanoseconds() {
+    @Override
+    public  Long nanoseconds() {
         return TimeUnit.NANOSECONDS.convert(currentMs, TimeUnit.MILLISECONDS);
     }
 
-
-    public static void sleep(Long ms) {
+    @Override
+    public  void sleep(Long ms) {
         currentMs += ms;
         scheduler.tick();
     }

@@ -22,6 +22,10 @@ public class KafkaScheduler extends Logging implements Scheduler {
     public KafkaScheduler() {
     }
 
+    public KafkaScheduler(Integer threads) {
+        this(threads, "kafka-scheduler-", true);
+    }
+
     /**
      * It has a pool of kafka-scheduler- threads that do the actual work.
      *
@@ -59,7 +63,7 @@ public class KafkaScheduler extends Logging implements Scheduler {
     }
 
     public void schedule(String name, final Action action, Long delay) {
-        schedule(name, action, delay, -1L, TimeUnit.MICROSECONDS);
+        schedule(name, action, delay, -1L, TimeUnit.MILLISECONDS);
     }
 
     @Override

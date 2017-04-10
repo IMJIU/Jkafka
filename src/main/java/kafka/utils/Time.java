@@ -6,7 +6,8 @@ package kafka.utils;/**
  * @author
  * @create 2017-03-29 11:00
  **/
-public class Time {
+public abstract class Time {
+    private static KafkaTime singleInstance = new KafkaTime();
     public Integer NsPerUs = 1000;
     public Integer UsPerMs = 1000;
     public Integer MsPerSec = 1000;
@@ -20,16 +21,13 @@ public class Time {
     public Integer SecsPerDay = SecsPerHour * HoursPerDay;
     public Integer MinsPerDay = MinsPerHour * HoursPerDay;
 
-    public static Long milliseconds() {
-        return System.currentTimeMillis();
-    }
+    public abstract Long milliseconds();
 
+    public abstract Long nanoseconds();
 
-    public static Long nanoseconds() {
-        return System.nanoTime();
-    }
+    public abstract void sleep(Long ms) throws InterruptedException;
 
-    public static void sleep(Long ms) throws InterruptedException {
-        Thread.sleep(ms);
+    public static KafkaTime get(){
+        return singleInstance;
     }
 }

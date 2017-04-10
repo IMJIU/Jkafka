@@ -5,6 +5,7 @@ package kafka.log;/**
 import com.google.common.collect.Lists;
 import kafka.message.*;
 import kafka.server.FetchDataInfo;
+import kafka.utils.KafkaTime;
 import kafka.utils.Time;
 import kafka.utils.TestUtils;
 import org.junit.After;
@@ -33,7 +34,7 @@ public class LogSegmentTest {
         File idxFile = TestUtils.tempFile();
         idxFile.delete();
         OffsetIndex idx = new OffsetIndex(idxFile, offset, 1000);
-        LogSegment seg = new LogSegment(ms, idx, offset, 10, 0L, new Time());
+        LogSegment seg = new LogSegment(ms, idx, offset, 10, 0L, Time.get());
         segments.add(seg);
         return seg;
     }
@@ -223,12 +224,12 @@ public class LogSegmentTest {
             Integer offsetToBeginCorruption = TestUtils.random.nextInt(messagesAppended);
             // start corrupting somewhere in the middle of the chosen record all the way to the end;
             Integer position = seg.log.searchFor(offsetToBeginCorruption.longValue(), 0).position + TestUtils.random.nextInt(15);
-            TestUtils.writeNonsenseToFile(seg.log.file, position.longValue(), (int)seg.log.file.length() - position);
+            TestUtils.writeNonsenseToFile(seg.log.file, position.longValue(), (int) seg.log.file.length() - position);
             seg.recover(64 * 1024);
 //            Assert.assertEquals("Should have truncated off bad messages.", (0until offsetToBeginCorruption).toList, seg.log.map(_.offset).toList)
             Assert.assertEquals("Should have truncated off bad messages.",
-                    Stream.iterate(0L,  n -> n + 1).limit(offsetToBeginCorruption).collect(Collectors.toList()),
-                    seg.log.toMessageAndOffsetList().stream().map((m)->m.offset).collect(Collectors.toList()));
+                    Stream.iterate(0L, n -> n + 1).limit(offsetToBeginCorruption).collect(Collectors.toList()),
+                    seg.log.toMessageAndOffsetList().stream().map((m) -> m.offset).collect(Collectors.toList()));
             // TODO: 2017/4/1 windows fail segment.delete()
 //            seg.delete();
         }
