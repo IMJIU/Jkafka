@@ -16,12 +16,11 @@ public class CleanerStats {
      */
     public CleanerStats(Time time) {
         this.time = time;
+        clear();
     }
 
     Long startTime, mapCompleteTime, endTime, bytesRead, bytesWritten, mapBytesRead, mapMessagesRead, messagesRead, messagesWritten = 0L;
     Double bufferUtilization = 0.0d;
-
-    clear();
 
     public void readMessage(Integer size) {
         messagesRead += 1;

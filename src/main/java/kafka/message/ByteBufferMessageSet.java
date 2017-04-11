@@ -104,7 +104,7 @@ public class ByteBufferMessageSet extends MessageSet {
         return new ByteBufferMessageSet(outputBuffer);
     }
 
-    private static void writeMessage(ByteBuffer buffer, Message message, Long offset) {
+     public static void writeMessage(ByteBuffer buffer, Message message, Long offset) {
         buffer.putLong(offset);
         buffer.putInt(message.size());
         buffer.put(message.buffer);

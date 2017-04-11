@@ -2,17 +2,27 @@ package kafka.log;/**
  * Created by zhoulf on 2017/4/11.
  */
 
+import com.google.common.collect.Lists;
 import kafka.common.LogCleaningAbortedException;
 import kafka.func.ActionWithP;
+import kafka.func.Tuple;
+import kafka.message.ByteBufferMessageSet;
+import kafka.message.Message;
+import kafka.message.MessageAndOffset;
+import kafka.message.MessageSet;
 import kafka.utils.Logging;
+import kafka.utils.Prediction;
 import kafka.utils.Throttler;
 import kafka.utils.Time;
+import org.apache.commons.collections.CollectionUtils;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Collection;
 import java.util.Date;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * This class holds the actual logic for cleaning a log
@@ -54,8 +64,8 @@ public class Cleaner extends Logging {
 
 
     /* cleaning stats - one instance for the current (or next) cleaning cycle and one for the last completed cycle */
-    val statsUnderlying = (new CleanerStats(time), new CleanerStats(time));
-    public stats =statsUnderlying._1;
+    Tuple<CleanerStats, CleanerStats> statsUnderlying = Tuple.of(new CleanerStats(time), new CleanerStats(time));
+    public CleanerStats stats = statsUnderlying.v1;
 
     /* buffer used for read i/o */
     private ByteBuffer readBuffer = ByteBuffer.allocate(ioBufferSize);
@@ -69,36 +79,38 @@ public class Cleaner extends Logging {
      * @param cleanable The log to be cleaned
      * @return The first offset not cleaned
      */
-    public Long clean(LogToClean cleanable) {
+    public Long clean(LogToClean cleanable) throws IOException, InterruptedException {
         stats.clear();
-        info(String.format("Beginning cleaning of log %s.", cleanable.log.name))
-        val log = cleanable.log;
+        info(String.format("Beginning cleaning of log %s.", cleanable.log.name));
+        Log log = cleanable.log;
 
         // build the offset map;
-        info(String.format("Building offset map for %s...", cleanable.log.name))
-        val upperBoundOffset = log.activeSegment.baseOffset;
-        val endOffset = buildOffsetMap(log, cleanable.firstDirtyOffset, upperBoundOffset, offsetMap) + 1;
+        info(String.format("Building offset map for %s...", cleanable.log.name));
+        Long upperBoundOffset = log.activeSegment().baseOffset;
+        Long endOffset = buildOffsetMap(log, cleanable.firstDirtyOffset, upperBoundOffset, offsetMap) + 1;
         stats.indexDone();
 
         // figure out the timestamp below which it is safe to remove delete tombstones;
         // this position is defined to be a configurable time beneath the last modified time of the last clean segment;
-        val deleteHorizonMs =
-                log.logSegments(0, cleanable.firstDirtyOffset).lastOption match {
-            case None =>0L;
-            case Some(seg) =>seg.lastModified - log.config.deleteRetentionMs;
+        List<LogSegment> list = Lists.newArrayList(log.logSegments(0L, cleanable.firstDirtyOffset));
+        Long deleteHorizonMs;
+        if (CollectionUtils.isEmpty(list)) {
+            deleteHorizonMs = 0L;
+        } else {
+            deleteHorizonMs = list.get(list.size() - 1).lastModified() - log.config.deleteRetentionMs;
         }
 
         // group the segments and clean the groups;
-        info(String.format("Cleaning log %s (discarding tombstones prior to %s)...", log.name, new Date(deleteHorizonMs)))
-        for (group< -groupSegmentsBySize(log.logSegments(0, endOffset), log.config.segmentSize, log.config.maxIndexSize))
+        info(String.format("Cleaning log %s (discarding tombstones prior to %s)...", log.name, new Date(deleteHorizonMs)));
+        for (List<LogSegment> group : groupSegmentsBySize(log.logSegments(0L, endOffset), log.config.segmentSize, log.config.maxIndexSize))
             cleanSegments(log, group, offsetMap, deleteHorizonMs);
 
         // record buffer utilization;
-        stats.bufferUtilization = offsetMap.utilization;
+        stats.bufferUtilization = offsetMap.utilization();
 
         stats.allDone();
 
-        endOffset;
+        return endOffset;
     }
 
     /**
@@ -141,11 +153,13 @@ public class Cleaner extends Logging {
             cleaned.setLastModified(modified);
 
             // swap in new segment;
-            info(String.format("Swapping in cleaned segment %d for segment(s) %s in log %s.", cleaned.baseOffset, segments.map(_.baseOffset).mkString(","), log.name))
+            info(String.format("Swapping in cleaned segment %d for segment(s) %s in log %s.", cleaned.baseOffset, segments.stream().map(s -> s.baseOffset).collect(Collectors.toList()), log.name));
             log.replaceSegments(cleaned, segments);
         } catch (LogCleaningAbortedException e) {
             cleaned.delete();
             throw e;
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
     }
 
@@ -153,56 +167,54 @@ public class Cleaner extends Logging {
      * Clean the given source log segment into the destination segment using the key=>offset mapping
      * provided
      *
-     * @param source The dirty log segment
-     * @param dest The cleaned log segment
-     * @param map The key=>offset mapping
+     * @param source        The dirty log segment
+     * @param dest          The cleaned log segment
+     * @param map           The key=>offset mapping
      * @param retainDeletes Should delete tombstones be retained while cleaning this segment
-     *
-     * Implement TODO proper compression support
+     *                      <p>
+     *                      Implement TODO proper compression support
      */
-    private<log>
-
-    public void cleanInto(TopicAndPartition topicAndPartition, LogSegment source,
-                          LogSegment dest, OffsetMap map, Boolean retainDeletes) {
-        var position = 0;
-        while (position < source.log.sizeInBytes) {
-            checkDone(topicAndPartition);
+    void cleanInto(TopicAndPartition topicAndPartition, LogSegment source,
+                   LogSegment dest, OffsetMap map, Boolean retainDeletes) throws IOException, InterruptedException {
+        Integer position = 0;
+        while (position < source.log.sizeInBytes()) {
+            checkDone.invoke(topicAndPartition);
             // read a chunk of messages and copy any that are to be retained to the write buffer to be written out;
             readBuffer.clear();
             writeBuffer.clear();
-            val messages = new ByteBufferMessageSet(source.log.readInto(readBuffer, position));
-            throttler.maybeThrottle(messages.sizeInBytes);
+            ByteBufferMessageSet messages = new ByteBufferMessageSet(source.log.readInto(readBuffer, position));
+            throttler.maybeThrottle((double) messages.sizeInBytes());
             // check each message to see if it is to be retained;
-            var messagesRead = 0;
-            for (entry< -messages) {
+            Integer messagesRead = 0;
+            for (MessageAndOffset entry : messages) {
                 messagesRead += 1;
-                val size = MessageSet.entrySize(entry.message);
+                Integer size = MessageSet.entrySize(entry.message);
                 position += size;
                 stats.readMessage(size);
-                val key = entry.message.key;
-                require(key != null, String.format("Found null key in log segment %s which is marked as dedupe.", source.log.file.getAbsolutePath))
-                val foundOffset = map.get(key);
+                ByteBuffer key = entry.message.key();
+                Prediction.require(key != null, String.format("Found null key in log segment %s which is marked as dedupe.", source.log.file.getAbsolutePath()));
+                Long foundOffset = map.get(key);
         /* two cases in which we can get rid of a message:
          *   1) if there exists a message with the same key but higher offset
          *   2) if the message is a delete "tombstone" marker and enough time has passed
          */
-                val redundant = foundOffset >= 0 && entry.offset < foundOffset;
-                val obsoleteDelete = !retainDeletes && entry.message.isNull;
+                boolean redundant = foundOffset >= 0 && entry.offset < foundOffset;
+                boolean obsoleteDelete = !retainDeletes && entry.message.isNull();
                 if (!redundant && !obsoleteDelete) {
                     ByteBufferMessageSet.writeMessage(writeBuffer, entry.message, entry.offset);
                     stats.recopyMessage(size);
                 }
             }
             // if any messages are to be retained, write them out;
-            if (writeBuffer.position > 0) {
+            if (writeBuffer.position() > 0) {
                 writeBuffer.flip();
-                val retained = new ByteBufferMessageSet(writeBuffer);
-                dest.append(retained.head.offset, retained);
-                throttler.maybeThrottle(writeBuffer.limit);
+                ByteBufferMessageSet retained = new ByteBufferMessageSet(writeBuffer);
+                dest.append(retained.head().offset, retained);
+                throttler.maybeThrottle((double) writeBuffer.limit());
             }
 
             // if we read bytes but didn't get even one complete message, our I/O buffer is too small, grow it and try again;
-            if (readBuffer.limit > 0 && messagesRead == 0)
+            if (readBuffer.limit() > 0 && messagesRead == 0)
                 growBuffers();
         }
         restoreBuffers();
@@ -212,10 +224,10 @@ public class Cleaner extends Logging {
      * Double the I/O buffer capacity
      */
     public void growBuffers() {
-        if (readBuffer.capacity >= maxIoBufferSize || writeBuffer.capacity >= maxIoBufferSize)
-            throw new IllegalStateException(String.format("This log contains a message larger than maximum allowable size of %s.", maxIoBufferSize))
-        val newSize = math.min(this.readBuffer.capacity * 2, maxIoBufferSize);
-        info("Growing cleaner I/O buffers from " + readBuffer.capacity + "bytes to " + newSize + " bytes.");
+        if (readBuffer.capacity() >= maxIoBufferSize || writeBuffer.capacity() >= maxIoBufferSize)
+            throw new IllegalStateException(String.format("This log contains a message larger than maximum allowable size of %s.", maxIoBufferSize));
+        Integer newSize = Math.min(this.readBuffer.capacity() * 2, maxIoBufferSize);
+        info("Growing cleaner I/O buffers from " + readBuffer.capacity() + "bytes to " + newSize + " bytes.");
         this.readBuffer = ByteBuffer.allocate(newSize);
         this.writeBuffer = ByteBuffer.allocate(newSize);
     }
@@ -224,9 +236,9 @@ public class Cleaner extends Logging {
      * Restore the I/O buffer capacity to its original size
      */
     public void restoreBuffers() {
-        if (this.readBuffer.capacity > this.ioBufferSize)
+        if (this.readBuffer.capacity() > this.ioBufferSize)
             this.readBuffer = ByteBuffer.allocate(this.ioBufferSize);
-        if (this.writeBuffer.capacity > this.ioBufferSize)
+        if (this.writeBuffer.capacity() > this.ioBufferSize)
             this.writeBuffer = ByteBuffer.allocate(this.ioBufferSize);
     }
 
@@ -235,92 +247,83 @@ public class Cleaner extends Logging {
      * We collect a group of such segments together into a single
      * destination segment. This prevents segment sizes from shrinking too much.
      *
-     * @param segments The log segments to group
-     * @param maxSize the maximum size in bytes for the total of all log data in a group
+     * @param segments     The log segments to group
+     * @param maxSize      the maximum size in bytes for the total of all log data in a group
      * @param maxIndexSize the maximum size in bytes for the total of all index data in a group
-     *
      * @return A list of grouped segments
      */
-    private<log>
-
-    public void groupSegmentsBySize(Iterable segments<LogSegment>, Int maxSize, Int maxIndexSize):List<Seq[LogSegment]>=
-
-    {
-        var grouped = List < List[LogSegment] > ();
-        var segs = segments.toList;
-        while (!segs.isEmpty) {
-            var group = List(segs.head);
-            var logSize = segs.head.size;
-            var indexSize = segs.head.index.sizeInBytes;
-            segs = segs.tail;
-            while ( !segs.isEmpty &&;
-            logSize + segs.head.size < maxSize &&;
-            indexSize + segs.head.index.sizeInBytes < maxIndexSize){
-                group = segs.head::group;
-                logSize += segs.head.size;
-                indexSize += segs.head.index.sizeInBytes;
-                segs = segs.tail;
+    List<List<LogSegment>> groupSegmentsBySize(Collection<LogSegment> segments, Integer maxSize, Integer maxIndexSize) {
+        List<LogSegment>segs = Lists.newArrayList(segments);
+        List<List<LogSegment>> grouped = Lists.newArrayList();
+        while (!segs.isEmpty()) {
+            List<LogSegment> group = Lists.newArrayList(segs.get(0));
+            Long logSize = segs.get(0).size();
+            Integer indexSize = segs.get(0).index.sizeInBytes();
+            segs = segs.subList(1, segs.size());
+            while (!segs.isEmpty() &&
+                    logSize + segs.get(0).size() < maxSize &&
+                    indexSize + segs.get(0).index.sizeInBytes() < maxIndexSize) {
+//                group = segs.get(0)::group;
+                logSize += segs.get(0).size();
+                indexSize += segs.get(0).index.sizeInBytes();
+                segs = segs.subList(1, segs.size());
             }
-            grouped:: = group.reverse;
+//            grouped:: = group.reverse;
         }
-        grouped.reverse;
+//        grouped.reverse;
+        return null;
     }
 
     /**
      * Build a map of key_hash => offset for the keys in the dirty portion of the log to use in cleaning.
-     * @param log The log to use
-     * @param start The offset at which dirty messages begin
-     * @param end The ending offset for the map that is being built
-     * @param map The map in which to store the mappings
      *
+     * @param log   The log to use
+     * @param start The offset at which dirty messages begin
+     * @param end   The ending offset for the map that is being built
+     * @param map   The map in which to store the mappings
      * @return The final offset the map covers
      */
-    private<log>public Long
-
-    void buildOffsetMap(Log log, Long start, Long end, OffsetMap map) {
+    Long buildOffsetMap(Log log, Long start, Long end, OffsetMap map) throws IOException, InterruptedException {
         map.clear();
-        val dirty = log.logSegments(start, end).toSeq;
-        info(String.format("Building offset map for log %s for %d segments in offset range [%d, %d).", log.name, dirty.size, start, end))
+        List<LogSegment> dirty = Lists.newArrayList(log.logSegments(start, end));
+        info(String.format("Building offset map for log %s for %d segments in offset range [%d, %d).", log.name, dirty.size(), start, end));
 
         // Add all the dirty segments. We must take at least map.slots * load_factor,
         // but we may be able to fit more (if there is lots of duplication in the dirty section of the log)
-        var offset = dirty.head.baseOffset;
-        require(offset == start, String.format("Last clean offset is %d but segment base offset is %d for log %s.", start, offset, log.name))
-        val minStopOffset = (start + map.slots * this.dupBufferLoadFactor).toLong;
-        for (segment< -dirty) {
-            checkDone(log.topicAndPartition);
-            if (segment.baseOffset <= minStopOffset || map.utilization < this.dupBufferLoadFactor)
+        Long offset = dirty.get(0).baseOffset;
+        Prediction.require(offset == start, String.format("Last clean offset is %d but segment base offset is %d for log %s.", start, offset, log.name));
+        Long minStopOffset = (long) (start + map.slots() * this.dupBufferLoadFactor);
+        for (LogSegment segment : dirty) {
+            checkDone.invoke(log.topicAndPartition);
+            if (segment.baseOffset <= minStopOffset || map.utilization() < this.dupBufferLoadFactor)
                 offset = buildOffsetMapForSegment(log.topicAndPartition, segment, map);
         }
-        info(String.format("Offset map for log %s complete.", log.name))
-        offset;
+        info(String.format("Offset map for log %s complete.", log.name));
+        return offset;
     }
 
     /**
      * Add the messages in the given segment to the offset map
      *
      * @param segment The segment to index
-     * @param map The map in which to store the key=>offset mapping
-     *
+     * @param map     The map in which to store the key=>offset mapping
      * @return The final offset covered by the map
      */
-    private public Long
-
-    void buildOffsetMapForSegment(TopicAndPartition topicAndPartition, LogSegment segment, OffsetMap map) {
-        var position = 0;
-        var offset = segment.baseOffset;
-        while (position < segment.log.sizeInBytes) {
-            checkDone(topicAndPartition);
+    private Long buildOffsetMapForSegment(TopicAndPartition topicAndPartition, LogSegment segment, OffsetMap map) throws IOException, InterruptedException {
+        Integer position = 0;
+        Long offset = segment.baseOffset;
+        while (position < segment.log.sizeInBytes()) {
+            checkDone.invoke(topicAndPartition);
             readBuffer.clear();
-            val messages = new ByteBufferMessageSet(segment.log.readInto(readBuffer, position));
-            throttler.maybeThrottle(messages.sizeInBytes);
-            val startPosition = position;
-            for (entry< -messages) {
-                val message = entry.message;
-                require(message.hasKey);
-                val size = MessageSet.entrySize(message);
+            ByteBufferMessageSet messages = new ByteBufferMessageSet(segment.log.readInto(readBuffer, position));
+            throttler.maybeThrottle(new Double(messages.sizeInBytes()));
+            Integer startPosition = position;
+            for (MessageAndOffset entry : messages) {
+                Message message = entry.message;
+                Prediction.require(message.hasKey());
+                Integer size = MessageSet.entrySize(message);
                 position += size;
-                map.put(message.key, entry.offset);
+                map.put(message.key(), entry.offset);
                 offset = entry.offset;
                 stats.indexMessage(size);
             }
@@ -329,7 +332,6 @@ public class Cleaner extends Logging {
                 growBuffers();
         }
         restoreBuffers();
-        offset;
+        return offset;
     }
-}
 }
