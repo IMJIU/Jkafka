@@ -419,7 +419,7 @@ public class LogTest {
         Assert.assertEquals("The index of the first segment should be trimmed to empty", new Integer(0), log.logSegments().stream().findFirst().get().index.maxEntries);
         log.truncateTo(0L);
         Assert.assertEquals("There should be exactly 1 segment.", new Integer(1), log.numberOfSegments());
-        Assert.assertEquals("The index of segment 1 should be resized to maxIndexSize", new Long(log.config.maxIndexSize / 8), log.logSegments().stream().findFirst().get().index.maxEntries);
+        Assert.assertEquals("The index of segment 1 should be resized to maxIndexSize", new Long(log.config.maxIndexSize / 8), new Long(log.logSegments().stream().findFirst().get().index.maxEntries));
         for (int i = 1; i <= msgPerSeg; i++)
             log.append(set);
         Assert.assertEquals("There should be exactly 1 segment.", new Integer(1), log.numberOfSegments());
@@ -469,7 +469,7 @@ public class LogTest {
         log = new Log(logDir, config, 0L, time.scheduler, time);
         log.truncateTo(3L);
         Assert.assertEquals("All but one segment should be deleted.", new Integer(1), log.numberOfSegments());
-        Assert.assertEquals("Log end offset should be 3.", new Long(1), log.logEndOffset());
+        Assert.assertEquals("Log end offset should be 3.", new Long(3), log.logEndOffset());
     }
 
     /**
