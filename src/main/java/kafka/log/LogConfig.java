@@ -242,4 +242,15 @@ public class LogConfig implements Cloneable{
     protected LogConfig clone() throws CloneNotSupportedException {
         return (LogConfig)super.clone();
     }
+
+    public LogConfig copy(Integer segmentSize){
+        LogConfig log = null;
+        try {
+            log = clone();
+        } catch (CloneNotSupportedException e) {
+            e.printStackTrace();
+        }
+        log.segmentSize = segmentSize;
+        return log;
+    }
 }

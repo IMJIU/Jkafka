@@ -9,6 +9,7 @@ import kafka.func.Fun;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.charset.Charset;
 import java.util.*;
 import java.util.concurrent.locks.Lock;
 import java.util.stream.Collectors;
@@ -102,25 +103,28 @@ public class Utils extends Logging {
 //                thread;
 //        }
 //
-//        /**
-//         * Read the given byte buffer into a byte array
-//         */
-//        def readBytes(ByteBuffer buffer): Array[Byte] = readBytes(buffer, 0, buffer.limit);
-//
-//        /**
-//         * Read a byte array from the given offset and size in the buffer
-//         */
-//        def readBytes(ByteBuffer buffer, Int offset, Int size): Array[Byte] = {
-//                Integer dest = new Array[Byte](size);
-//        if(buffer.hasArray) {
-//            System.arraycopy(buffer.array, buffer.arrayOffset() + offset, dest, 0, size);
-//        } else {
-//            buffer.mark();
-//            buffer.get(dest);
-//            buffer.reset();
-//        }
-//        dest;
-//  }
+
+    /**
+     * Read the given byte buffer into a byte array
+     */
+    public static byte[] readBytes(ByteBuffer buffer) {
+        return readBytes(buffer, 0, buffer.limit());
+    }
+
+    /**
+     * Read a byte array from the given offset and size in the buffer
+     */
+    public static byte[] readBytes(ByteBuffer buffer, Integer offset, Integer size) {
+        byte[] dest = new byte[size];
+        if (buffer.hasArray()) {
+            System.arraycopy(buffer.array(), buffer.arrayOffset() + offset, dest, 0, size);
+        } else {
+            buffer.mark();
+            buffer.get(dest);
+            buffer.reset();
+        }
+        return dest;
+    }
 //
 //        /**
 //         * Read a properties file from the given path
@@ -181,16 +185,30 @@ public class Utils extends Logging {
 //        return true;
 //  }
 //
-//        /**
-//         * Translate the given buffer into a string
-//         * @param buffer The buffer to translate
-//         * @param encoding The encoding to use in translating bytes to characters
-//         */
-//        public String  readString(ByteBuffer buffer, String encoding = Charset.defaultCharset.toString) {
-//                Integer bytes = new Array[Byte](buffer.remaining);
-//                buffer.get(bytes);
-//                new String(bytes, encoding);
-//        }
+
+    /**
+     * Translate the given buffer into a string
+     *
+     * @param buffer   The buffer to translate
+     * @param encoding The encoding to use in translating bytes to characters
+     */
+    public static String readString(ByteBuffer buffer, String encoding) {
+        if (encoding == null) {
+            encoding = Charset.defaultCharset().toString();
+        }
+        byte[] bytes = new byte[buffer.remaining()];
+        buffer.get(bytes);
+        try {
+            return new String(bytes, encoding);
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public static String readString(ByteBuffer buffer) {
+        return readString(buffer, null);
+    }
 //
 //        /**
 //         * Print an error message and shutdown the JVM
@@ -580,20 +598,18 @@ public class Utils extends Logging {
 //        props;
 //    }
 //
-//    /**
-//     * Read a big-endian integer from a byte array
-//     */
-//    def readInt(Array bytes[Byte], Int offset);
-//
-//    :Int=
-//
-//    {
-//        ((bytes(offset) & 0xFF) << 24) |;
-//                ((bytes(offset + 1) & 0xFF) << 16) |;
-//                ((bytes(offset + 2) & 0xFF) << 8) |;
-//                (bytes(offset + 3) & 0xFF);
-//    }
-//
+
+    /**
+     * Read a big-endian integer from a byte array
+     */
+    public static Integer readInt(byte[] bytes, Integer offset) {
+        return ((bytes[offset] & 0xFF) << 24) |
+                ((bytes[offset + 1] & 0xFF) << 16) |
+                ((bytes[offset + 2] & 0xFF) << 8) |
+                (bytes[offset + 3] & 0xFF);
+    }
+
+    //
 //    /**
 //     * Execute the given function inside the lock
 //     */

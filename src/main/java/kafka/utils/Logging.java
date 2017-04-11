@@ -9,8 +9,12 @@ import org.apache.log4j.Logger;
  * @create 2017-03-23 16:33
  **/
 public class Logging {
-    public String loggerName = this.getClass().getName();
-    public Logger logger = Logger.getLogger(loggerName);
+
+    public String loggerName(){
+        return this.getClass().getName();
+    }
+
+    public Logger logger = Logger.getLogger(loggerName());
 
     protected String logIdent = null;
 

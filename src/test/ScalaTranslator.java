@@ -1,3 +1,4 @@
+
 import com.google.common.collect.Lists;
 
 import java.io.BufferedReader;
@@ -12,21 +13,17 @@ import java.util.List;
  * @create 2017-03-30 10:04
  **/
 public class ScalaTranslator {
-    public static final String main = "g:/github/JKafka/src/main/java/kafka/";
-    public static final String test = "g:/github/JKafka/src/test/kafka/";
+    public static final String main = "e:/github/JKafka/src/main/java/kafka/";
+    public static final String test = "e:/github/JKafka/src/test/kafka/";
 
     public static void main(String[] args) throws IOException {
-//        test_format();
-//        String filePath = "src/main/java/kafka/log/LogSegment.java";
-//        String filePath = main + "utils/Utils.java";
-//        String f = "for(i <- 1 until 10)";
-//        System.out.println(f.replaceAll("for\\((\\w+)\\s?\\<-\\s?(\\d+)\\s+until\\s+(\\d+)\\)","for(int $1 = $2; $1 < $3; $1++)"));
+//        System.out.println("ksdjfkasdf<Int> threadId)".replaceAll("([\\s\\(<])Int([\\s>])", "$1Integer$2"));
         List<String> filePaths = Arrays.asList(
 //                main + "server/ReplicaManager.java",
 //                main + "cluster/Partition.java",
 //                main + "utils/Pool.java",
 //                main + "log/LogConfig.java",
-                test + "utils/TestUtils.java");
+                main + "log/LogCleaner.java");
 //        List<String> filePaths = Arrays.asList(main + "log/Log.java");
         for (String p : filePaths) {
             convertToJava(p, true);
@@ -35,43 +32,31 @@ public class ScalaTranslator {
 
 
     public static void convertToJava(String filePath, boolean write) throws IOException {
-        List<Character> lastList = Lists.newArrayList('[', '(', '}', '{', ';', '*', '/', ',', '>', '=');
+        List<Character> lastList = Lists.newArrayList('[', '(', '}', '{', ';', '*', '/', ',', '>', '=', '+');
+        String[] ps = new String[]{
+                " def ", "public void ",
+                "([\\s\\(<])Int([\\s>])", "$1Integer$2",
+                "(\\w+):\\s?(\\w+)", "$2 $1",
+                "public(.+):\\s?(\\w+)\\s?=", "public $2 $1",
+                "(\".+\")\\.format\\(", "String.format($1,",
+                "for\\((\\w+)\\s?\\<-\\s?(\\d+)\\s+until\\s+(\\d+)\\)", "for(int $1 = $2; $1 < $3; $1++)",
+                "\\[(\\S+\\s?\\S+)\\]", "<$1>",
+                "Int.MaxValue", "Integer.MAX_VALUE",
+                "Long.MaxValue", "Long.MAX_VALUE",
+                "Double.MaxValue", "Double.MAX_VALUE",
+                " assertEquals", "Assert.assertEquals"
+        };
         String p = "(\\w+):\\s?(\\w+)";
-        String p1 = "[\\s\\(](Int)\\s";
-        String p2 = "public(.+):\\s?(\\w+)\\s?=";
-        String r2 = "public $2 $1";
-        String p4 = "(\".+\")\\.format\\(";
-        String r4 = "String.format($1,";
-        String p5 = "for\\((\\w+)\\s?\\<-\\s?(\\d+)\\s+until\\s+(\\d+)\\)";
-        String r5 = "for(int $1 = $2; $1 < $3; $1++)";
-        String p6 = "\\[(\\S+\\s?\\S+)\\]";
-        String r6 = "<$1>";
-        String p7 = "Int.MaxValue";
-        String r7 = "Integer.MAX_VALUE";
-        String p8 = "Long.MaxValue";
-        String r8 = "Long.MAX_VALUE";
         StringBuilder content = new StringBuilder();
         boolean comment = false;
-
         BufferedReader reader = new BufferedReader(new FileReader(filePath));
         String s;
         while ((s = reader.readLine()) != null) {
             if (s.length() > 0) {
-                if (s.contains(" assertEquals")) {
-                    s = s.replaceAll("assertEquals", "Assert.assertEquals");
+                for (int i = 0; i < ps.length; i = i + 2) {
+                    s = s.replaceAll(ps[i], ps[i + 1]);
                 }
-                s = s.replaceAll(p2, r2);
-                if (s.contains(" def ")) {
-                    s = s.replaceAll("def", "public void ");
-                }
-                content.append(s.replaceAll(p, "$2 $1")
-                        .replaceAll(p4, r4)
-                        .replaceAll(p1, " Integer ")
-                        .replaceAll(p5, r5)
-                        .replaceAll(p6, r6)
-                        .replaceAll(p7, r7)
-                        .replaceAll(p8, r8)
-                );
+                content.append(s);
                 if (s.indexOf("/*") != -1) {
                     comment = true;
                 }

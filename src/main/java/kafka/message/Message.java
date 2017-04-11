@@ -172,7 +172,7 @@ public class Message {
     /**
      * Is the payload of this message null
      */
-    public boolean isNull() {
+    public Boolean isNull() {
         return payloadSize() < 0;
     }
 

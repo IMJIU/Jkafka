@@ -315,7 +315,7 @@ public class LogSegment extends Logging {
     /**
      * Change the last modified time for this log segment
      */
-    public void lastModified_(Long ms) {
+    public void setLastModified(Long ms) {
         log.file.setLastModified(ms);
         index.file.setLastModified(ms);
     }
