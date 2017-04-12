@@ -1,5 +1,6 @@
 package kafka.utils;
 
+import com.google.common.collect.Lists;
 import kafka.common.KafkaException;
 import kafka.func.Processor;
 import kafka.func.Tuple;
@@ -25,6 +26,16 @@ public class Pool<K, V> implements Iterable<Tuple<K, V>> {
 
     public void putIfNotExists(K k, V v) {
         pool.putIfAbsent(k, v);
+    }
+
+
+    public List<Tuple<K,V>>list(){
+        List list = Lists.newArrayList();
+        Iterator<Tuple<K, V>> it = iterator();
+        while(it.hasNext()){
+            list.add(it.next());
+        }
+        return list;
     }
 
     /**

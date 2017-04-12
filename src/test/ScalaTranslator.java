@@ -44,7 +44,8 @@ public class ScalaTranslator {
                 "Int.MaxValue", "Integer.MAX_VALUE",
                 "Long.MaxValue", "Long.MAX_VALUE",
                 "Double.MaxValue", "Double.MAX_VALUE",
-                " assertEquals", "Assert.assertEquals"
+                " assertEquals", "Assert.assertEquals",
+                "Map.empty","Collections.EMPTY_MAP"
         };
         String p = "(\\w+):\\s?(\\w+)";
         StringBuilder content = new StringBuilder();

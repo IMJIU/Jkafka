@@ -9,10 +9,7 @@ import com.yammer.metrics.core.Timer;
 import kafka.utils.Itor;
 import kafka.utils.Logging;
 
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Optional;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -57,7 +54,9 @@ public class KafkaMetricsGroup extends Logging {
         }
         return new MetricName(group, typeName, name, scope, nameBuilder.toString());
     }
-
+    public <T> Gauge<T> newGauge(String name, Gauge<T> metric){
+        return Metrics.defaultRegistry().newGauge(metricName(name, Collections.EMPTY_MAP),metric);
+    }
     public <T> Gauge<T> newGauge(String name, Gauge<T> metric, Map<String, String> tags){
         return Metrics.defaultRegistry().newGauge(metricName(name, tags),metric);
     }
