@@ -4,6 +4,15 @@ package kafka.log;
  * Created by Administrator on 2017/4/12.
  */
 public class CleanerConfig {
+    public Integer numThreads = 1;
+    public Long dedupeBufferSize = 4*1024*1024L;
+    public Double dedupeBufferLoadFactor = 0.9d;
+    public Integer ioBufferSize = 1024*1024;
+    public Integer maxMessageSize = 32*1024*1024;
+    public Double maxIoBytesPerSecond = java.lang.Double.MAX_VALUE;
+    public Long backOffMs = 15 * 1000L;
+    public Boolean enableCleaner = true;
+    public String hashAlgorithm = "MD5";
     /**
      * Configuration parameters for the log cleaner
      *
@@ -16,14 +25,16 @@ public class CleanerConfig {
      * @param enableCleaner Allows completely disabling the log cleaner
      * @param hashAlgorithm The hash algorithm to use in key comparison.
      */
-    case class CleanerConfig(val numThreads: Int = 1,
-    val dedupeBufferSize: Long = 4*1024*1024L,
-    val dedupeBufferLoadFactor: Double = 0.9d,
-    val ioBufferSize: Int = 1024*1024,
-    val maxMessageSize: Int = 32*1024*1024,
-    val maxIoBytesPerSecond: Double = Double.MaxValue,
-    val backOffMs: Long = 15 * 1000,
-    val enableCleaner: Boolean = true,
-    val hashAlgorithm: String = "MD5") {
+    public CleanerConfig(Integer numThreads, Long dedupeBufferSize, Double dedupeBufferLoadFactor, Integer ioBufferSize, Integer maxMessageSize, Double maxIoBytesPerSecond, Long backOffMs, Boolean enableCleaner, String hashAlgorithm) {
+        this.numThreads = numThreads;
+        this.dedupeBufferSize = dedupeBufferSize;
+        this.dedupeBufferLoadFactor = dedupeBufferLoadFactor;
+        this.ioBufferSize = ioBufferSize;
+        this.maxMessageSize = maxMessageSize;
+        this.maxIoBytesPerSecond = maxIoBytesPerSecond;
+        this.backOffMs = backOffMs;
+        this.enableCleaner = enableCleaner;
+        this.hashAlgorithm = hashAlgorithm;
     }
+    public CleanerConfig(){}
 }

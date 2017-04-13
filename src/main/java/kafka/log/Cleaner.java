@@ -55,12 +55,9 @@ public class Cleaner extends Logging {
         this.time = time;
         this.checkDone = checkDone;
         this.logIdent = "Cleaner " + id + ": ";
+        loggerName(LogCleaner.class.getName());
     }
 
-    @Override
-    public String loggerName() {
-        return LogCleaner.class.getName();
-    }
 
 
     /* cleaning stats - one instance for the current (or next) cleaning cycle and one for the last completed cycle */

@@ -23,7 +23,7 @@ public class ScalaTranslator {
 //                main + "cluster/Partition.java",
 //                main + "utils/Pool.java",
 //                main + "log/LogConfig.java",
-                main + "log/LogCleaner.java");
+                main + "log/OffsetCheckpoint.java");
 //        List<String> filePaths = Arrays.asList(main + "log/Log.java");
         for (String p : filePaths) {
             convertToJava(p, true);
@@ -32,7 +32,7 @@ public class ScalaTranslator {
 
 
     public static void convertToJava(String filePath, boolean write) throws IOException {
-        List<Character> lastList = Lists.newArrayList('[', '(', '}', '{', ';', '*', '/', ',', '>', '=', '+');
+        List<Character> lastList = Lists.newArrayList('[', '(', '}', '{', ';', '*', '/', ',', '>', '=','+');
         String[] ps = new String[]{
                 " def ", "public void ",
                 "([\\s\\(<])Int([\\s>])", "$1Integer$2",
@@ -44,8 +44,7 @@ public class ScalaTranslator {
                 "Int.MaxValue", "Integer.MAX_VALUE",
                 "Long.MaxValue", "Long.MAX_VALUE",
                 "Double.MaxValue", "Double.MAX_VALUE",
-                " assertEquals", "Assert.assertEquals",
-                "Map.empty","Collections.EMPTY_MAP"
+                " assertEquals", "Assert.assertEquals"
         };
         String p = "(\\w+):\\s?(\\w+)";
         StringBuilder content = new StringBuilder();

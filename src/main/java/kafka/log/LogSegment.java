@@ -29,8 +29,8 @@ public class LogSegment extends Logging {
     public Long baseOffset;
     public Integer indexIntervalBytes;
     public Long rollJitterMs;
-    public Time time ;
-    public Long created ;
+    public Time time;
+    public Long created;
     /* the number of bytes since we last added an entry in the offset index */
     private Integer bytesSinceLastIndexEntry = 0;
 
@@ -282,7 +282,7 @@ public class LogSegment extends Logging {
      * Close this log segment
      */
     public void close() {
-        Utils.swallow(() -> index.close());
+        Utils.swallow(() -> index.close(), (e) -> log.debug(e.getMessage(),e));
         // TODO: 2017/3/30 close
         try {
             log.close();

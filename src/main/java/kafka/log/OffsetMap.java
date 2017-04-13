@@ -40,7 +40,7 @@ public interface OffsetMap {
  *
  */
 @nonthreadsafe
-class SkimpyOffsetMapextends implements OffsetMap {
+class SkimpyOffsetMap implements OffsetMap {
     public Integer memory;
     public String hashAlgorithm;
 
@@ -49,7 +49,7 @@ class SkimpyOffsetMapextends implements OffsetMap {
      * @param memory        The amount of memory this map can use
      * @param hashAlgorithm The hash algorithm instance to MD2 use, MD5, SHA-1, SHA-256, SHA-384, SHA-512
      */
-    public SkimpyOffsetMapextends(Integer memory, String hashAlgorithm) {
+    public SkimpyOffsetMap(Integer memory, String hashAlgorithm) {
         this.memory = memory;
         this.hashAlgorithm = hashAlgorithm;
         if (hashAlgorithm == null)

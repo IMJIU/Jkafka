@@ -32,14 +32,11 @@ public class LogCleanerManager extends KafkaMetricsGroup {
     File[] logDirs;
     Pool<TopicAndPartition, Log> logs;
 
-    @Override
-    public String loggerName() {
-        return LogCleanerManager.class.getName();
-    }
 
     public LogCleanerManager(File[] logDirs, Pool<TopicAndPartition, Log> logs) {
         this.logDirs = logDirs;
         this.logs = logs;
+        loggerName(LogCleanerManager.class.getName());
     }
 
     public void init() {

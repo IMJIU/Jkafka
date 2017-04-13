@@ -2,6 +2,7 @@ package kafka.utils;/**
  * Created by zhoulf on 2017/3/23.
  */
 
+import kafka.func.Action;
 import org.apache.log4j.Logger;
 
 /**
@@ -10,23 +11,37 @@ import org.apache.log4j.Logger;
  **/
 public class Logging {
 
-    public String loggerName(){
+    public Logging() {
+
+    }
+
+    public Logging(String loggerName) {
+        loggerName(loggerName);
+    }
+
+    private String loggerName;
+
+    public void loggerName(String loggerName) {
+        this.loggerName = loggerName;
+        logger = Logger.getLogger(this.loggerName);
+    }
+
+    public String loggerName() {
         return this.getClass().getName();
     }
 
     public Logger logger = Logger.getLogger(loggerName());
 
-    protected String logIdent = null;
+    public String logIdent = null;
 
     // Force initialization to register Log4jControllerMBean
     private Log4jController log4jController;
 
     private String msgWithLogIdent(String msg) {
-        if (logIdent == null) {
+        if (logIdent == null)
             return msg;
-        } else {
+        else
             return logIdent + msg;
-        }
     }
 
     public void trace(String msg) {
@@ -34,115 +49,90 @@ public class Logging {
             logger.trace(msgWithLogIdent(msg));
     }
 
-    //
-//    def trace(e:=>Throwable):Any =
-//
-//    {
-//        if (logger.isTraceEnabled())
-//            logger.trace(logIdent, e)
-//    }
-//
-//    def trace(msg:=>String, e:=>Throwable) =
-//
-//    {
-//        if (logger.isTraceEnabled())
-//            logger.trace(msgWithLogIdent(msg), e)
-//    }
-//
-//    def swallowTrace(action:=>Unit) {
-//        Utils.swallow(logger.trace, action)
-//    }
-//
+    public void trace(Throwable e) {
+        if (logger.isTraceEnabled())
+            logger.trace(logIdent, e);
+    }
+
+    public void trace(String msg, Throwable e) {
+        if (logger.isTraceEnabled())
+            logger.trace(msgWithLogIdent(msg), e);
+    }
+
     public void debug(String msg) {
         if (logger.isDebugEnabled())
             logger.debug(msgWithLogIdent(msg));
     }
 
-    //
-//    def debug(e:=>Throwable):Any =
-//
-//    {
-//        if (logger.isDebugEnabled())
-//            logger.debug(logIdent, e)
-//    }
-//
-//    def debug(msg:=>String, e:=>Throwable) =
-//
-//    {
-//        if (logger.isDebugEnabled())
-//            logger.debug(msgWithLogIdent(msg), e)
-//    }
-//
-//    def swallowDebug(action:=>Unit) {
-//        Utils.swallow(logger.debug, action)
-//    }
-//
+    public void debug(Throwable e) {
+        if (logger.isDebugEnabled())
+            logger.debug(logIdent, e);
+    }
+
+    public void debug(String msg, Throwable e) {
+        if (logger.isDebugEnabled())
+            logger.debug(msgWithLogIdent(msg), e);
+    }
+
+    public void swallowDebug(Action action) {
+        Utils.swallow(action, (e) -> logger.debug(e.getMessage(), e));
+    }
+
+
     public void info(String msg) {
         if (logger.isInfoEnabled())
             logger.info(msgWithLogIdent(msg));
     }
 
-    //
-//    def info(e:=>Throwable):Any =
-//
-//    {
-//        if (logger.isInfoEnabled())
-//            logger.info(logIdent, e)
-//    }
-//
-//    def info(msg:=>String, e:=>Throwable) =
-//
-//    {
-//        if (logger.isInfoEnabled())
-//            logger.info(msgWithLogIdent(msg), e)
-//    }
-//
-//    def swallowInfo(action:=>Unit) {
-//        Utils.swallow(logger.info, action)
-//    }
-//
+    public void info(Throwable e) {
+        if (logger.isInfoEnabled())
+            logger.info(logIdent, e);
+    }
+
+    public void info(String msg, Throwable e) {
+        if (logger.isInfoEnabled())
+            logger.info(msgWithLogIdent(msg), e);
+    }
+
+    public void swallowInfo(Action action) {
+        Utils.swallow(action, (e) -> logger.info(e.getMessage(), e));
+    }
+
     public void warn(String msg) {
         logger.warn(msgWithLogIdent(msg));
     }
 
-    //
-//    def warn(e:=>Throwable):Any =
-//
-//    {
-//        logger.warn(logIdent, e)
-//    }
-//
+    public void warn(Throwable e) {
+        logger.warn(logIdent, e);
+    }
+
     public void warn(String msg, Throwable e) {
         logger.warn(msgWithLogIdent(msg), e);
     }
 
-    //
-//    def swallowWarn(action:=>Unit) {
-//        Utils.swallow(logger.warn, action)
-//    }
-//
-//    def swallow(action:=>Unit) =
-//
-//    swallowWarn(action)
-//
+    public void swallowWarn(Action action) {
+        Utils.swallow(action, (e) -> logger.warn(e.getMessage(), e));
+    }
+
+    public void swallow(Action action) {
+        swallowWarn(action);
+    }
+
     public void error(String msg) {
         logger.error(msgWithLogIdent(msg));
     }
 
-    //
-//    def error(e:=>Throwable):Any =
-//
-//    {
-//        logger.error(logIdent, e)
-//    }
-//
+    public void error(Throwable e) {
+        logger.error(logIdent, e);
+    }
+
     public void error(String msg, Throwable e) {
         logger.error(msgWithLogIdent(msg), e);
     }
-//
-//    def swallowError(action:=>Unit) {
-//        Utils.swallow(logger.error, action)
-//    }
+    public void swallowError(Action action) {
+        Utils.swallow(action, (e) -> logger.error(e.getMessage(), e));
+    }
+
 //
 //    def fatal(msg:=>String):Unit =
 //

@@ -3,8 +3,8 @@ package kafka.utils;/**
  */
 
 import com.google.common.collect.Maps;
-import kafka.func.Action;
-import kafka.func.Fun;
+import kafka.func.*;
+import kafka.log.Log;
 
 import java.io.*;
 import java.nio.ByteBuffer;
@@ -12,6 +12,7 @@ import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
 import java.util.*;
 import java.util.concurrent.locks.Lock;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.zip.CRC32;
 
@@ -160,11 +161,11 @@ public class Utils extends Logging {
 //         * @param log The log method to use for logging. E.g. logger.warn
 //         * @param action The action to execute
 //         */
-    public static void swallow(Action action) {
+    public static void swallow(Action action, ActionWithP<Throwable> logAction) {
         try {
             action.invoke();
         } catch (Exception e) {
-            e.printStackTrace();
+            logAction.invoke(e);
         }
     }
 //
