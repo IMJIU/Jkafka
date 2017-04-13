@@ -16,7 +16,6 @@
 package kafka.cache;
 
 import sun.nio.ch.DirectBuffer;
-
 import java.io.IOException;
 import java.lang.ref.SoftReference;
 import java.net.SocketAddress;
@@ -78,7 +77,7 @@ final class SocketSendBufferPool {
             dst = new PooledSendBuffer(current, slice);
         } else { // size == remaining
             current.refCnt++;
-            this.current = getPreallocation0();
+            this.current = getPreAllocation0();
             dst = new PooledSendBuffer(current, current.buffer);
         }
 
@@ -96,10 +95,10 @@ final class SocketSendBufferPool {
             return current;
         }
 
-        return getPreallocation0();
+        return getPreAllocation0();
     }
 
-    private PreAllocation getPreallocation0() {
+    private PreAllocation getPreAllocation0() {
         PreAllocationRef ref = poolHead;
         if (ref != null) {
             do {
