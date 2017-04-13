@@ -33,8 +33,8 @@ final class SocketSendBufferPool {
     private static final int ALIGN_SHIFT = 4;
     private static final int ALIGN_MASK = 15;
 
-    private PreallocationRef poolHead;
-    private Preallocation current = new Preallocation(DEFAULT_PREALLOCATION_SIZE);
+    private PreAllocationRef poolHead;
+    private PreAllocation current = new PreAllocation(DEFAULT_PREALLOCATION_SIZE);
 
     public static void main(String[] args) {
         SocketSendBufferPool pool = new SocketSendBufferPool();
@@ -56,7 +56,7 @@ final class SocketSendBufferPool {
             return new UnpooledSendBuffer(src);
         }
 
-        Preallocation current = this.current;
+        PreAllocation current = this.current;
         ByteBuffer buffer = current.buffer;
         int remaining = buffer.remaining();
         PooledSendBuffer dst;
@@ -69,7 +69,7 @@ final class SocketSendBufferPool {
             current.refCnt++;
             dst = new PooledSendBuffer(current, slice);
         } else if (size > remaining) {
-            this.current = current = getPreallocation();
+            this.current = current = getPreAllocation();
             buffer = current.buffer;
             ByteBuffer slice = buffer.duplicate();
             buffer.position(align(size));
@@ -89,8 +89,8 @@ final class SocketSendBufferPool {
         return dst;
     }
 
-    private Preallocation getPreallocation() {
-        Preallocation current = this.current;
+    private PreAllocation getPreAllocation() {
+        PreAllocation current = this.current;
         if (current.refCnt == 0) {
             current.buffer.clear();
             return current;
@@ -99,11 +99,11 @@ final class SocketSendBufferPool {
         return getPreallocation0();
     }
 
-    private Preallocation getPreallocation0() {
-        PreallocationRef ref = poolHead;
+    private PreAllocation getPreallocation0() {
+        PreAllocationRef ref = poolHead;
         if (ref != null) {
             do {
-                Preallocation p = ref.get();
+                PreAllocation p = ref.get();
                 ref = ref.next;
 
                 if (p != null) {
@@ -111,11 +111,10 @@ final class SocketSendBufferPool {
                     return p;
                 }
             } while (ref != null);
-
             poolHead = ref;
         }
 
-        return new Preallocation(DEFAULT_PREALLOCATION_SIZE);
+        return new PreAllocation(DEFAULT_PREALLOCATION_SIZE);
     }
 
     private static int align(int pos) {
@@ -127,20 +126,20 @@ final class SocketSendBufferPool {
         return q << ALIGN_SHIFT;
     }
 
-    private static final class Preallocation {
+    private static final class PreAllocation {
         final ByteBuffer buffer;
         int refCnt;
 
-        Preallocation(int capacity) {
+        PreAllocation(int capacity) {
             buffer = ByteBuffer.allocateDirect(capacity);
         }
     }
 
-    private final class PreallocationRef extends SoftReference<Preallocation> {
-        final PreallocationRef next;
+    private final class PreAllocationRef extends SoftReference<PreAllocation> {
+        final PreAllocationRef next;
 
-        PreallocationRef(Preallocation prealloation, PreallocationRef next) {
-            super(prealloation);
+        PreAllocationRef(PreAllocation preAlloation, PreAllocationRef next) {
+            super(preAlloation);
             this.next = next;
         }
     }
@@ -203,20 +202,20 @@ final class SocketSendBufferPool {
 
     final class PooledSendBuffer extends UnpooledSendBuffer {
 
-        private final Preallocation parent;
+        private final PreAllocation parent;
 
-        PooledSendBuffer(Preallocation parent, ByteBuffer buffer) {
+        PooledSendBuffer(PreAllocation parent, ByteBuffer buffer) {
             super(buffer);
             this.parent = parent;
         }
 
         @Override
         public void release() {
-            final Preallocation parent = this.parent;
+            final PreAllocation parent = this.parent;
             if (--parent.refCnt == 0) {
                 parent.buffer.clear();
                 if (parent != current) {
-                    poolHead = new PreallocationRef(parent, poolHead);
+                    poolHead = new PreAllocationRef(parent, poolHead);
                 }
             }
         }
