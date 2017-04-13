@@ -187,11 +187,11 @@ public class LogSegmentTest {
         File logFile = seg.log.file;
         File indexFile = seg.index.file;
         // TODO: 2017/4/1 windows fails
-//        seg.changeFileSuffixes("", ".deleted");
-//        Assert.assertEquals(logFile.getAbsolutePath() + ".deleted", seg.log.file.getAbsolutePath());
-//        Assert.assertEquals(indexFile.getAbsolutePath() + ".deleted", seg.index.file.getAbsolutePath());
-//        Assert.assertTrue(seg.log.file.exists());
-//        Assert.assertTrue(seg.index.file.exists());
+        seg.changeFileSuffixes("", ".deleted");
+        Assert.assertEquals(logFile.getAbsolutePath() + ".deleted", seg.log.file.getAbsolutePath());
+        Assert.assertEquals(indexFile.getAbsolutePath() + ".deleted", seg.index.file.getAbsolutePath());
+        Assert.assertTrue(seg.log.file.exists());
+        Assert.assertTrue(seg.index.file.exists());
     }
 
     /**

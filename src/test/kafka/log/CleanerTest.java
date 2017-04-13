@@ -2,23 +2,28 @@ package kafka.log;/**
  * Created by zhoulf on 2017/4/10.
  */
 
+import com.google.common.collect.Iterators;
+import com.google.common.collect.Lists;
+import com.google.common.collect.UnmodifiableIterator;
 import kafka.common.LogCleaningAbortedException;
 import kafka.func.ActionWithP;
+import kafka.func.Tuple;
+import kafka.message.ByteBufferMessageSet;
+import kafka.message.Message;
 import kafka.utils.MockTime;
 import kafka.utils.TestUtils;
 import kafka.utils.Throttler;
 import kafka.utils.Utils;
-import org.junit.After;
-import org.junit.Test;
+import org.junit.*;
+import org.junit.rules.ExpectedException;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.stream.Collector;
+import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * @author
@@ -27,9 +32,17 @@ import java.util.stream.Collectors;
 public class CleanerTest {
 
     File dir = TestUtils.tempDir();
-    LogConfig logConfig = LogConfig(segmentSize = 1024, maxIndexSize = 1024, compact = true);
+    LogConfig logConfig = new LogConfig();
+
     MockTime time = new MockTime();
     Throttler throttler = new Throttler(Double.MAX_VALUE, Long.MAX_VALUE, time);
+
+    @Before
+    public void setup() {
+        logConfig.segmentSize = 1024;
+        logConfig.maxIndexSize = 1024;
+        logConfig.compact = true;
+    }
 
     @After
     public void teardown() {
@@ -41,231 +54,269 @@ public class CleanerTest {
      */
     @Test
     public void testCleanSegments() throws IOException {
-        val cleaner = makeCleaner(Integer.MAX_VALUE);
-        Log log = makeLog(dir,logConfig.copy(1024));
+        Cleaner cleaner = makeCleaner(Integer.MAX_VALUE, abortCheckDone);
+        Log log = makeLog(dir, logConfig.copy(1024));
 
         // append messages to the log until we have four segments;
-        while (log.numberOfSegments() < 4) ;
-        log.append(message(log.logEndOffset().intValue(), log.logEndOffset().intValue()));
-        val keysFound = keysInLog(log);
-        Assert.assertEquals((0Luntil log.logEndOffset), keysFound);
+        while (log.numberOfSegments() < 4)
+            log.append(message(log.logEndOffset().intValue(), log.logEndOffset().intValue()));
+        List<Integer> keysFound = keysInLog(log);
+        Assert.assertEquals(Stream.iterate(0L, n -> n + 1).limit(log.logEndOffset()).iterator(), keysFound);
 
         // pretend we have the following keys;
-        val keys = immutable.ListSet(1, 3, 5, 7, 9);
-        val map = new FakeOffsetMap(Integer.MAX_VALUE);
-        keys.foreach(k = > map.put(key(k), Long.MAX_VALUE))
+        List<Integer> keys = Lists.newArrayList(1, 3, 5, 7, 9);
+        FakeOffsetMap map = new FakeOffsetMap(Integer.MAX_VALUE);
+        keys.forEach(k -> {
+            try {
+                map.put(key(k), Long.MAX_VALUE);
+            } catch (UnsupportedEncodingException e) {
+                e.printStackTrace();
+            }
+        });
 
         // clean the log;
-        cleaner.cleanSegments(log, log.logSegments.take(3).toSeq, map, 0L);
-        val shouldRemain = keysInLog(log).filter(!keys.contains(_));
-        Assert.assertEquals(shouldRemain, keysInLog(log));
+        cleaner.cleanSegments(log, new ArrayList(log.logSegments()).subList(0, 3), map, 0L);
+        List<Integer> list = keysInLog(log);
+        TestUtils.checkEquals(list.stream().filter(l -> !keys.contains(l)).iterator(), keysInLog(log).iterator());
     }
 
     @Test
-    public void testCleaningWithDeletes() {
-        val cleaner = makeCleaner(Integer.MAX_VALUE);
-        val log = makeLog(config = logConfig.copy(segmentSize = 1024));
+    public void testCleaningWithDeletes() throws IOException, InterruptedException {
+        Cleaner cleaner = makeCleaner(Integer.MAX_VALUE);
+        Log log = makeLog(logConfig.copy(1024));
 
         // append messages with the keys 0 through N;
-        while (log.numberOfSegments < 2) ;
-        log.append(message(log.logEndOffset.toInt, log.logEndOffset.toInt));
+        while (log.numberOfSegments() < 2) ;
+        log.append(message(log.logEndOffset().intValue(), log.logEndOffset().intValue()));
 
         // delete all even keys between 0 and N;
-        val leo = log.logEndOffset;
-        for (key< -0 until leo.toInt by 2)
-        log.append(deleteMessage(key));
+        Long leo = log.logEndOffset();
+        for (int key = 0; key < leo.intValue(); key += 2)
+            log.append(deleteMessage(key));
 
         // append some new unique keys to pad out to a new active segment;
-        while (log.numberOfSegments < 4) ;
-        log.append(message(log.logEndOffset.toInt, log.logEndOffset.toInt));
+        while (log.numberOfSegments() < 4)
+            log.append(message(log.logEndOffset().intValue(), log.logEndOffset().intValue()));
 
-        cleaner.clean(LogToClean(TopicAndPartition("test", 0), log, 0));
-        val keys = keysInLog(log).toSet;
-        assertTrue("None of the keys we deleted should still exist.",
-                (0until leo.toInt by 2).forall(!keys.contains(_)))
+        cleaner.clean(new LogToClean(new TopicAndPartition("test", 0), log, 0L));
+        List<Integer> keys = Lists.newArrayList(keysInLog(log));
+        Assert.assertTrue("None of the keys we deleted should still exist.",
+                Stream.iterate(0, n -> n + 2).limit(leo).allMatch(n -> !keys.contains(n)));
     }
 
     /* extract all the keys from a log */
-    public Iterable<Integer> keysInLog(Log log){
-        return log.logSegments().stream().flatMap(s ->s.log.toMessageAndOffsetList().stream().filter(l->!l.message.isNull()).map(m ->Integer.parseInt(Utils.readString(m.message.key())))).collect(Collectors.toList());
+    public List<Integer> keysInLog(Log log) {
+        return log.logSegments().stream()
+                .flatMap(s -> s.log.toMessageAndOffsetList().stream()
+                                .filter(l -> !l.message.isNull())
+                                .map(m -> Integer.parseInt(Utils.readString(m.message.key()))))
+                .collect(Collectors.toList());
     }
 
-    public void abortCheckDone(TopicAndPartition topicAndPartition) {
+    public ActionWithP<TopicAndPartition> noOpCheckDone = (topicAndPartition) -> {
+        /* do nothing */
+    };
+    public ActionWithP<TopicAndPartition> abortCheckDone = (topicAndPartition) -> {
         throw new LogCleaningAbortedException();
-    }
+    };
 
     /**
      * Test that abortion during cleaning throws a LogCleaningAbortedException
      */
     @Test
-    public void testCleanSegmentsWithAbort() {
-        val cleaner = makeCleaner(Integer.MAX_VALUE, abortCheckDone);
-        val log = makeLog(config = logConfig.copy(segmentSize = 1024));
+    public void testCleanSegmentsWithAbort() throws IOException {
+        Cleaner cleaner = makeCleaner(Integer.MAX_VALUE, abortCheckDone);
+        Log log = makeLog(logConfig.copy(1024));
 
         // append messages to the log until we have four segments;
-        while (log.numberOfSegments < 4) ;
-        log.append(message(log.logEndOffset.toInt, log.logEndOffset.toInt));
+        while (log.numberOfSegments() < 4) ;
+        log.append(message(log.logEndOffset().intValue(), log.logEndOffset().intValue()));
 
-        val keys = keysInLog(log);
-        val map = new FakeOffsetMap(Integer.MAX_VALUE);
-        keys.foreach(k = > map.put(key(k), Long.MAX_VALUE))
-        intercept<LogCleaningAbortedException> {
-            cleaner.cleanSegments(log, log.logSegments.take(3).toSeq, map, 0L);
-        }
+        List<Integer> keys = keysInLog(log);
+        FakeOffsetMap map = new FakeOffsetMap(Integer.MAX_VALUE);
+        Lists.newArrayList(keys).forEach(k -> {
+            try {
+                map.put(key(k), Long.MAX_VALUE);
+            } catch (UnsupportedEncodingException e) {
+                e.printStackTrace();
+            }
+        });
+        thrown.expect(LogCleaningAbortedException.class);
+        cleaner.cleanSegments(log, Lists.newArrayList(log.logSegments()).subList(0, 3), map, 0L);
     }
+
+    @Rule
+    public ExpectedException thrown = ExpectedException.none();
 
     /**
      * Validate the logic for grouping log segments together for cleaning
      */
     @Test
-    public void testSegmentGrouping() {
-        val cleaner = makeCleaner(Integer.MAX_VALUE);
-        val log = makeLog(config = logConfig.copy(segmentSize = 300, indexInterval = 1));
-
-        // append some messages to the log;
-        var i = 0;
-        while (log.numberOfSegments < 10) {
-            log.append(TestUtils.singleMessageSet("hello".getBytes));
-            i += 1;
-        }
-
-        // grouping by very large values should result in a single group with all the segments in it;
-        var groups = cleaner.groupSegmentsBySize(log.logSegments, maxSize = Integer.MAX_VALUE, maxIndexSize = Integer.MAX_VALUE);
-        Assert.assertEquals(1, groups.size);
-        Assert.assertEquals(log.numberOfSegments, groups(0).size);
-        checkSegmentOrder(groups);
-
-        // grouping by very small values should result in all groups having one entry;
-        groups = cleaner.groupSegmentsBySize(log.logSegments, maxSize = 1, maxIndexSize = Integer.MAX_VALUE);
-        Assert.assertEquals(log.numberOfSegments, groups.size);
-        assertTrue("All groups should be singletons.", groups.forall(_.size == 1))
-        checkSegmentOrder(groups);
-        groups = cleaner.groupSegmentsBySize(log.logSegments, maxSize = Integer.MAX_VALUE, maxIndexSize = 1);
-        Assert.assertEquals(log.numberOfSegments, groups.size);
-        assertTrue("All groups should be singletons.", groups.forall(_.size == 1))
-        checkSegmentOrder(groups);
-
-        val groupSize = 3;
-
-        // check grouping by log size;
-        val logSize = log.logSegments.take(groupSize).map(_.size).sum.toInt + 1;
-        groups = cleaner.groupSegmentsBySize(log.logSegments, maxSize = logSize, maxIndexSize = Integer.MAX_VALUE);
-        checkSegmentOrder(groups);
-        assertTrue("All but the last group should be the target size.", groups.dropRight(1).forall(_.size == groupSize))
-
-        // check grouping by index size;
-        val indexSize = log.logSegments.take(groupSize).map(_.index.sizeInBytes()).sum + 1;
-        groups = cleaner.groupSegmentsBySize(log.logSegments, maxSize = Integer.MAX_VALUE, maxIndexSize = indexSize);
-        checkSegmentOrder(groups);
-        assertTrue("All but the last group should be the target size.", groups.dropRight(1).forall(_.size == groupSize))
+    public void testSegmentGrouping() throws IOException {
+//        Cleaner cleaner = makeCleaner(Integer.MAX_VALUE);
+//        LogConfig config = logConfig.copy(300);
+//        config.indexInterval = 1;
+//        Log log = makeLog(config);
+//
+//        // append some messages to the log;
+//        int i = 0;
+//        while (log.numberOfSegments() < 10) {
+//            log.append(TestUtils.singleMessageSet("hello".getBytes()));
+//            i += 1;
+//        }
+//
+//        // grouping by very large values should result in a single group with all the segments in it;
+//        List<List<LogSegment>> groups = cleaner.groupSegmentsBySize(log.logSegments(), Integer.MAX_VALUE, Integer.MAX_VALUE);
+//        Assert.assertEquals(1, groups.size());
+//        Assert.assertEquals(new Long(log.numberOfSegments()), new Long(groups.get(0).size()));
+//        checkSegmentOrder(groups);
+//
+//        // grouping by very small values should result in all groups having one entry;
+//        groups = cleaner.groupSegmentsBySize(log.logSegments(), 1, Integer.MAX_VALUE);
+//        Assert.assertEquals(log.numberOfSegments(), new Integer(groups.size()));
+//        Assert.assertTrue("All groups should be singletons.", groups.forall(_.size == 1));
+//        checkSegmentOrder(groups);
+//        groups = cleaner.groupSegmentsBySize(log.logSegments(), Integer.MAX_VALUE, 1);
+//        Assert.assertEquals(log.numberOfSegments(), new Integer(groups.size()));
+//        Assert.assertTrue("All groups should be singletons.", groups.forall(_.size == 1));
+//        checkSegmentOrder(groups);
+//
+//        Integer groupSize = 3;
+//
+//        // check grouping by log size;
+//        Integer logSize = log.logSegments().take(groupSize).map(_.size).sum.toInt + 1;
+//        groups = cleaner.groupSegmentsBySize(log.logSegments(), logSize, Integer.MAX_VALUE);
+//        checkSegmentOrder(groups);
+//        Assert.assertTrue("All but the last group should be the target size.", groups.dropRight(1).forall(_.size == groupSize))
+//
+//        // check grouping by index size;
+//        Integer indexSize = log.logSegments().take(groupSize).map(_.index.sizeInBytes()).sum + 1;
+//        groups = cleaner.groupSegmentsBySize(log.logSegments(), Integer.MAX_VALUE, indexSize);
+//        checkSegmentOrder(groups);
+//        Assert.assertTrue("All but the last group should be the target size.", groups.dropRight(1).forall(_.size == groupSize))
     }
 
-    private public void checkSegmentOrder(Seq groups<Seq[LogSegment]>) {
-        val offsets = groups.flatMap(_.map(_.baseOffset));
-        Assert.assertEquals("Offsets should be in increasing order.", offsets.sorted, offsets);
+    private void checkSegmentOrder(List<List<LogSegment>> groups) {
+        List<Long> offsets = groups.stream().flatMap(l->l.stream().map(s->s.baseOffset)).collect(Collectors.toList());
+        List<Long>before = Lists.newArrayList();
+        before.addAll(offsets);
+        offsets.sort((o1, o2) -> o1>o2?1:0);
+        //"Offsets should be in increasing order.",
+        TestUtils.checkEquals(offsets.iterator(), before.iterator());
     }
 
     /**
      * Test building an offset map off the log
      */
     @Test
-    public void testBuildOffsetMap() {
-        val map = new FakeOffsetMap(1000);
-        val log = makeLog();
-        val cleaner = makeCleaner(Integer.MAX_VALUE);
-        val start = 0;
-        val end = 500;
-        val offsets = writeToLog(log, (start until end) zip(start until end));
+    public void testBuildOffsetMap() throws IOException, InterruptedException {
+        FakeOffsetMap map = new FakeOffsetMap(1000);
+        Log log = makeLog(dir, logConfig);
+        Cleaner cleaner = makeCleaner(Integer.MAX_VALUE);
+        Integer start = 0;
+        Integer end = 500;
+        List<Tuple<Integer, Integer>> list = Stream.iterate(start, n -> n + 1).limit(end).map(n -> Tuple.of(n, n)).collect(Collectors.toList());
+        Iterable<Long> offsets = writeToLog(log, list);
+        List<LogSegment> segments = Lists.newArrayList(log.logSegments());
 
-    public void checkRange(FakeOffsetMap map, Integer start, Integer end) {
-        val endOffset = cleaner.buildOffsetMap(log, start, end, map) + 1;
-        Assert.assertEquals("Last offset should be the end offset.", end, endOffset);
-        Assert.assertEquals("Should have the expected number of messages in the map.", end - start, map.size);
-        for (i< -start until end)
-        Assert.assertEquals("Should find all the keys", i.toLong, map.get(key(i)));
-        Assert.assertEquals("Should not find a value too small", -1L, map.get(key(start - 1)));
-        Assert.assertEquals("Should not find a value too large", -1L, map.get(key(end)));
+        checkRange(cleaner, log, map, 0, segments.get(1).baseOffset.intValue());
+
+        checkRange(cleaner, log, map, segments.get(1).baseOffset.intValue(), segments.get(3).baseOffset.intValue());
+
+        checkRange(cleaner, log, map, segments.get(3).baseOffset.intValue(), log.logEndOffset().intValue());
     }
 
-    val segments = log.logSegments.toSeq;
+    public void checkRange(Cleaner cleaner, Log log, FakeOffsetMap map, Integer start, Integer end) throws IOException, InterruptedException {
+        Long endOffset = cleaner.buildOffsetMap(log, start.longValue(), end.longValue(), map) + 1;
+        Assert.assertEquals("Last offset should be the end offset.", end, endOffset);
+        Assert.assertEquals("Should have the expected number of messages in the map.", new Integer(end - start), map.size());
+        for (int i = start; i < end; i++)
+            Assert.assertEquals("Should find all the keys", new Long(i), map.get(key(i)));
+        Assert.assertEquals("Should not find a value too small", new Long(-1), map.get(key(start - 1)));
+        Assert.assertEquals("Should not find a value too large", new Long(-1), map.get(key(end)));
+    }
 
-    checkRange(map, 0,segments(1).baseOffset.toInt);
 
-    checkRange(map, segments(1).baseOffset.toInt,
-
-    segments(3).baseOffset.toInt);
-
-    checkRange(map, segments(3).baseOffset.toInt,log.logEndOffset.toInt);
-}
+    public Log makeLog(LogConfig config) throws IOException {
+        return new Log(dir, config, 0L, time.scheduler, time);
+    }
 
     public Log makeLog(File dir, LogConfig config) throws IOException {
         return new Log(dir, config, 0L, time.scheduler, time);
     }
 
+    public Cleaner makeCleaner(Integer capacity) {
+        return makeCleaner(capacity, noOpCheckDone);
+    }
 
-    public void noOpCheckDone(TopicAndPartition topicAndPartition) { /* do nothing */ }
+    public Cleaner makeCleaner(Integer capacity, ActionWithP<TopicAndPartition> checkDone) {
+        return new Cleaner(0,
+                new FakeOffsetMap(capacity),
+                64 * 1024,
+                64 * 1024,
+                0.75,
+                throttler,
+                time,
+                checkDone);
+    }
 
-    public  makeCleaner(Integer capacity, ActionWithP<TopicAndPartition> checkDone){
-        return new Cleaner(id=0,
-        offsetMap=new FakeOffsetMap(capacity),
-        ioBufferSize=64*1024,
-        maxIoBufferSize=64*1024,
-        dupBufferLoadFactor=0.75,
-        throttler=throttler,
-        time=time,
-        checkDone=checkDone);
+    public Iterable<Long> writeToLog(Log log, List<Tuple<Integer, Integer>> seq) {
+        List<Long> result = Lists.newArrayList();
+        for (Tuple<Integer, Integer> kv : seq)
+            result.add(log.append(message(kv.v1, kv.v2)).firstOffset);
+        return result;
+    }
 
-public void writeToLog(Log log,Iterable seq<(Int,Int)>):Iterable<Long> ={
-        for((key,value)<-seq)
-        yield log.append(message(key,value)).firstOffset;
+    public ByteBuffer key(Integer id) {
+        return ByteBuffer.wrap(id.toString().getBytes());
+    }
+
+    public ByteBufferMessageSet message(Integer key, Integer value) {
+        return new ByteBufferMessageSet(new Message(value.toString().getBytes(), key.toString().getBytes()));
+    }
+
+
+    public ByteBufferMessageSet deleteMessage(Integer key) {
+        return new ByteBufferMessageSet(new Message(null, key.toString().getBytes()));
+    }
+
+    class FakeOffsetMap implements OffsetMap {
+        public Integer slots;
+
+        public Map<String, Long> map = new HashMap<>();
+
+        public FakeOffsetMap(Integer slots) {
+            this.slots = slots;
         }
 
-public void key Integer id)=ByteBuffer.wrap(id.toString.getBytes);
-
-public void message Integer key,Integer value)=
-        new ByteBufferMessageSet(new Message(key=key.toString.getBytes,bytes=value.toString.getBytes));
-
-public void deleteMessage Integer key)=
-        new ByteBufferMessageSet(new Message(key=key.toString.getBytes,bytes=null));
-
+        private String keyFor(ByteBuffer key) throws UnsupportedEncodingException {
+            return new String(Utils.readBytes(key.duplicate()), "UTF-8");
         }
 
-class FakeOffsetMapextends implements OffsetMap {
-    public Integer slots;
+        @Override
+        public Integer slots() {
+            return slots;
+        }
 
-    public Map<String, Long> map = new HashMap<>();
-
-    public FakeOffsetMapextends(Integer slots) {
-        this.slots = slots;
-    }
-
-    private String keyFor(ByteBuffer key) throws UnsupportedEncodingException {
-        return new String(Utils.readBytes(key.duplicate()), "UTF-8");
-    }
-
-    @Override
-    public Integer slots() {
-        return slots;
-    }
-
-    public void put(ByteBuffer key, Long offset) throws UnsupportedEncodingException {
-        map.put(keyFor(key), offset);
-    }
+        public void put(ByteBuffer key, Long offset) throws UnsupportedEncodingException {
+            map.put(keyFor(key), offset);
+        }
 
 
-    public Long get(ByteBuffer key) throws UnsupportedEncodingException {
-        String k = keyFor(key);
-        if (map.containsKey(k))
-            return map.get(k);
-        else
-            return -1L;
-    }
+        public Long get(ByteBuffer key) throws UnsupportedEncodingException {
+            String k = keyFor(key);
+            if (map.containsKey(k))
+                return map.get(k);
+            else
+                return -1L;
+        }
 
-    public void clear() {
-        map.clear();
-    }
+        public void clear() {
+            map.clear();
+        }
 
-    public Integer size() {
-        return map.size();
+        public Integer size() {
+            return map.size();
+        }
     }
 }
