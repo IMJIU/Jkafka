@@ -33,4 +33,6 @@ public interface Scheduler {
      * @param unit   The unit for the preceding times.
      */
     void schedule(String name, Action action, Long delay, Long period, TimeUnit unit);
+
+    void schedule(String name, final Action action, Long delay);
 }

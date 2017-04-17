@@ -15,10 +15,7 @@ import kafka.metrics.KafkaMetricsGroup;
 import kafka.server.BrokerTopicStats;
 import kafka.server.FetchDataInfo;
 import kafka.server.LogOffsetMetadata;
-import kafka.utils.Itor;
-import kafka.utils.KafkaScheduler;
-import kafka.utils.Time;
-import kafka.utils.Utils;
+import kafka.utils.*;
 
 import java.io.File;
 import java.io.IOException;
@@ -44,7 +41,7 @@ public class Log extends KafkaMetricsGroup {
     public File dir;
     public volatile LogConfig config;
     public volatile Long recoveryPoint = 0L;
-    public KafkaScheduler scheduler;
+    public Scheduler scheduler;
     public Time time;
 
     /**
@@ -54,7 +51,7 @@ public class Log extends KafkaMetricsGroup {
      * @param scheduler     The thread pool scheduler used for background actions
      * @param time          The time instance used for checking the clock
      */
-    public Log(File dir, LogConfig config, Long recoveryPoint, KafkaScheduler scheduler, Time time) throws IOException {
+    public Log(File dir, LogConfig config, Long recoveryPoint, Scheduler scheduler, Time time) throws IOException {
         this.dir = dir;
         this.config = config;
         this.recoveryPoint = recoveryPoint;

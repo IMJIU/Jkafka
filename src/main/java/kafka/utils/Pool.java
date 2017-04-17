@@ -11,7 +11,9 @@ public class Pool<K, V> implements Iterable<Tuple<K, V>> {
     private ConcurrentHashMap<K, V> pool = new ConcurrentHashMap<K, V>();
     private Object createLock = new Object();
     public Optional<Processor<K, V>> valueFactory;
-
+    public Pool() {
+        this.valueFactory = Optional.empty();
+    }
     public Pool(Optional<Processor<K, V>> valueFactory) {
         this.valueFactory = valueFactory;
     }
@@ -20,8 +22,8 @@ public class Pool<K, V> implements Iterable<Tuple<K, V>> {
         m.forEach((k, v) -> pool.put(k, v));
     }
 
-    public void put(K k, V v) {
-        pool.put(k, v);
+    public V put(K k, V v) {
+        return pool.put(k, v);
     }
 
     public void putIfNotExists(K k, V v) {
