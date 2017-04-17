@@ -1,6 +1,7 @@
 package kafka.utils;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import kafka.common.KafkaException;
 import kafka.func.Processor;
 import kafka.func.Tuple;
@@ -112,5 +113,11 @@ public class Pool<K, V> implements Iterable<Tuple<K, V>> {
                 return new Tuple(entry.getKey(), entry.getValue());
             }
         };
+    }
+
+    public Map<K,V> toMap() {
+        Map<K,V>map = Maps.newHashMap();
+        map.putAll(pool);
+        return map;
     }
 }

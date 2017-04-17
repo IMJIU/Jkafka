@@ -6,6 +6,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import kafka.annotation.threadsafe;
 import kafka.common.KafkaException;
+import kafka.func.Action;
 import kafka.func.Tuple;
 import kafka.server.BrokerState;
 import kafka.server.BrokerStates;
@@ -13,14 +14,8 @@ import kafka.utils.*;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
@@ -42,7 +37,7 @@ import java.util.stream.Collectors;
  */
 @threadsafe
 public class LogManager extends Logging {
-    public File[] logDirs;
+    public List<File> logDirs;
     public Map<String, LogConfig> topicConfigs;
     public LogConfig defaultConfig;
     public CleanerConfig cleanerConfig;
@@ -75,7 +70,7 @@ public class LogManager extends Logging {
      * A background thread handles log retention by periodically truncating excess log segments.
      */
     public LogManager(File[] logDirs, Map<String, LogConfig> topicConfigs, LogConfig defaultConfig, CleanerConfig cleanerConfig, java.lang.Integer ioThreads, Long flushCheckMs, Long flushCheckpointMs, Long retentionCheckMs, Scheduler scheduler, BrokerState brokerState, Time time) {
-        this.logDirs = logDirs;
+        this.logDirs = Lists.newArrayList(logDirs);
         this.topicConfigs = topicConfigs;
         this.defaultConfig = defaultConfig;
         this.cleanerConfig = cleanerConfig;
@@ -118,15 +113,15 @@ public class LogManager extends Logging {
      * <li> Check that each path is a readable directory
      * </ol>
      */
-    private void createAndValidateLogDirs(File[] dirs) {
-        if (Arrays.stream(dirs).map(d -> {
+    private void createAndValidateLogDirs(List<File> dirs) {
+        if (dirs.stream().map(d -> {
             try {
                 return d.getCanonicalPath();
             } catch (IOException e) {
                 e.printStackTrace();
             }
             return "";
-        }).collect(Collectors.toSet()).size() < dirs.length) {
+        }).collect(Collectors.toSet()).size() < dirs.size()) {
             throw new KafkaException("Duplicate log directory found: " + logDirs);
         }
         for (File dir : dirs) {
@@ -157,7 +152,7 @@ public class LogManager extends Logging {
      * Recover and load all logs in the given data directories
      * 加载目录下所有的topic-partition到 Pool logs<TopicAndPartition, Log>
      */
-    private void loadLogs() throws Throwable {
+    private void loadLogs() throws Exception {
         info("Loading logs.");
 
         List<ExecutorService> threadPools = Lists.newArrayList();
@@ -189,12 +184,7 @@ public class LogManager extends Logging {
                         LogConfig config = topicConfigs.getOrDefault(topicPartition.topic, defaultConfig);
                         Long logRecoveryPoint = recoveryPoints.getOrDefault(topicPartition, 0L);
 
-                        Log current = null;
-                        try {
-                            current = new Log(logDir, config, logRecoveryPoint, scheduler, time);
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
+                        Log current = new Log(logDir, config, logRecoveryPoint, scheduler, time);
                         Log previous = this.logs.put(topicPartition, current);
 
                         if (previous != null) {
@@ -244,22 +234,22 @@ public class LogManager extends Logging {
     public void startup() {
     /* Schedule the cleanup task to delete old logs */
         if (scheduler != null) {
-            info(String.format("Starting log cleanup with a period of %d ms.", retentionCheckMs))
+            info(String.format("Starting log cleanup with a period of %d ms.", retentionCheckMs));
             scheduler.schedule("kafka-log-retention",
                     cleanupLogs,
-                    delay = InitialTaskDelayMs,
-                    period = retentionCheckMs,
+                    InitialTaskDelayMs,
+                    retentionCheckMs,
                     TimeUnit.MILLISECONDS);
             info(String.format("Starting log flusher with a default period of %d ms.", flushCheckMs))
             scheduler.schedule("kafka-log-flusher",
                     flushDirtyLogs,
-                    delay = InitialTaskDelayMs,
-                    period = flushCheckMs,
+                    InitialTaskDelayMs,
+                    flushCheckMs,
                     TimeUnit.MILLISECONDS);
             scheduler.schedule("kafka-recovery-point-checkpoint",
                     checkpointRecoveryPointOffsets,
-                    delay = InitialTaskDelayMs,
-                    period = flushCheckpointMs,
+                    InitialTaskDelayMs,
+                    flushCheckpointMs,
                     TimeUnit.MILLISECONDS);
         }
         if (cleanerConfig.enableCleaner)
@@ -303,7 +293,7 @@ public class LogManager extends Logging {
 
 
         try {
-            for ((dir, dirJobs) <-jobs){
+            for ((dir, dirJobs)<-jobs){
                 dirJobs.foreach(_.get)
 
                 // update the last flush point;
@@ -319,7 +309,7 @@ public class LogManager extends Logging {
                 error("There was an error in one of the threads during LogManager shutdown: " + e.getCause);
                 throw e.getCause;
             }
-        } finally{
+        }finally{
             threadPools.foreach(_.shutdown())
             // regardless of whether the close succeeded, we need to unlock the data directories;
             dirLocks.foreach(_.destroy())
@@ -335,7 +325,7 @@ public class LogManager extends Logging {
      * @param partitionAndOffsets Partition logs that need to be truncated
      */
     public void truncateTo(Map partitionAndOffsets<TopicAndPartition, Long>) {
-        for ((topicAndPartition, truncateOffset) <-partitionAndOffsets){
+        for ((topicAndPartition, truncateOffset)<-partitionAndOffsets){
             val log = logs.get(topicAndPartition);
             // If the log does not exist, skip it;
             if (log != null) {
@@ -374,18 +364,14 @@ public class LogManager extends Logging {
      * Write out the current recovery point for all logs to a text file in the log directory
      * to avoid recovering the whole log on startup.
      */
-    public void checkpointRecoveryPointOffsets() {
-        this.logDirs.foreach(checkpointLogsInDir)
-    }
+    public Action checkpointRecoveryPointOffsets = () -> Arrays.stream(this.logDirs).forEach(l -> checkpointLogsInDir);
 
     /**
      * Make a checkpoint for all logs in provided directory.
      */
-    privatepublic Unit
-
-    void checkpointLogsInDir(File dir) {
-        val recoveryPoints = this.logsByDir.get(dir.toString);
-        if (recoveryPoints.isDefined) {
+    private void checkpointLogsInDir(File dir) {
+        List<Tuple<TopicAndPartition, Log>> recoveryPoints = this.logsByDir().get(dir.toString());
+        if (recoveryPoints != null) {
             this.recoveryPointCheckpoints(dir).write(recoveryPoints.get.mapValues(_.recoveryPoint));
         }
     }
@@ -393,32 +379,28 @@ public class LogManager extends Logging {
     /**
      * Get the log if it exists, otherwise return None
      */
-    public void getLog(TopicAndPartition topicAndPartition):Option<Log> =
-
-    {
-        val log = logs.get(topicAndPartition);
+    public Optional<Log> getLog(TopicAndPartition topicAndPartition) {
+        Log log = logs.get(topicAndPartition);
         if (log == null)
-            None;
-        else ;
-        Some(log);
+            return Optional.empty();
+        else
+            return Optional.of(log);
     }
 
 /**
  * Create a log for the given topic and the given partition
  * If the log already exists, just return a copy of the existing log
  */
-    public Log
-
-    void createLog(TopicAndPartition topicAndPartition, LogConfig config) {
-        logCreationOrDeletionLock synchronized {
-            var log = logs.get(topicAndPartition);
+    public Log createLog(TopicAndPartition topicAndPartition, LogConfig config) {
+         synchronized(logCreationOrDeletionLock) {
+            Log log = logs.get(topicAndPartition);
 
             // check if the log has already been created in another thread;
             if (log != null)
                 return log;
 
             // if not, create it;
-            val dataDir = nextLogDir();
+            File dataDir = nextLogDir();
             val dir = new File(dataDir, topicAndPartition.topic + "-" + topicAndPartition.partition);
             dir.mkdirs();
             log = new Log(dir,
@@ -428,7 +410,7 @@ public class LogManager extends Logging {
                     time);
             logs.put(topicAndPartition, log);
             info("Created log for partition <%s,%d> in %s with properties {%s}.";
-        .format(topicAndPartition.topic,
+            .format(topicAndPartition.topic,
                     topicAndPartition.partition,
                     dataDir.getAbsolutePath,
                     {import JavaConversions._;
@@ -453,7 +435,7 @@ public class LogManager extends Logging {
             }
             removedLog.delete();
             info("Deleted log for partition <%s,%d> in %s.";
-        .format(topicAndPartition.topic,
+            .format(topicAndPartition.topic,
                     topicAndPartition.partition,
                     removedLog.dir.getAbsolutePath));
         }
@@ -464,14 +446,12 @@ public class LogManager extends Logging {
      * by calculating the number of partitions in each directory and then choosing the
      * data directory with the fewest partitions.
      */
-    privatepublic File
-
-    void nextLogDir() {
-        if (logDirs.size == 1) {
-            logDirs(0);
+    private File nextLogDir() {
+        if (logDirs.length == 1) {
+            return logDirs[0];
         } else {
             // count the number of logs in each parent directory (including 0 for empty directories;
-            val logCounts = allLogs.groupBy(_.dir.getParent).mapValues(_.size);
+            val logCounts = allLogs().groupBy(_.dir.getParent).mapValues(_.size);
             val zeros = logDirs.map(dir = > (dir.getPath, 0)).toMap;
             var dirCounts = (zeros++ logCounts).toBuffer;
 
@@ -484,90 +464,91 @@ public class LogManager extends Logging {
     /**
      * Runs through the log removing segments older than a certain age
      */
-    privatepublic Integer
-
-    void cleanupExpiredSegments(Log log) {
-        val startMs = time.milliseconds;
-        log.deleteOldSegments(startMs - _.lastModified > log.config.retentionMs)
+    private Integer cleanupExpiredSegments(Log log) throws IOException {
+        Long startMs = time.milliseconds();
+        return log.deleteOldSegments(l -> startMs - l.lastModified() > log.config.retentionMs);
     }
 
     /**
      * Runs through the log removing segments until the size of the log
      * is at least logRetentionSize bytes in size
      */
-    privatepublic Integer
-
-    void cleanupSegmentsToMaintainSize(Log log) {
-        if (log.config.retentionSize < 0 || log.size < log.config.retentionSize)
+    private Integer cleanupSegmentsToMaintainSize(Log log) {
+        if (log.config.retentionSize < 0 || log.size() < log.config.retentionSize)
             return 0;
-        var diff = log.size - log.config.retentionSize;
-
-    public void shouldDelete(LogSegment segment)=
-
-    {
-        if (diff - segment.size >= 0) {
-            diff -= segment.size;
-            true;
-        } else {
-            false;
-        }
+        final Long diff = log.size() - log.config.retentionSize;
+        return log.deleteOldSegments((segment) -> {
+            if (diff - segment.size() >= 0) {
+                diff -= segment.size();
+                return true;
+            } else {
+                return false;
+            }
+        });
     }
-        log.deleteOldSegments(shouldDelete);
-}
+
 
     /**
      * Delete any eligible logs. Return the number of segments deleted.
      */
-    public void cleanupLogs() {
+    public Action cleanupLogs = () -> {
         debug("Beginning log cleanup...");
-        var total = 0;
-        val startMs = time.milliseconds;
-        for (log< -allLogs; if !log.config.compact){
-            debug("Garbage collecting '" + log.name + "'");
-            total += cleanupExpiredSegments(log) + cleanupSegmentsToMaintainSize(log);
+        Integer total = 0;
+        Long startMs = time.milliseconds();
+        for (Log log : allLogs()) {
+            if (!log.config.compact) {
+                debug("Garbage collecting '" + log.name + "'");
+                total += cleanupExpiredSegments(log) + cleanupSegmentsToMaintainSize(log);
+            }
+            debug("Log cleanup completed. " + total + " files deleted in " + (time.milliseconds() - startMs) / 1000 + " seconds");
         }
-        debug("Log cleanup completed. " + total + " files deleted in " +
-                (time.milliseconds - startMs) / 1000 + " seconds");
-    }
+    };
 
     /**
      * Get all the partition logs
      */
-    public void allLogs():Iterable<Log> =logs.values;
+    public Iterable<Log> allLogs() {
+        return logs.values();
+    }
 
-/**
- * Get a map of TopicAndPartition => Log
- */
-public void logsByTopicPartition=logs.toMap;
+    /**
+     * Get a map of TopicAndPartition => Log
+     */
+    public Map<TopicAndPartition, Log> logsByTopicPartition = logs.toMap();
 
-        /**
-         * Map of log dir to logs by topic and partitions in that dir
-         */
-        privatepublic void logsByDir={
-        this.logsByTopicPartition.groupBy{
-        case(_,log)=>log.dir.getParent;
+    /**
+     * Map of log dir to logs by topic and partitions in that dir
+     */
+    private Map<String, List<Tuple<TopicAndPartition, Log>>> logsByDir() {
+        List<Tuple<String, Tuple<TopicAndPartition, Log>>> list = this.logsByTopicPartition.entrySet().stream()
+                .map(entry -> Tuple.of(entry.getValue().dir.getParent(), Tuple.of(entry.getKey(), entry.getValue()))).collect(Collectors.toList());
+        Map<String, List<Tuple<TopicAndPartition, Log>>> map = Maps.newHashMap();
+        for (Tuple<String, Tuple<TopicAndPartition, Log>> t : list) {
+            List<Tuple<TopicAndPartition, Log>> l = map.getOrDefault(t.v1, Lists.newArrayList());
+            map.put(t.v1, l);
         }
-        }
+        return map;
+    }
 
-/**
- * Flush any log which has exceeded its flush interval and has unwritten messages.
- */
-        privatepublic void flushDirtyLogs()={
-        debug("Checking for dirty logs to flush...")
+    /**
+     * Flush any log which has exceeded its flush interval and has unwritten messages.
+     */
+    private Action flushDirtyLogs = () -> {
+        debug("Checking for dirty logs to flush...");
 
-        for((topicAndPartition,log)<-logs){
-        try{
-        val timeSinceLastFlush=time.milliseconds-log.lastFlushTime;
-        debug("Checking if flush is needed on "+topicAndPartition.topic+" flush interval  "+log.config.flushMs+
-        " last flushed "+log.lastFlushTime+" time since last flush: "+timeSinceLastFlush);
-        if(timeSinceLastFlush>=log.config.flushMs)
-        log.flush;
-        }catch{
-        case Throwable e=>
-        error("Error flushing topic "+topicAndPartition.topic,e);
+        for (Tuple<TopicAndPartition, Log> t : logs) {
+            TopicAndPartition topicAndPartition = t.v1;
+            Log log = t.v2;
+            try {
+                Long timeSinceLastFlush = time.milliseconds() - log.lastFlushTime();
+                debug("Checking if flush is needed on " + topicAndPartition.topic + " flush interval  " + log.config.flushMs +
+                        " last flushed " + log.lastFlushTime() + " time since last flush: " + timeSinceLastFlush);
+                if (timeSinceLastFlush >= log.config.flushMs)
+                    log.flush();
+            } catch (Exception e) {
+                error("Error flushing topic " + topicAndPartition.topic, e);
+            }
         }
-        }
-        }
-        }
+    };
 
-        }
+}
