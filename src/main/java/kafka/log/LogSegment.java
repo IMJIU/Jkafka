@@ -259,7 +259,7 @@ public class LogSegment extends Logging {
                 log.flush();
                 index.flush();
             } catch (IOException e) {
-                e.printStackTrace();
+                error(e.getMessage(),e);
             }
             return 0;
         });

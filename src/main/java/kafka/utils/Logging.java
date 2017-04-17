@@ -14,7 +14,9 @@ public class Logging {
     public Logging() {
 
     }
-
+    public static Logging create(String loggerName) {
+        return new Logging(loggerName);
+    }
     public Logging(String loggerName) {
         loggerName(loggerName);
     }

@@ -61,7 +61,7 @@ public class CleanerTest {
         while (log.numberOfSegments() < 4)
             log.append(message(log.logEndOffset().intValue(), log.logEndOffset().intValue()));
         List<Integer> keysFound = keysInLog(log);
-        Assert.assertEquals(Stream.iterate(0L, n -> n + 1).limit(log.logEndOffset()).iterator(), keysFound);
+        TestUtils.checkEquals(Stream.iterate(0, n -> n + 1).limit(log.logEndOffset()).iterator(), keysFound.iterator());
 
         // pretend we have the following keys;
         List<Integer> keys = Lists.newArrayList(1, 3, 5, 7, 9);
@@ -75,7 +75,7 @@ public class CleanerTest {
         });
 
         // clean the log;
-        cleaner.cleanSegments(log, new ArrayList(log.logSegments()).subList(0, 3), map, 0L);
+        cleaner.cleanSegments(log, Lists.newArrayList(log.logSegments()).subList(0, 3), map, 0L);
         List<Integer> list = keysInLog(log);
         TestUtils.checkEquals(list.stream().filter(l -> !keys.contains(l)).iterator(), keysInLog(log).iterator());
     }

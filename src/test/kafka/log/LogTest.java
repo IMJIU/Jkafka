@@ -6,22 +6,18 @@ import kafka.common.MessageSizeTooLargeException;
 import kafka.common.OffsetOutOfRangeException;
 import kafka.message.*;
 import kafka.server.FetchDataInfo;
+import kafka.utils.Logging;
 import kafka.utils.TestUtils;
 import kafka.server.KafkaConfig;
 import kafka.utils.MockTime;
 import kafka.utils.Utils;
-import org.apache.log4j.Logger;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.slf4j.LoggerFactory;
 
-import javax.swing.text.Segment;
 import java.io.File;
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
@@ -33,7 +29,7 @@ import java.util.stream.Stream;
  * Created by Administrator on 2017/4/3.
  */
 public class LogTest {
-    org.slf4j.Logger logger2 = LoggerFactory.getLogger(LogTest.class);
+    Logging logging = Logging.create(LogTest.class.getName());
     File logDir = null;
     MockTime time = new MockTime(0L);
     KafkaConfig config = null;
@@ -434,6 +430,7 @@ public class LogTest {
         for (int i = 1; i <= msgPerSeg; i++)
             log.append(set);
         Assert.assertEquals("There should be exactly 2 segment.", new Integer(2), log.numberOfSegments());
+        //为什么为0，因为之前就没到indexInterval 插入就为0
         Assert.assertEquals("The index of the first segment should be trimmed to empty", new Integer(0), log.logSegments().stream().findFirst().get().index.maxEntries);
         log.truncateTo(0L);
         Assert.assertEquals("There should be exactly 1 segment.", new Integer(1), log.numberOfSegments());
@@ -485,6 +482,7 @@ public class LogTest {
             log.append(set);
         log.close();
         log = new Log(logDir, config, 0L, time.scheduler, time);
+        Assert.assertEquals(new Integer(20), log.numberOfSegments());
         log.truncateTo(3L);
         Assert.assertEquals("All but one segment should be deleted.", new Integer(1), log.numberOfSegments());
         Assert.assertEquals("Log end offset should be 3.", new Long(3), log.logEndOffset());
@@ -508,16 +506,15 @@ public class LogTest {
             log.append(set);
 
         // files should be renamed;
-        Collection<LogSegment> segments = log.logSegments();
+        List<LogSegment> segments = Lists.newArrayList(log.logSegments());
         List<File> oldFiles = segments.stream().map(s -> s.log.file).collect(Collectors.toList());
         oldFiles.addAll(segments.stream().map(s -> s.index.file).collect(Collectors.toList()));
         log.deleteOldSegments(s -> true);
 
         Assert.assertEquals("Only one segment should remain.", new Integer(1), log.numberOfSegments());
-        Assert.assertTrue("All log and index files should end in .deleted", segments.stream().allMatch(s -> s.log.file.getName().endsWith(Log.DeletedFileSuffix)) &&
-                segments.stream().allMatch(s -> s.index.file.getName().endsWith(Log.DeletedFileSuffix)));
-        Assert.assertTrue("The .deleted files should still be there.", segments.stream().allMatch(s -> s.log.file.exists()) &&
-                segments.stream().allMatch(s -> s.index.file.exists()));
+        Assert.assertTrue("All log and index files should end in .deleted", segments.stream().allMatch(s -> s.log.file.getName().endsWith(Log.DeletedFileSuffix)));
+        Assert.assertTrue("All log and index files should end in .deleted", segments.stream().allMatch(s -> s.index.file.getName().endsWith(Log.DeletedFileSuffix)));
+        Assert.assertTrue("The .deleted files should still be there.", segments.stream().allMatch(s -> s.log.file.exists()) && segments.stream().allMatch(s -> s.index.file.exists()));
         Assert.assertTrue("The original file should be gone.", oldFiles.stream().allMatch(s -> !s.exists()));
 
         // when enough time passes the files should be deleted;
@@ -553,7 +550,7 @@ public class LogTest {
         // append some messages to create some segments;
         LogConfig config = getLogConfig(1000);
         config.indexInterval = 1;
-        config.maxIndexSize = 64 * 1024;
+        config.maxMessageSize = 64 * 1024;
         ByteBufferMessageSet set = TestUtils.singleMessageSet("test".getBytes());
         Long recoveryPoint = 50L;
         for (int iteration = 0; iteration < 50; iteration++) {
@@ -573,7 +570,7 @@ public class LogTest {
             // attempt recovery;
             log = new Log(logDir, config, recoveryPoint, time.scheduler, time);
             Assert.assertEquals(new Long(numMessages), log.logEndOffset());
-            Assert.assertEquals("Messages in the log after recovery should be the same.", messages, log.logSegments().stream().flatMap(s -> s.log.toMessageAndOffsetList().stream()));
+            Assert.assertEquals("Messages in the log after recovery should be the same.", messages, log.logSegments().stream().flatMap(s -> s.log.toMessageAndOffsetList().stream()).collect(Collectors.toList()));
             Utils.rm(logDir);
         }
     }
@@ -590,14 +587,14 @@ public class LogTest {
         File cleanShutdownFile = new File(parentLogDir, Log.CleanShutdownFile);
         cleanShutdownFile.createNewFile();
         Assert.assertTrue(".kafka_cleanshutdown must exist", cleanShutdownFile.exists());
-        Long recoveryPoint = 0L;
+        Long recoveryPoint;
         // create a log and write some messages to it;
         Log log = new Log(logDir, config, 0L, time.scheduler, time);
         for (int i = 0; i < 100; i++)
             log.append(set);
         log.close();
 
-        // check if recovery was attempted. Even if the recovery point is 0L, recovery should not be attempted as the;
+        // check if recovery was attempted. Even if the recovery point is 0L, recovery should not be attempted as the
         // clean shutdown file exists.;
         recoveryPoint = log.logEndOffset();
         log = new Log(logDir, config, 0L, time.scheduler, time);
@@ -710,7 +707,8 @@ public class LogTest {
         }
         MessageSet lastRead = log.read(numMessages.longValue(), 1024 * 1024, Optional.of(numMessages + 1L)).messageSet;
         Assert.assertEquals("Should be no more messages", 0, lastRead.toMessageAndOffsetList().size());
-
+        Assert.assertTrue("Log role should have forced flush", log.recoveryPoint >= log.activeSegment().baseOffset);
+        logging.info("segment size:" + log.logSegments().size() + "");
         // check that rolling the log forced a flushed the log--the flush is asyn so retry in case of failure;
         TestUtils.retry(1000L, () -> Assert.assertTrue("Log role should have forced flush", log.recoveryPoint >= log.activeSegment().baseOffset));
     }

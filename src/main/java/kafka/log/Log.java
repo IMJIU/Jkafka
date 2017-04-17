@@ -79,7 +79,10 @@ public class Log extends KafkaMetricsGroup {
 
     public void init() throws IOException {
         lastflushedTime = new AtomicLong(time.milliseconds());
+
+        //load
         loadSegments();
+
         name = dir.getName();
         nextOffsetMetadata = new LogOffsetMetadata(activeSegment().nextOffset(), activeSegment().baseOffset, activeSegment().size().intValue());
 
@@ -466,6 +469,7 @@ public class Log extends KafkaMetricsGroup {
         // and it is empty (since we would just end up re-creating it;
         LogSegment lastSegment = activeSegment();
         // TODO: 2017/4/3 takewhile filter
+//        val deletable = logSegments.takeWhile(s => predicate(s) && (s.baseOffset != lastSegment.baseOffset || s.size > 0))
         List<LogSegment> deletable = logSegments().stream().filter(s -> predicate.process(s) && (s.baseOffset != lastSegment.baseOffset || s.size() > 0)).collect(Collectors.toList());
         Integer numToDelete = deletable.size();
         if (numToDelete > 0) {
@@ -556,10 +560,12 @@ public class Log extends KafkaMetricsGroup {
             Long newOffset = logEndOffset();
             File logFile = logFilename(dir, newOffset);
             File indexFile = indexFilename(dir, newOffset);
-            Lists.newArrayList(logFile, indexFile).stream().filter(f -> f.exists()).forEach(f -> {
-                warn("Newly rolled segment file " + f.getName() + " already exists; deleting it first");
-                f.delete();
-            });
+            Lists.newArrayList(logFile, indexFile).stream()
+                    .filter(f -> f.exists())
+                    .forEach(f -> {
+                                warn("Newly rolled segment file " + f.getName() + " already exists; deleting it first");
+                                f.delete();
+                            });
 
             Map.Entry<Long, LogSegment> lastEntry = segments.lastEntry();
             if (lastEntry != null) {
@@ -659,8 +665,7 @@ public class Log extends KafkaMetricsGroup {
     void truncateFullyAndStartAt(Long newOffset) throws IOException {
         debug("Truncate and start log '" + name + "' to " + newOffset);
         synchronized (lock) {
-            Collection<LogSegment> segmentsToDelete = logSegments();
-            segmentsToDelete.forEach(s -> deleteSegment(s));
+            logSegments().forEach(s -> deleteSegment(s));
             addSegment(new LogSegment(dir,
                     newOffset,
                     config.indexInterval,

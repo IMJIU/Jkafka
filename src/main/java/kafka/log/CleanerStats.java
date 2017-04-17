@@ -17,10 +17,13 @@ public class CleanerStats {
     public CleanerStats(Time time) {
         this.time = time;
         clear();
+        elapsedSecs = (endTime - startTime) / 1000.0;
+        elapsedIndexSecs = (mapCompleteTime - startTime) / 1000.0;
+
     }
 
-    Long startTime, mapCompleteTime, endTime, bytesRead, bytesWritten, mapBytesRead, mapMessagesRead, messagesRead, messagesWritten = 0L;
-    Double bufferUtilization = 0.0d;
+    public Long startTime, mapCompleteTime, endTime, bytesRead, bytesWritten, mapBytesRead, mapMessagesRead, messagesRead, messagesWritten = 0L;
+    public Double bufferUtilization = 0.0d;
 
     public void readMessage(Integer size) {
         messagesRead += 1;
@@ -45,9 +48,9 @@ public class CleanerStats {
         endTime = time.milliseconds();
     }
 
-    public Double elapsedSecs = (endTime - startTime) / 1000.0;
+    public Double elapsedSecs ;
 
-    public Double elapsedIndexSecs = (mapCompleteTime - startTime) / 1000.0;
+    public Double elapsedIndexSecs;
 
     public void clear() {
         startTime = time.milliseconds();

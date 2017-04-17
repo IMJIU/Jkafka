@@ -9,7 +9,7 @@ import kafka.func.Tuple;
 import kafka.metrics.KafkaMetricsGroup;
 import kafka.utils.Pool;
 import kafka.utils.Utils;
-import org.elasticsearch.index.fielddata.IndexFieldDataCache;
+//import org.elasticsearch.index.fielddata.IndexFieldDataCache;
 
 import java.io.File;
 import java.io.IOException;
@@ -94,29 +94,29 @@ public class LogCleanerManager extends KafkaMetricsGroup {
      */
     public Optional<LogToClean> grabFilthiestLog() {
         return Utils.inLock(lock, () -> {
-            try {
-                Map<TopicAndPartition, Long> lastClean = allCleanerCheckpoints();
-                List<LogToClean> dirtyLogs = logs.list().stream().filter(l -> l.v2.config.compact)          // skip any logs marked for delete rather than dedupe;
-                        .filter(l -> !inProgress.containsKey(l.v1)) // skip any logs already in-progress;
-                        .map(l -> new LogToClean(l.v1, l.v2,           // create a LogToClean instance for each;
-                                lastClean.getOrDefault(l.v1, l.v2.logSegments().stream().findFirst().get().baseOffset)))
-                        .filter(l -> l.totalBytes() > 0).collect(Collectors.toList());             // skip any empty logs;
-                if (!dirtyLogs.isEmpty()) {
-                    this.dirtiestLogCleanableRatio = Collections.max(dirtyLogs).cleanableRatio;
-                } else {
-                    this.dirtiestLogCleanableRatio = 0d;
-                }
-                List<LogToClean> cleanableLogs = dirtyLogs.stream().filter(l -> l.cleanableRatio > l.log.config.minCleanableRatio).collect(Collectors.toList()); // and must meet the minimum threshold for dirty byte ratio;
-                if (cleanableLogs.isEmpty()) {
-                    return Optional.empty();
-                } else {
-                    LogToClean filthiest = Collections.max(cleanableLogs);
-                    inProgress.put(filthiest.topicPartition, LogCleaningState.LogCleaningInProgress);
-                    return Optional.of(filthiest);
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+//            try {
+//                Map<TopicAndPartition, Long> lastClean = allCleanerCheckpoints();
+//                List<LogToClean> dirtyLogs = logs.list().stream().filter(l -> l.v2.config.compact)          // skip any logs marked for delete rather than dedupe;
+//                        .filter(l -> !inProgress.containsKey(l.v1)) // skip any logs already in-progress;
+//                        .map(l -> new LogToClean(l.v1, l.v2,           // create a LogToClean instance for each;
+//                                lastClean.getOrDefault(l.v1, l.v2.logSegments().stream().findFirst().get().baseOffset)))
+//                        .filter(l -> l.totalBytes() > 0).collect(Collectors.toList());             // skip any empty logs;
+//                if (!dirtyLogs.isEmpty()) {
+//                    this.dirtiestLogCleanableRatio = Collections.max(dirtyLogs).cleanableRatio;
+//                } else {
+//                    this.dirtiestLogCleanableRatio = 0d;
+//                }
+//                List<LogToClean> cleanableLogs = dirtyLogs.stream().filter(l -> l.cleanableRatio > l.log.config.minCleanableRatio).collect(Collectors.toList()); // and must meet the minimum threshold for dirty byte ratio;
+//                if (cleanableLogs.isEmpty()) {
+//                    return Optional.empty();
+//                } else {
+//                    LogToClean filthiest = Collections.max(cleanableLogs);
+//                    inProgress.put(filthiest.topicPartition, LogCleaningState.LogCleaningInProgress);
+//                    return Optional.of(filthiest);
+//                }
+//            } catch (IOException e) {
+//                e.printStackTrace();
+//            }
             return Optional.empty();
         });
     }

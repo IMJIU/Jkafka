@@ -38,6 +38,16 @@ public class Cleaner extends Logging {
     public ActionWithP<TopicAndPartition> checkDone;
 
 
+    /* cleaning stats - one instance for the current (or next) cleaning cycle and one for the last completed cycle */
+    Tuple<CleanerStats, CleanerStats> statsUnderlying ;
+    public CleanerStats stats ;
+
+    /* buffer used for read i/o */
+    private ByteBuffer readBuffer ;
+
+    /* buffer used for write i/o */
+    private ByteBuffer writeBuffer ;
+
     /**
      * @param id           An identifier used for logging
      * @param offsetMap    The map used for deduplication
@@ -56,19 +66,11 @@ public class Cleaner extends Logging {
         this.checkDone = checkDone;
         this.logIdent = "Cleaner " + id + ": ";
         loggerName(LogCleaner.class.getName());
+        statsUnderlying = Tuple.of(new CleanerStats(time), new CleanerStats(time));
+        stats = statsUnderlying.v1;
+        readBuffer = ByteBuffer.allocate(ioBufferSize);
+        writeBuffer = ByteBuffer.allocate(ioBufferSize);
     }
-
-
-
-    /* cleaning stats - one instance for the current (or next) cleaning cycle and one for the last completed cycle */
-    Tuple<CleanerStats, CleanerStats> statsUnderlying = Tuple.of(new CleanerStats(time), new CleanerStats(time));
-    public CleanerStats stats = statsUnderlying.v1;
-
-    /* buffer used for read i/o */
-    private ByteBuffer readBuffer = ByteBuffer.allocate(ioBufferSize);
-
-    /* buffer used for write i/o */
-    private ByteBuffer writeBuffer = ByteBuffer.allocate(ioBufferSize);
 
     /**
      * Clean the given log

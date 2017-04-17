@@ -147,7 +147,7 @@ public class FileMessageSet extends MessageSet {
                 position += MessageSet.LogOverhead + messageSize;
             }
         } catch (IOException e) {
-            e.printStackTrace();
+           error(e.getMessage(),e);
         }
         return null;
     }
@@ -216,6 +216,7 @@ public class FileMessageSet extends MessageSet {
 
                     // read the item itself
                     ByteBuffer buffer = ByteBuffer.allocate(size);
+
                     channel.read(buffer, location + 12);
                     if (buffer.hasRemaining())
                         return allDone();

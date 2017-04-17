@@ -42,7 +42,7 @@ public class LogSegmentTest {
     public ByteBufferMessageSet messages(Long offset, List<String> messages) {
         return new ByteBufferMessageSet(CompressionCodec.NoCompressionCodec,
                 new AtomicLong(offset),
-                messages.stream().map((s) -> new Message(s.getBytes())).collect(Collectors.toList()));
+                messages.stream().map(s -> new Message(s.getBytes())).collect(Collectors.toList()));
     }
 
     @After
@@ -55,6 +55,7 @@ public class LogSegmentTest {
 
     /**
      * A read on an empty log segment should return null
+     * 读取空信息 应该返回NULL
      */
     @Test
     public void testReadOnEmptySegment() throws Exception {
@@ -228,9 +229,9 @@ public class LogSegmentTest {
 //            Assert.assertEquals("Should have truncated off bad messages.", (0until offsetToBeginCorruption).toList, seg.log.map(_.offset).toList)
             Assert.assertEquals("Should have truncated off bad messages.",
                     Stream.iterate(0L, n -> n + 1).limit(offsetToBeginCorruption).collect(Collectors.toList()),
-                    seg.log.toMessageAndOffsetList().stream().map((m) -> m.offset).collect(Collectors.toList()));
+                    seg.log.toMessageAndOffsetList().stream().map(m -> m.offset).collect(Collectors.toList()));
             // TODO: 2017/4/1 windows fail segment.delete()
-//            seg.delete();
+            seg.delete();
         }
     }
 }
