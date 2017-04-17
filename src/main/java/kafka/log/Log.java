@@ -477,7 +477,6 @@ public class Log extends KafkaMetricsGroup {
                 if (segments.size() == numToDelete)
                     roll();
                 // remove the segments for lookups;
-
                 deletable.forEach(s -> deleteSegment(s));
             }
         }

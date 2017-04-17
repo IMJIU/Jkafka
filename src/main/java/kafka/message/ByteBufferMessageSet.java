@@ -4,6 +4,7 @@ package kafka.message;/**
 
 import com.google.common.collect.Lists;
 import kafka.utils.IteratorTemplate;
+import kafka.utils.Itor;
 import org.apache.commons.collections.CollectionUtils;
 
 import java.io.ByteArrayOutputStream;
@@ -12,7 +13,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.GatheringByteChannel;
-import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
@@ -28,11 +28,13 @@ public class ByteBufferMessageSet extends MessageSet {
     public ByteBufferMessageSet(ByteBuffer buffer) {
         this.buffer = buffer;
     }
+
     private static ByteBuffer create(AtomicLong offsetCounter, CompressionCodec compressionCodec, List<Message> messages) {
-        return create0(offsetCounter, compressionCodec, messages);
+        return _create0(offsetCounter, compressionCodec, messages);
     }
 
-    private static ByteBuffer create0(AtomicLong offsetCounter, CompressionCodec compressionCodec, List<Message> messages) {
+    private static ByteBuffer _create0(AtomicLong offsetCounter, CompressionCodec compressionCodec, List<Message> messages) {
+
         if (CollectionUtils.isEmpty(messages)) {
             return MessageSet.Empty.buffer;
         } else if (compressionCodec == CompressionCodec.NoCompressionCodec) {
@@ -74,29 +76,21 @@ public class ByteBufferMessageSet extends MessageSet {
     }
 
     private static ByteBuffer create(AtomicLong offsetCounter, CompressionCodec compressionCodec, Message... messages) {
-        return create0(offsetCounter, compressionCodec, Lists.newArrayList(messages));
+        return _create0(offsetCounter, compressionCodec, Lists.newArrayList(messages));
     }
 
-    public static ByteBufferMessageSet decompress(Message message) {
+    public static ByteBufferMessageSet decompress(Message message) throws IOException {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         InputStream inputStream = new ByteBufferBackedInputStream(message.payload());
         byte[] intermediateBuffer = new byte[1024];
         InputStream compressed = CompressionFactory.apply(message.compressionCodec(), inputStream);
         try {
-            try {
-                int len;
-                while ((len = compressed.read(intermediateBuffer)) > 0) {
-                    outputStream.write(intermediateBuffer, 0, len);
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
+            int len;
+            while ((len = compressed.read(intermediateBuffer)) > 0) {
+                outputStream.write(intermediateBuffer, 0, len);
             }
         } finally {
-            try {
-                compressed.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            compressed.close();
         }
         ByteBuffer outputBuffer = ByteBuffer.allocate(outputStream.size());
         outputBuffer.put(outputStream.toByteArray());
@@ -104,7 +98,7 @@ public class ByteBufferMessageSet extends MessageSet {
         return new ByteBufferMessageSet(outputBuffer);
     }
 
-     public static void writeMessage(ByteBuffer buffer, Message message, Long offset) {
+    public static void writeMessage(ByteBuffer buffer, Message message, Long offset) {
         buffer.putLong(offset);
         buffer.putInt(message.size());
         buffer.put(message.buffer);
@@ -123,12 +117,15 @@ public class ByteBufferMessageSet extends MessageSet {
     public ByteBufferMessageSet(CompressionCodec compressionCodec, Message... messages) {
         this(ByteBufferMessageSet.create(new AtomicLong(0), compressionCodec, messages));
     }
+
     public ByteBufferMessageSet(CompressionCodec compressionCodec, List<Message> messages) {
         this(ByteBufferMessageSet.create(new AtomicLong(0), compressionCodec, messages));
     }
+
     public ByteBufferMessageSet(CompressionCodec compressionCodec, AtomicLong offsetCounter, Message... messages) {
         this(ByteBufferMessageSet.create(offsetCounter, compressionCodec, messages));
     }
+
     public ByteBufferMessageSet(CompressionCodec compressionCodec, AtomicLong offsetCounter, List<Message> messages) {
         this(ByteBufferMessageSet.create(offsetCounter, compressionCodec, messages));
     }
@@ -136,7 +133,8 @@ public class ByteBufferMessageSet extends MessageSet {
     public ByteBufferMessageSet(Message... messages) {
         this(CompressionCodec.NoCompressionCodec, new AtomicLong(0), messages);
     }
-    public ByteBufferMessageSet(List<Message>messages) {
+
+    public ByteBufferMessageSet(List<Message> messages) {
         this(CompressionCodec.NoCompressionCodec, messages);
     }
 
@@ -156,7 +154,6 @@ public class ByteBufferMessageSet extends MessageSet {
         }
         return shallowValidByteCount;
     }
-
 
 
     /**
@@ -246,7 +243,11 @@ public class ByteBufferMessageSet extends MessageSet {
                             innerIterator = null;
                             return new MessageAndOffset(newMessage, offset);
                         default:
-                            innerIterator = ByteBufferMessageSet.decompress(newMessage).internalIterator(false);
+                            try {
+                                innerIterator = ByteBufferMessageSet.decompress(newMessage).internalIterator(false);
+                            } catch (IOException e) {
+                                error(e.getMessage(), e);
+                            }
                             if (!innerIterator.hasNext())
                                 innerIterator = null;
                             return makeNext();
@@ -260,7 +261,7 @@ public class ByteBufferMessageSet extends MessageSet {
      * Update the offsets for this message set. This method attempts to do an in-place conversion
      * if there is no compression, but otherwise recopies the messages
      */
-    public ByteBufferMessageSet assignOffsets(AtomicLong offsetCounter, CompressionCodec codec){
+    public ByteBufferMessageSet assignOffsets(AtomicLong offsetCounter, CompressionCodec codec) {
         if (codec == CompressionCodec.NoCompressionCodec) {
             // do an in-place conversion
             int position = 0;
@@ -274,11 +275,8 @@ public class ByteBufferMessageSet extends MessageSet {
             return this;
         } else {
             // messages are compressed, crack open the messageset and recompress with correct offset
-            Iterator<MessageAndOffset> it = this.internalIterator(false);
             List<Message> list = Lists.newArrayList();
-            while (it.hasNext()) {
-                list.add(it.next().message);
-            }
+            Itor.loop(this.internalIterator(false), m -> list.add(m.message));
             return new ByteBufferMessageSet(codec, offsetCounter, list);
         }
     }
@@ -315,7 +313,6 @@ public class ByteBufferMessageSet extends MessageSet {
     public int hashCode() {
         return buffer.hashCode();
     }
-
 
 
 }

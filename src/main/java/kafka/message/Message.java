@@ -41,20 +41,20 @@ public class Message {
                    CompressionCodec codec,
                    int payloadOffset,
                    int payloadSize) {
-        int playloadSize;
+        int _payloadSize;
         if (content == null) {
-            playloadSize = 0;
+            _payloadSize = 0;
         } else if (payloadSize >= 0) {
-            playloadSize = payloadSize;
+            _payloadSize = payloadSize;
         } else {
-            playloadSize = content.length - payloadOffset;
+            _payloadSize = content.length - payloadOffset;
         }
         buffer = ByteBuffer.allocate(Message.CrcLength +
                 Message.MagicLength +
                 Message.AttributesLength +
                 Message.KeySizeLength +
                 ((key == null) ? 0 : key.length) +
-                Message.ValueSizeLength + playloadSize);
+                Message.ValueSizeLength + _payloadSize);
         // skip crc, we will fill that in at the end
         buffer.position(MagicOffset);
         buffer.put(CurrentMagicValue);
@@ -69,17 +69,17 @@ public class Message {
             buffer.putInt(key.length);
             buffer.put(key, 0, key.length);
         }
-        int size;
+        int writePayLoadSize;
         if (content == null) {
-            size = -1;
+            writePayLoadSize = -1;
         } else if (payloadSize >= 0) {
-            size = payloadSize;
+            writePayLoadSize = payloadSize;
         } else {
-            size = content.length - payloadOffset;
+            writePayLoadSize = content.length - payloadOffset;
         }
-        buffer.putInt(size);
+        buffer.putInt(writePayLoadSize);
         if (content != null) {
-            buffer.put(content, payloadOffset, size);
+            buffer.put(content, payloadOffset, writePayLoadSize);
         }
         buffer.rewind();
 

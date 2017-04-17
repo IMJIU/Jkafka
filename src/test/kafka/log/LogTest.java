@@ -82,6 +82,7 @@ public class LogTest {
      * Specifically we create a log where the last message in the first segment has offset 0. If we
      * then read offset 1, we should expect this read to come from the second segment, even though the
      * first segment has the greatest lower bound on the offset.
+     * 两个segement 对之前的segment进行truncate 不影响log read()
      */
     @Test
     public void testReadAtLogGap() throws IOException {
@@ -99,6 +100,12 @@ public class LogTest {
         Assert.assertEquals("A read should now return the last message in the log", new Long(log.logEndOffset() - 1), log.read(1L, 200, Optional.empty()).messageSet.head().offset);
     }
 
+    /**
+     * 追加空信息
+     * 消息size-1
+     *
+     * @throws IOException
+     */
     @Test
     public void testAppendMessageWithNullPayload() throws IOException {
         Log log = new Log(logDir, new LogConfig(), 0L, time.scheduler, time);
@@ -113,6 +120,10 @@ public class LogTest {
      * Test reading at the boundary of the log, specifically
      * - reading from the logEndOffset should give an empty message set
      * - reading beyond the log end offset should throw an OffsetOutOfRangeException
+     * 读取边界值（初始1024offset)。
+     * 在segment内，但正好等于初始1024offset返回空消息
+     * 小于初始1024offset 报异常
+     * 大于最大nextOffset 报异常
      */
     @Test
     public void testReadOutOfRange() throws IOException {
@@ -135,20 +146,20 @@ public class LogTest {
 
     /**
      * This test case appends a bunch of messages and checks that we can read them all back using sequential offsets.
+     * 顺序连续offset校验，0,2,4..100 校验offset和value是否匹配
      */
     @Test
     public void testAppendAndReadWithSequentialOffsets() throws IOException {
         LogConfig copy = copy();
         copy.segmentSize = 71;
         Log log = new Log(logDir, copy, 0L, time.scheduler, time);
-        //50个 0-100
+        //50个 0,2,4...100
         List<Message> messages = Stream.iterate(0, n -> n + 2).limit(100).map(id -> new Message(id.toString().getBytes())).collect(Collectors.toList());
 
         for (int i = 0; i < messages.size(); i++)
             log.append(new ByteBufferMessageSet(CompressionCodec.NoCompressionCodec, messages.get(i)));
         for (long i = 0; i < messages.size(); i++) {
             MessageAndOffset read = log.read(i, 100, Optional.of(i + 1L)).messageSet.head();
-            logger2.warn("offset {} message {}", read.offset, read.message.toString());
             Assert.assertEquals("Offset read should match order appended.", new Long(i), read.offset);
             Assert.assertEquals("Message should match appended.", messages.get((int) i), read.message);
         }
@@ -158,6 +169,7 @@ public class LogTest {
     /**
      * This test appends a bunch of messages with non-sequential offsets and checks that we can read the correct message
      * from any offset less than the logEndOffset including offsets not appended.
+     * 非连续offset 校验
      */
     @Test
     public void testAppendAndReadWithNonSequentialOffsets() throws IOException {
@@ -187,17 +199,19 @@ public class LogTest {
 
     /**
      * Test reads at offsets that fall within compressed message set boundaries.
+     * 压缩校验
      */
     @Test
     public void testCompressedMessages() throws IOException {
+        //segmentSize=100 正好一条消息一个segment
     /* this log should roll after every messageset */
         Log log = new Log(logDir, getLogConfig(100), 0L, time.scheduler, time);
 
     /* append 2 compressed message sets, each with two messages giving offsets 0, 1, 2, 3 */
+        //offset[0,1]1
         log.append(new ByteBufferMessageSet(CompressionCodec.GZIPCompressionCodec, new Message("hello".getBytes()), new Message("there".getBytes())));
+        //offset[0,1]1[2,3]3
         log.append(new ByteBufferMessageSet(CompressionCodec.GZIPCompressionCodec, new Message("alpha".getBytes()), new Message("beta".getBytes())));
-
-
 
     /* we should always get the first message in the compressed set when reading any offset in the set */
         Assert.assertEquals("Read at offset 0 should produce 0", new Long(0), read(log, 0L).head().offset);
@@ -206,8 +220,11 @@ public class LogTest {
         Assert.assertEquals("Read at offset 3 should produce 2", new Long(2), read(log, 3L).head().offset);
     }
 
-    public ByteBufferMessageSet read(Log log, Long offset) {
-        return ByteBufferMessageSet.decompress(log.read(offset, 4096).messageSet.head().message);
+    public ByteBufferMessageSet read(Log log, Long offset) throws IOException {
+        FetchDataInfo fetchDataInfo = log.read(offset, 4096);
+        fetchDataInfo.messageSet.printAll();
+        ByteBufferMessageSet result = ByteBufferMessageSet.decompress(fetchDataInfo.messageSet.head().message);
+        return result;
     }
 
     /**
@@ -233,8 +250,7 @@ public class LogTest {
             Assert.assertEquals("Further collection shouldn't delete anything", new Integer(0), log.deleteOldSegments((s) -> true));
             Assert.assertEquals("Still no change in the logEndOffset", currOffset, log.logEndOffset());
             Assert.assertEquals("Should still be able to append and should get the logEndOffset assigned to the new append",
-                    currOffset,
-                    log.append(TestUtils.singleMessageSet("hello".toString().getBytes())).firstOffset);
+                    currOffset,log.append(TestUtils.singleMessageSet("hello".toString().getBytes())).firstOffset);
 
             // cleanup the log;
             log.delete();
@@ -244,6 +260,7 @@ public class LogTest {
     /**
      * MessageSet size shouldn't exceed the config.segmentSize, check that it is properly enforced by
      * appending a message set larger than the config.segmentSize setting and checking that an exception is thrown.
+     * 超过segmentSize 是否报错
      */
     @Test
     public void testMessageSetSizeCheck() throws IOException {
@@ -262,12 +279,14 @@ public class LogTest {
     /**
      * We have a max size limit on message appends, check that it is properly enforced by appending a message larger than the
      * setting and checking that an exception is thrown.
+     * 单条信息超过maxMessageSize是否报错
      */
     @Test
     public void testMessageSizeCheck() throws IOException {
         ByteBufferMessageSet first = new ByteBufferMessageSet(CompressionCodec.NoCompressionCodec, new Message("You".getBytes()), new Message("bethe".getBytes()));
         ByteBufferMessageSet second = new ByteBufferMessageSet(CompressionCodec.NoCompressionCodec, new Message("change".getBytes()));
-
+        System.out.println("first:"+first.sizeInBytes());
+        System.out.println("second:"+second.sizeInBytes());
         // append messages to log;
         LogConfig config = copy();
         config.maxMessageSize = second.sizeInBytes() - 1;
@@ -275,7 +294,6 @@ public class LogTest {
 
         // should be able to append the small message;
         log.append(first);
-
         try {
             log.append(second);
             Assert.fail("Second message set should throw MessageSizeTooLargeException.");
@@ -530,7 +548,6 @@ public class LogTest {
     }
 
 
-
     @Test
     public void testCorruptLog() throws IOException {
         // append some messages to create some segments;
@@ -604,7 +621,7 @@ public class LogTest {
         LogConfig config = logConfig.clone();
         config.segmentMs = 1 * 60 * 60L;
         // create a log;
-        Log log = new Log(logDir,config,0L, time.scheduler,  time);
+        Log log = new Log(logDir, config, 0L, time.scheduler, time);
         Assert.assertEquals("Log begins with a single empty segment.", new Integer(1), log.numberOfSegments());
         time.sleep(log.config.segmentMs + 1);
         log.append(set);
@@ -636,7 +653,7 @@ public class LogTest {
         LogConfig config = logConfig.clone();
         config.segmentMs = 1 * 60 * 60L;
         // create a log;
-        Log log = new Log(logDir,config, 0L,  time.scheduler,time);
+        Log log = new Log(logDir, config, 0L, time.scheduler, time);
         Assert.assertEquals("Log begins with a single empty segment.", new Integer(1), log.numberOfSegments());
         log.append(set);
 

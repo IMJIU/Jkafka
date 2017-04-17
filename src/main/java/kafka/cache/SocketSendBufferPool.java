@@ -16,32 +16,65 @@
 package kafka.cache;
 
 import sun.nio.ch.DirectBuffer;
+
 import java.io.IOException;
 import java.lang.ref.SoftReference;
 import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.DatagramChannel;
-import java.nio.channels.GatheringByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.util.Random;
+import java.util.Vector;
+import java.util.concurrent.atomic.AtomicInteger;
 
 final class SocketSendBufferPool {
 
     private static final SendBuffer EMPTY_BUFFER = new EmptySendBuffer();
 
-    private static final int DEFAULT_PREALLOCATION_SIZE = 33;
+    private static final int DEFAULT_PREALLOCATION_SIZE = 1024 * 1024;
     private static final int ALIGN_SHIFT = 4;
     private static final int ALIGN_MASK = 15;
 
     private PreAllocationRef poolHead;
     private PreAllocation current = new PreAllocation(DEFAULT_PREALLOCATION_SIZE);
+    private AtomicInteger totalCacheSize = new AtomicInteger();
+    private final int MAX_CACHE_SIZE = 1024 * 1024 * 30;//共30MB
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException {
+        testUnit();
+    }
+
+    private static void testUnit() throws InterruptedException {
         SocketSendBufferPool pool = new SocketSendBufferPool();
-        byte[] ch = new String("11111111111111111111111").getBytes();
-        SendBuffer sb = pool.acquire(ch);
-        pool.acquire(ch);
-        sb.release();
-        pool.acquire(ch);
+        int i = 0;
+        Vector<SendBuffer> list = new Vector<>();
+        new Thread(() -> {
+            Random random = new Random();
+            while (true) {
+                try {
+                    Thread.sleep(random.nextInt(4000));
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                while (list.size() > 0) {
+                    SendBuffer sb = list.remove(0);
+                    if (sb != null) sb.release();
+                }
+            }
+        }).start();
+        while (true) {
+            byte[] ch = new byte[DEFAULT_PREALLOCATION_SIZE / 15];  //  100/15~=6 MB一秒
+            SendBuffer sb = pool.acquire(ch);
+            list.add(sb);
+            if ((i++) % 100 == 0) {
+                pool.info();
+                Thread.sleep(1000);
+            }
+        }
+    }
+
+    private void info() {
+        System.out.println("total:" + totalCacheSize + " Max:" + MAX_CACHE_SIZE);
     }
 
 
@@ -94,7 +127,6 @@ final class SocketSendBufferPool {
             current.buffer.clear();
             return current;
         }
-
         return getPreAllocation0();
     }
 
@@ -104,7 +136,6 @@ final class SocketSendBufferPool {
             do {
                 PreAllocation p = ref.get();
                 ref = ref.next;
-
                 if (p != null) {
                     poolHead = ref;
                     return p;
@@ -112,7 +143,7 @@ final class SocketSendBufferPool {
             } while (ref != null);
             poolHead = ref;
         }
-
+        totalCacheSize.addAndGet(DEFAULT_PREALLOCATION_SIZE);
         return new PreAllocation(DEFAULT_PREALLOCATION_SIZE);
     }
 
@@ -137,25 +168,38 @@ final class SocketSendBufferPool {
     private final class PreAllocationRef extends SoftReference<PreAllocation> {
         final PreAllocationRef next;
 
-        PreAllocationRef(PreAllocation preAlloation, PreAllocationRef next) {
-            super(preAlloation);
+        PreAllocationRef(PreAllocation preAllocation, PreAllocationRef next) {
+            super(preAllocation);
             this.next = next;
         }
     }
 
-    interface SendBuffer {
-        boolean finished();
 
-        long writtenBytes();
+    final class PooledSendBuffer extends UnpooledSendBuffer {
 
-        long totalBytes();
+        private final PreAllocation parent;
 
-        long transferTo(WritableByteChannel ch) throws IOException;
+        PooledSendBuffer(PreAllocation parent, ByteBuffer buffer) {
+            super(buffer);
+            this.parent = parent;
+        }
 
-        long transferTo(DatagramChannel ch, SocketAddress raddr) throws IOException;
-
-        void release();
+        @Override
+        public void release() {
+            final PreAllocation parent = this.parent;
+            if (--parent.refCnt == 0) {
+                parent.buffer.clear();
+                if (totalCacheSize.intValue() > MAX_CACHE_SIZE) {
+                    totalCacheSize.addAndGet(-DEFAULT_PREALLOCATION_SIZE);
+                } else {
+                    if (parent != current) {
+                        poolHead = new PreAllocationRef(parent, poolHead);
+                    }
+                }
+            }
+        }
     }
+
 
     static class UnpooledSendBuffer implements SendBuffer {
 
@@ -164,7 +208,6 @@ final class SocketSendBufferPool {
 
         UnpooledSendBuffer(ByteBuffer buffer) {
             this.buffer = buffer;
-            this.buffer.put(buffer);
             initialPos = buffer.position();
         }
 
@@ -197,102 +240,8 @@ final class SocketSendBufferPool {
         public void release() {
             // Unpooled.
         }
+
     }
-
-    final class PooledSendBuffer extends UnpooledSendBuffer {
-
-        private final PreAllocation parent;
-
-        PooledSendBuffer(PreAllocation parent, ByteBuffer buffer) {
-            super(buffer);
-            this.parent = parent;
-        }
-
-        @Override
-        public void release() {
-            final PreAllocation parent = this.parent;
-            if (--parent.refCnt == 0) {
-                parent.buffer.clear();
-                if (parent != current) {
-                    poolHead = new PreAllocationRef(parent, poolHead);
-                }
-            }
-        }
-    }
-
-    static class GatheringSendBuffer implements SendBuffer {
-
-        private final ByteBuffer[] buffers;
-        private final int last;
-        private long written;
-        private final int total;
-
-        GatheringSendBuffer(ByteBuffer[] buffers) {
-            this.buffers = buffers;
-            last = buffers.length - 1;
-            int total = 0;
-            for (ByteBuffer buf : buffers) {
-                total += buf.remaining();
-            }
-            this.total = total;
-        }
-
-        public boolean finished() {
-            return !buffers[last].hasRemaining();
-        }
-
-        public long writtenBytes() {
-            return written;
-        }
-
-        public long totalBytes() {
-            return total;
-        }
-
-        public long transferTo(WritableByteChannel ch) throws IOException {
-            if (ch instanceof GatheringByteChannel) {
-                long w = ((GatheringByteChannel) ch).write(buffers);
-                written += w;
-                return w;
-            } else {
-                int send = 0;
-                for (ByteBuffer buf : buffers) {
-                    if (buf.hasRemaining()) {
-                        int w = ch.write(buf);
-                        if (w == 0) {
-                            break;
-                        } else {
-                            send += w;
-                        }
-                    }
-                }
-                written += send;
-                return send;
-            }
-        }
-
-        public long transferTo(DatagramChannel ch, SocketAddress raddr) throws IOException {
-            int send = 0;
-            for (ByteBuffer buf : buffers) {
-                if (buf.hasRemaining()) {
-                    int w = ch.send(buf, raddr);
-                    if (w == 0) {
-                        break;
-                    } else {
-                        send += w;
-                    }
-                }
-            }
-            written += send;
-
-            return send;
-        }
-
-        public void release() {
-            // nothing todo
-        }
-    }
-
 
     static final class EmptySendBuffer implements SendBuffer {
 
@@ -323,11 +272,25 @@ final class SocketSendBufferPool {
 
     public void releaseExternalResources() {
         if (current.buffer != null) {
-            if(current.buffer.isDirect()){
-                ((DirectBuffer)current.buffer).cleaner().clean();
-            }else{
+            if (current.buffer.isDirect()) {
+                ((DirectBuffer) current.buffer).cleaner().clean();
+            } else {
                 current.buffer.clear();
             }
         }
+    }
+
+    interface SendBuffer {
+        boolean finished();
+
+        long writtenBytes();
+
+        long totalBytes();
+
+        long transferTo(WritableByteChannel ch) throws IOException;
+
+        long transferTo(DatagramChannel ch, SocketAddress raddr) throws IOException;
+
+        void release();
     }
 }
