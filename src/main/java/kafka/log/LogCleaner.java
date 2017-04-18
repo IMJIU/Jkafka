@@ -51,7 +51,7 @@ import java.util.stream.Stream;
  */
 public class LogCleaner extends KafkaMetricsGroup {
     public CleanerConfig config;
-    public File[] logDirs;
+    public List<File> logDirs;
     public Pool<TopicAndPartition, Log> logs;
     public Time time;
 
@@ -70,7 +70,7 @@ public class LogCleaner extends KafkaMetricsGroup {
      * @param logs    The pool of logs
      * @param time    A way to control the passage of time
      */
-    public LogCleaner(CleanerConfig config, File[] logDirs, Pool<TopicAndPartition, Log> logs, Time time) {
+    public LogCleaner(CleanerConfig config, List<File> logDirs, Pool<TopicAndPartition, Log> logs, Time time) {
         this.config = config;
         this.logDirs = logDirs;
         this.logs = logs;

@@ -29,11 +29,11 @@ import java.util.stream.Collectors;
  * requested to be resumed.
  */
 public class LogCleanerManager extends KafkaMetricsGroup {
-    File[] logDirs;
+    List<File> logDirs;
     Pool<TopicAndPartition, Log> logs;
 
 
-    public LogCleanerManager(File[] logDirs, Pool<TopicAndPartition, Log> logs) {
+    public LogCleanerManager(List<File> logDirs, Pool<TopicAndPartition, Log> logs) {
         this.logDirs = logDirs;
         this.logs = logs;
         loggerName(LogCleanerManager.class.getName());

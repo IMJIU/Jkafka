@@ -259,7 +259,7 @@ public class LogSegment extends Logging {
                 log.flush();
                 index.flush();
             } catch (IOException e) {
-                error(e.getMessage(),e);
+                error(e.getMessage(), e);
             }
             return 0;
         });
@@ -282,12 +282,12 @@ public class LogSegment extends Logging {
      * Close this log segment
      */
     public void close() {
-        Utils.swallow(() -> index.close(), (e) -> log.debug(e.getMessage(),e));
+        Utils.swallow(() -> index.close(), (e) -> log.debug(e.getMessage(), e));
         // TODO: 2017/3/30 close
         try {
             log.close();
         } catch (IOException e) {
-            e.printStackTrace();
+            error(e.getMessage(), e);
         }
     }
 

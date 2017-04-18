@@ -12,5 +12,5 @@ import java.util.Map;
  **/
 @FunctionalInterface
 public interface Action {
-    void invoke() throws IOException;
+    void invoke();
 }

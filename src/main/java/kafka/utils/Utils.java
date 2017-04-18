@@ -2,9 +2,11 @@ package kafka.utils;/**
  * Created by zhoulf on 2017/3/22.
  */
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import kafka.func.*;
 import kafka.log.Log;
+import kafka.log.TopicAndPartition;
 
 import java.io.*;
 import java.nio.ByteBuffer;
@@ -27,8 +29,8 @@ import java.util.zip.CRC32;
  * 2. It is the most general possible utility, not just the thing you needed in one particular place
  * 3. You have tests for it if it is nontrivial in any way
  */
-public class Utils extends Logging {
-    private static Logging logger = new Logging();
+public class Utils {
+    private static Logging logger = Logging.create(Utils.class.getName());
 
     /**
      * Wrap the given function in a java.lang.Runnable
@@ -155,18 +157,24 @@ public class Utils extends Logging {
             return new FileInputStream(file).getChannel();
     }
 
-    //
-//        /**
-//         * Do the given action and log any exceptions thrown without rethrowing them
-//         * @param log The log method to use for logging. E.g. logger.warn
-//         * @param action The action to execute
-//         */
-    public static void swallow(Action action, ActionWithP<Throwable> logAction) {
+
+    /**
+     * Do the given action and log any exceptions thrown without rethrowing them
+     *
+     * @param log    The log method to use for logging. E.g. logger.warn
+     * @param action The action to execute
+     */
+    public static void swallow(Action action, ActionWithP<Throwable> log) {
         try {
             action.invoke();
         } catch (Exception e) {
-            logAction.invoke(e);
+            if (log != null)
+                log.invoke(e);
         }
+    }
+
+    public static void swallow(Action action) {
+        swallow(action, null);
     }
 //
 //        /**
@@ -765,4 +773,35 @@ public class Utils extends Logging {
                 | (buffer[offset] << 8 * 3);
     }
 
+    public static <T, K> Map<K, List<T>> groupBy(Iterable<T> it, Processor<T, K> processor) {
+        Map<K, List<T>> result = Maps.newHashMap();
+        for (T t : it) {
+            K key = processor.process(t);
+            List<T> itemList = result.getOrDefault(key, Lists.newArrayList());
+            itemList.add(t);
+            result.put(key, itemList);
+        }
+        return result;
+    }
+
+    public static <K, V, V2> Map<V2, Map<K, V>> groupBy(Map<K, V> map, Processor<V, V2> processor) {
+        Map<V2, Map<K, V>> maps = Maps.newHashMap();
+        for (Map.Entry<K, V> entry : map.entrySet()) {
+            V2 tag = processor.process(entry.getValue());
+            Map<K, V> m = maps.getOrDefault(tag, Maps.newHashMap());
+            m.put(entry.getKey(), entry.getValue());
+            maps.put(tag, m);
+        }
+        return maps;
+    }
+
+    public static <K, V, V2> Map<K, V2> map(Map<K, V> map, Processor<V, V2> processor) {
+        Map<K, V2> result = Maps.newHashMap();
+        if (map != null) {
+            for (Map.Entry<K, V> entry : map.entrySet()) {
+                result.put(entry.getKey(), processor.process(entry.getValue()));
+            }
+        }
+        return result;
+    }
 }

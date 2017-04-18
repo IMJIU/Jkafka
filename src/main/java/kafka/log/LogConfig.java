@@ -32,6 +32,8 @@ public class LogConfig implements Cloneable{
     public Boolean uncleanLeaderElectionEnable;
     public Integer minInSyncReplicas;
 
+
+
     interface Defaults {
         Integer SegmentSize = 1024 * 1024;
         Long SegmentMs = Long.MAX_VALUE;
