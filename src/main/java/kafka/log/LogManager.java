@@ -16,6 +16,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
@@ -295,7 +296,15 @@ public class LogManager extends Logging {
         try {
             for (File dir : jobs.keySet()) {
                 Set<Future> dirJobs = jobs.get(dir);
-                dirJobs.forEach(job -> job.get());
+                dirJobs.forEach(job -> {
+                    try {
+                        job.get();
+                    } catch (InterruptedException e) {
+                        error(e.getMessage(), e);
+                    } catch (ExecutionException e) {
+                        error("There was an error in one of the threads during LogManager shutdown: " + e.getCause());
+                    }
+                });
 
                 // update the last flush point;
                 debug("Updating recovery points at " + dir);
@@ -311,12 +320,6 @@ public class LogManager extends Logging {
                     }
                 });
             }
-        } catch (InterruptedException e) {
-            error("There was an error in one of the threads during LogManager shutdown: " + e.getCause());
-            throw e.getCause();
-        } catch (ExecutionException e) {
-            error("There was an error in one of the threads during LogManager shutdown: " + e.getCause());
-            throw e.getCause();
         } finally {
             threadPools.forEach(t -> t.shutdown());
             // regardless of whether the close succeeded, we need to unlock the data directories;
@@ -471,11 +474,11 @@ public class LogManager extends Logging {
             Map<String, Integer> logCounts = Utils.map(Utils.groupBy(allLogs(), log -> log.dir.getParent()), list -> list.size());
             Map<String, Integer> zeros = logDirs.stream().map(dir -> Tuple.of(dir.getPath(), 0)).collect(Collectors.toMap(t -> t.v1, t -> t.v2));
             zeros.putAll(logCounts);
-            var dirCounts = (zeros++ logCounts).toBuffer;
-
-            // choose the directory with the least logs in it;
-            val leastLoaded = dirCounts.sortBy(_._2).head;
-            new File(leastLoaded._1);
+//            var dirCounts = (zeros++ logCounts).toBuffer;
+//            // choose the directory with the least logs in it;
+//            val leastLoaded = dirCounts.sortBy(_._2).head;
+            Map.Entry<String, Integer> leastLoaded = zeros.entrySet().stream().sorted((o1, o2) -> o1.getValue() - o2.getValue()).findFirst().get();
+            return new File(leastLoaded.getKey());
         }
     }
 
@@ -491,13 +494,13 @@ public class LogManager extends Logging {
      * Runs through the log removing segments until the size of the log
      * is at least logRetentionSize bytes in size
      */
-    private Integer cleanupSegmentsToMaintainSize(Log log) {
+    private Integer cleanupSegmentsToMaintainSize(Log log) throws IOException {
         if (log.config.retentionSize < 0 || log.size() < log.config.retentionSize)
             return 0;
-        final Long diff = log.size() - log.config.retentionSize;
+        final AtomicLong diff = new AtomicLong(log.size() - log.config.retentionSize);
         return log.deleteOldSegments((segment) -> {
-            if (diff - segment.size() >= 0) {
-                diff -= segment.size();
+            if (diff.addAndGet(-segment.size()) >= 0) {
+                diff.addAndGet(-segment.size());
                 return true;
             } else {
                 return false;
