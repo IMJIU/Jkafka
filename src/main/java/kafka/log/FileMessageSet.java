@@ -2,6 +2,8 @@ package kafka.log;
 
 import kafka.common.KafkaException;
 import kafka.message.*;
+import kafka.metrics.KafkaMetricsGroup;
+import kafka.metrics.KafkaTimer;
 import kafka.utils.IteratorTemplate;
 import kafka.utils.Utils;
 
@@ -12,6 +14,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.GatheringByteChannel;
 import java.util.Iterator;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -147,7 +150,7 @@ public class FileMessageSet extends MessageSet {
                 position += MessageSet.LogOverhead + messageSize;
             }
         } catch (IOException e) {
-           error(e.getMessage(),e);
+            error(e.getMessage(), e);
         }
         return null;
     }
@@ -319,4 +322,8 @@ public class FileMessageSet extends MessageSet {
         this.file = f;
         return success;
     }
+}
+
+class LogFlushStats extends KafkaMetricsGroup {
+    public static KafkaTimer logFlushTimer = new KafkaTimer(newTimer("LogFlushRateAndTimeMs", TimeUnit.MILLISECONDS, TimeUnit.SECONDS, null));
 }
