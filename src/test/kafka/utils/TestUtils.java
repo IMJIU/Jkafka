@@ -793,7 +793,7 @@ public class TestUtils {
     /**
      * Create new LogManager instance with default configuration for testing
      */
-    public static LogManager createLogManager(List<File> logDirs, LogConfig defaultConfig, CleanerConfig cleanerConfig, MockTime time) throws Exception {
+    public static LogManager createLogManager(List<File> logDirs, LogConfig defaultConfig, CleanerConfig cleanerConfig, MockTime time) throws IOException {
         return new LogManager(
                 logDirs,
                 Maps.newHashMap(),
@@ -808,6 +808,7 @@ public class TestUtils {
                 time
         );
     }
+
 
 
 //

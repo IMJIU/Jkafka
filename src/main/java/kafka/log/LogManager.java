@@ -75,7 +75,7 @@ public class LogManager extends Logging {
                 retentionCheckMs, scheduler, brokerState, time);
     }
 
-    public LogManager(List<File> logDirs, Map<String, LogConfig> topicConfigs, LogConfig defaultConfig, CleanerConfig cleanerConfig, java.lang.Integer ioThreads, Long flushCheckMs, Long flushCheckpointMs, Long retentionCheckMs, Scheduler scheduler, BrokerState brokerState, Time time) throws Exception {
+    public LogManager(List<File> logDirs, Map<String, LogConfig> topicConfigs, LogConfig defaultConfig, CleanerConfig cleanerConfig, java.lang.Integer ioThreads, Long flushCheckMs, Long flushCheckpointMs, Long retentionCheckMs, Scheduler scheduler, BrokerState brokerState, Time time) throws IOException {
         this.logDirs = logDirs;
         this.topicConfigs = topicConfigs;
         this.defaultConfig = defaultConfig;
@@ -90,7 +90,7 @@ public class LogManager extends Logging {
         init();
     }
 
-    public void init() throws Exception {
+    public void init() throws IOException {
         createAndValidateLogDirs(logDirs);
         dirLocks = lockLogDirs(logDirs);
         recoveryPointCheckpoints = logDirs.stream().map(dir -> {
@@ -120,9 +120,9 @@ public class LogManager extends Logging {
      * </ol>
      */
     private void createAndValidateLogDirs(List<File> dirs) {
-        if (dirs.stream().map(d -> {
+        if (dirs.stream().map(dir -> {
             try {
-                return d.getCanonicalPath();
+                return dir.getCanonicalPath();
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -150,7 +150,9 @@ public class LogManager extends Logging {
             try {
                 lock = new FileLock(new File(dir, LockFile));
             } catch (IOException e) {
-                error(e.getMessage(),e);
+                error(e.getMessage(), e);
+                throw new KafkaException("Failed to acquire lock on file .lock in " + lock.file.getParentFile().getAbsolutePath() +
+                        ". A Kafka instance in another process or thread is using this directory.");
             }
             if (!lock.tryLock())
                 throw new KafkaException("Failed to acquire lock on file .lock in " + lock.file.getParentFile().getAbsolutePath() +
@@ -163,7 +165,7 @@ public class LogManager extends Logging {
      * Recover and load all logs in the given data directories
      * 加载目录下所有的topic-partition到 Pool logs<TopicAndPartition, Log>
      */
-    private void loadLogs() throws Exception {
+    private void loadLogs() throws IOException {
         info("Loading logs.");
 
         List<ExecutorService> threadPools = Lists.newArrayList();
@@ -275,7 +277,7 @@ public class LogManager extends Logging {
     /**
      * Close all the logs
      */
-    public void shutdown() throws Throwable {
+    public void shutdown() throws IOException {
         info("Shutting down.");
 
         List<ExecutorService> threadPools = Lists.newArrayList();

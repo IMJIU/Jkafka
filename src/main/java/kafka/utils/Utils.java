@@ -804,4 +804,14 @@ public class Utils {
         }
         return result;
     }
+
+    public static <T> int size(Iterable<T> iterable) {
+        Iterator<T> it = iterable.iterator();
+        int size = 0;
+        while(it.hasNext()){
+            it.next();
+            size++;
+        }
+        return size;
+    }
 }

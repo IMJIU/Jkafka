@@ -1,6 +1,9 @@
 package kafka.log;
 
 import com.google.common.collect.Lists;
+import kafka.common.KafkaException;
+import kafka.common.OffsetOutOfRangeException;
+import kafka.message.ByteBufferMessageSet;
 import kafka.utils.MockTime;
 import kafka.utils.TestUtils;
 import kafka.utils.Utils;
@@ -11,7 +14,10 @@ import org.junit.Test;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * @author
@@ -65,205 +71,216 @@ public class LogManagerTest {
      * Test that get on a non-existent returns None and no log is created.
      */
     @Test
-   public void testGetNonExistentLog() {
+    public void testGetNonExistentLog() {
         Optional<Log> log = logManager.getLog(new TopicAndPartition(name, 0));
-       Assert.assertEquals("No log should be found.", Optional.empty(), log);
+        Assert.assertEquals("No log should be found.", Optional.empty(), log);
         File logFile = new File(logDir, name + "-0");
         Assert.assertTrue(!logFile.exists());
     }
-//
-//    /**
-//     * Test time-based log cleanup. First append messages, then set the time into the future and run cleanup.
-//     */
-//    @Test
-//   public void testCleanupExpiredSegments() {
-//        val log = logManager.createLog(TopicAndPartition(name, 0), logConfig);
-//        var offset = 0L;
-//        for(int i = 0; i < 200; i++) {
-//            var set = TestUtils.singleMessageSet("test".getBytes());
-//            val info = log.append(set);
-//            offset = info.lastOffset;
-//        }
-//        assertTrue("There should be more than one segment now.", log.numberOfSegments > 1);
-//
-//        log.logSegments.foreach(_.log.file.setLastModified(time.milliseconds))
-//
-//        time.sleep(maxLogAgeMs + 1);
-//       Assert.assertEquals("Now there should only be only one segment in the index.", 1, log.numberOfSegments);
-//        time.sleep(log.config.fileDeleteDelayMs + 1);
-//       Assert.assertEquals("Files should have been deleted", log.numberOfSegments * 2, log.dir.list.length);
-//       Assert.assertEquals("Should get empty fetch off new log.", 0, log.read(offset+1, 1024).messageSet.sizeInBytes);
-//
-//        try {
-//            log.read(0, 1024);
-//            fail("Should get exception from fetching earlier.");
-//        } catch {
-//            case OffsetOutOfRangeException e => "This is good.";
-//        }
-//        // log should still be appendable;
-//        log.append(TestUtils.singleMessageSet("test".getBytes()));
-//    }
-//
-//    /**
-//     * Test size-based cleanup. Append messages, then run cleanup and check that segments are deleted.
-//     */
-//    @Test
-//   public void testCleanupSegmentsToMaintainSize() {
-//        val setSize = TestUtils.singleMessageSet("test".getBytes()).sizeInBytes;
-//        logManager.shutdown();
-//
-//        val config = logConfig.copy(segmentSize = 10 * setSize, retentionSize = 5L * 10L * setSize + 10L);
-//        logManager = createLogManager();
-//        logManager.startup;
-//
-//        // create a log;
-//        val log = logManager.createLog(TopicAndPartition(name, 0), config);
-//        var offset = 0L;
-//
-//        // add a bunch of messages that should be larger than the retentionSize;
-//        val numMessages = 200;
-//        for(i <- 0 until numMessages) {
-//            val set = TestUtils.singleMessageSet("test".getBytes());
-//            val info = log.append(set);
-//            offset = info.firstOffset;
-//        }
-//
-//       Assert.assertEquals("Check we have the expected number of segments.", numMessages * setSize / config.segmentSize, log.numberOfSegments);
-//
-//        // this cleanup shouldn't find any expired segments but should delete some to reduce size;
-//        time.sleep(logManager.InitialTaskDelayMs);
-//       Assert.assertEquals("Now there should be exactly 6 segments", 6, log.numberOfSegments);
-//        time.sleep(log.config.fileDeleteDelayMs + 1);
-//       Assert.assertEquals("Files should have been deleted", log.numberOfSegments * 2, log.dir.list.length);
-//       Assert.assertEquals("Should get empty fetch off new log.", 0, log.read(offset + 1, 1024).messageSet.sizeInBytes);
-//        try {
-//            log.read(0, 1024);
-//            fail("Should get exception from fetching earlier.");
-//        } catch {
-//            case OffsetOutOfRangeException e => "This is good.";
-//        }
-//        // log should still be appendable;
-//        log.append(TestUtils.singleMessageSet("test".getBytes()));
-//    }
-//
-//    /**
-//     * Test that flush is invoked by the background scheduler thread.
-//     */
-//    @Test
-//   public void testTimeBasedFlush() {
-//        logManager.shutdown();
-//        val config = logConfig.copy(flushMs = 1000);
-//        logManager = createLogManager();
-//        logManager.startup;
-//        val log = logManager.createLog(TopicAndPartition(name, 0), config);
-//        val lastFlush = log.lastFlushTime;
-//        for(int i = 0; i < 200; i++) {
-//            var set = TestUtils.singleMessageSet("test".getBytes());
-//            log.append(set);
-//        }
-//        time.sleep(logManager.InitialTaskDelayMs);
-//        assertTrue("Time based flush should have been triggered triggered", lastFlush != log.lastFlushTime);
-//    }
-//
-//    /**
-//     * Test that new logs that are created are assigned to the least loaded log directory
-//     */
-//    @Test
-//   public void testLeastLoadedAssignment() {
-//        // create a log manager with multiple data directories;
-//        val dirs = Array(TestUtils.tempDir(),
-//                TestUtils.tempDir(),
-//                TestUtils.tempDir());
-//        logManager.shutdown();
-//        logManager = createLogManager();
-//
-//        // verify that logs are always assigned to the least loaded partition;
-//        for(int partition = 0; partition < 20; partition++) {
-//            logManager.createLog(TopicAndPartition("test", partition), logConfig);
-//           Assert.assertEquals("We should have created the right number of logs", partition + 1, logManager.allLogs.size);
-//            val counts = logManager.allLogs.groupBy(_.dir.getParent).values.map(_.size);
-//            assertTrue("Load should balance evenly", counts.max <= counts.min + 1);
-//        }
-//    }
-//
-//    /**
-//     * Test that it is not possible to open two log managers using the same data directory
-//     */
-//    @Test
-//   public void testTwoLogManagersUsingSameDirFails() {
-//        try {
-//            createLogManager();
-//            fail("Should not be able to create a second log manager instance with the same data directory");
-//        } catch {
-//            case KafkaException e => // this is good;
-//        }
-//    }
-//
-//    /**
-//     * Test that recovery points are correctly written out to disk
-//     */
-//    @Test
-//   public void testCheckpointRecoveryPoints() {
-//        verifyCheckpointRecovery(Seq(TopicAndPartition("test-a", 1), TopicAndPartition("test-b", 1)), logManager)
-//    }
-//
-//    /**
-//     * Test that recovery points directory checking works with trailing slash
-//     */
-//    @Test
-//   public void testRecoveryDirectoryMappingWithTrailingSlash() {
-//        logManager.shutdown();
-//        logDir = TestUtils.tempDir();
-//        logManager = TestUtils.createLogManager(
-//                logDirs = Array(new File(logDir.getAbsolutePath + File.separator)));
-//        logManager.startup;
-//        verifyCheckpointRecovery(Seq(TopicAndPartition("test-a", 1)), logManager)
-//    }
-//
-//    /**
-//     * Test that recovery points directory checking works with relative directory
-//     */
-//    @Test
-//   public void testRecoveryDirectoryMappingWithRelativeDirectory() {
-//        logManager.shutdown();
-//        logDir = new File("data" + File.separator + logDir.getName);
-//        logDir.mkdirs();
-//        logDir.deleteOnExit();
-//        logManager = createLogManager();
-//        logManager.startup;
-//        verifyCheckpointRecovery(Seq(TopicAndPartition("test-a", 1)), logManager)
-//    }
-//
-//
-//    privatepublic void verifyCheckpointRecovery(Seq topicAndPartitions<TopicAndPartition>,
-//                                         LogManager logManager) {
-//        val logs = topicAndPartitions.map(this.logManager.createLog(_, logConfig));
-//        logs.foreach(log => {
-//        for(int i = 0; i < 50; i++)
-//        log.append(TestUtils.singleMessageSet("test".getBytes()));
-//
-//        log.flush();
-//    });
-//
-//        logManager.checkpointRecoveryPointOffsets();
-//        val checkpoints = new OffsetCheckpoint(new File(logDir, logManager.RecoveryPointCheckpointFile)).read();
-//
-//        topicAndPartitions.zip(logs).foreach {
-//            case(tp, log) => {
-//               Assert.assertEquals("Recovery point should equal checkpoint", checkpoints(tp), log.recoveryPoint);
-//            }
-//        }
-//    }
-//
-//
-    private LogManager createLogManager() throws Exception {
+
+    /**
+     * Test time-based log cleanup. First append messages, then set the time into the future and run cleanup.
+     */
+    @Test
+    public void testCleanupExpiredSegments() throws IOException {
+        Log log = logManager.createLog(new TopicAndPartition(name, 0), logConfig);
+        Long offset = 0L;
+        for (int i = 0; i < 200; i++) {
+            ByteBufferMessageSet set = TestUtils.singleMessageSet("test".getBytes());
+            LogAppendInfo info = log.append(set);
+            offset = info.lastOffset;
+        }
+        Assert.assertTrue("There should be more than one segment now.", log.numberOfSegments() > 1);
+
+        log.logSegments().forEach(s -> s.log.file.setLastModified(time.milliseconds()));
+
+        time.sleep(maxLogAgeMs + 1);
+        Assert.assertEquals("Now there should only be only one segment in the index.", new Integer(1), log.numberOfSegments());
+        time.sleep(log.config.fileDeleteDelayMs + 1);
+        Assert.assertEquals("Files should have been deleted", log.numberOfSegments() * 2, log.dir.list().length);
+        Assert.assertEquals("Should get empty fetch off new log.", new Integer(0), log.read(offset + 1, 1024).messageSet.sizeInBytes());
+
+        try {
+            log.read(0L, 1024);
+            Assert.fail("Should get exception from fetching earlier.");
+        } catch (OffsetOutOfRangeException e) {
+            System.out.println("This is good.");
+        }
+        // log should still be appendable;
+        log.append(TestUtils.singleMessageSet("test".getBytes()));
+    }
+
+
+    /**
+     * Test size-based cleanup. Append messages, then run cleanup and check that segments are deleted.
+     */
+    @Test
+    public void testCleanupSegmentsToMaintainSize() throws Throwable {
+        Integer setSize = TestUtils.singleMessageSet("test".getBytes()).sizeInBytes();
+        logManager.shutdown();
+
+        LogConfig config = logConfig.copy(10 * setSize);
+        config.retentionSize = 5L * 10L * setSize + 10L;
+        logManager = createLogManager();
+        logManager.startup();
+
+        // create a log;
+        Log log = logManager.createLog(new TopicAndPartition(name, 0), config);
+        Long offset = 0L;
+
+        // add a bunch of messages that should be larger than the retentionSize;
+        Integer numMessages = 200;
+        for (int i = 0; i < numMessages; i++) {
+            ByteBufferMessageSet set = TestUtils.singleMessageSet("test".getBytes());
+            LogAppendInfo info = log.append(set);
+            offset = info.firstOffset;
+        }
+
+        Assert.assertEquals("Check we have the expected number of segments.", new Integer(numMessages * setSize / config.segmentSize), log.numberOfSegments());
+
+        // this cleanup shouldn't find any expired segments but should delete some to reduce size;
+        time.sleep(logManager.InitialTaskDelayMs);
+        Assert.assertEquals("Now there should be exactly 6 segments", new Integer(6), log.numberOfSegments());
+        time.sleep(log.config.fileDeleteDelayMs + 1);
+        Assert.assertEquals("Files should have been deleted", log.numberOfSegments() * 2, log.dir.list().length);
+        Assert.assertEquals("Should get empty fetch off new log.", new Integer(0), log.read(offset + 1, 1024).messageSet.sizeInBytes());
+
+        try {
+            log.read(0L, 1024);
+            Assert.fail("Should get exception from fetching earlier.");
+        } catch (OffsetOutOfRangeException e) {
+            System.out.println("This is good.");
+        }
+        // log should still be appendable;
+        log.append(TestUtils.singleMessageSet("test".getBytes()));
+    }
+
+    /**
+     * Test that flush is invoked by the background scheduler thread.
+     */
+    @Test
+    public void testTimeBasedFlush() throws Throwable {
+        logManager.shutdown();
+        LogConfig config = logConfig.clone();
+        config.flushMs = 1000L;
+        logManager = createLogManager();
+        logManager.startup();
+        Log log = logManager.createLog(new TopicAndPartition(name, 0), config);
+        Long lastFlush = log.lastFlushTime();
+        for (int i = 0; i < 200; i++) {
+            ByteBufferMessageSet set = TestUtils.singleMessageSet("test".getBytes());
+            log.append(set);
+        }
+        time.sleep(logManager.InitialTaskDelayMs);
+        Assert.assertTrue("Time based flush should have been triggered triggered", lastFlush != log.lastFlushTime());
+    }
+
+    /**
+     * Test that new logs that are created are assigned to the least loaded log directory
+     */
+    @Test
+    public void testLeastLoadedAssignment() throws Throwable {
+        // create a log manager with multiple data directories;
+        List<File> dirs = Lists.newArrayList(TestUtils.tempDir(),
+                TestUtils.tempDir(),
+                TestUtils.tempDir());
+        logManager.shutdown();
+        logManager = createLogManager();
+
+        // verify that logs are always assigned to the least loaded partition;
+        for (int partition = 0; partition < 20; partition++) {
+            logManager.createLog(new TopicAndPartition("test", partition), logConfig);
+            Assert.assertEquals("We should have created the right number of logs", partition + 1, Utils.size(logManager.allLogs()));
+            IntStream counts = Utils.groupBy(logManager.allLogs(), log -> log.dir.getParent()).values().stream().mapToInt(log -> log.size());
+            Assert.assertTrue("Load should balance evenly", counts.max().getAsInt() <= counts.min().getAsInt() + 1);
+        }
+    }
+
+
+    /**
+     * Test that it is not possible to open two log managers using the same data directory
+     */
+    @Test
+    public void testTwoLogManagersUsingSameDirFails() {
+        try {
+            createLogManager();
+            Assert.fail("Should not be able to create a second log manager instance with the same data directory");
+        } catch (KafkaException e) {
+            System.out.println(" this is good;");
+            e.printStackTrace();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    /**
+     * Test that recovery points are correctly written out to disk
+     */
+    @Test
+    public void testCheckpointRecoveryPoints() throws IOException {
+        verifyCheckpointRecovery(Lists.newArrayList(new TopicAndPartition("test-a", 1), new TopicAndPartition("test-b", 1)), logManager);
+    }
+
+
+    /**
+     * Test that recovery points directory checking works with trailing slash
+     */
+    @Test
+   public void testRecoveryDirectoryMappingWithTrailingSlash() throws Exception {
+        logManager.shutdown();
+        logDir = TestUtils.tempDir();
+        logManager = createLogManager(Lists.newArrayList(new File(logDir.getAbsolutePath() + File.separator)));
+        logManager.startup();
+        verifyCheckpointRecovery(Lists.newArrayList(new TopicAndPartition("test-a", 1)), logManager);
+    }
+    /**
+     * Test that recovery points directory checking works with relative directory
+     */
+    @Test
+   public void testRecoveryDirectoryMappingWithRelativeDirectory() throws Exception {
+        logManager.shutdown();
+        logDir = new File("data" + File.separator + logDir.getName());
+        logDir.mkdirs();
+        logDir.deleteOnExit();
+        logManager = createLogManager();
+        logManager.startup();
+        verifyCheckpointRecovery(Lists.newArrayList(new TopicAndPartition("test-a", 1)), logManager);
+    }
+    private void verifyCheckpointRecovery(List<TopicAndPartition> topicAndPartitions,
+                                          LogManager logManager) throws IOException {
+        List<Log> logs = topicAndPartitions.stream().map(t -> {
+            try {
+                return this.logManager.createLog(t, logConfig);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return null;
+        }).collect(Collectors.toList());
+        logs.forEach(log -> {
+            for (int i = 0; i < 50; i++)
+                log.append(TestUtils.singleMessageSet("test".getBytes()));
+            log.flush();
+        });
+
+        logManager.checkpointRecoveryPointOffsets.invoke();
+        Map<TopicAndPartition, Long> checkpoints = new OffsetCheckpoint(new File(logDir, logManager.RecoveryPointCheckpointFile)).read();
+        for (int i = 0; i < topicAndPartitions.size(); i++) {
+            TopicAndPartition tp = topicAndPartitions.get(i);
+            Log log = logs.get(i);
+            Assert.assertEquals("Recovery point should equal checkpoint", checkpoints.get(tp), log.recoveryPoint);
+        }
+    }
+
+
+    private LogManager createLogManager() throws IOException {
         return TestUtils.createLogManager(Lists.newArrayList(this.logDir),
                 logConfig,
                 cleanerConfig,
                 time);
     }
 
-    private LogManager createLogManager(List<File> logDirs) throws Exception {
+    private LogManager createLogManager(List<File> logDirs) throws IOException {
         return TestUtils.createLogManager(logDirs,
                 logConfig,
                 cleanerConfig,
