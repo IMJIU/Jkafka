@@ -37,4 +37,8 @@ public class CleanerConfig {
         this.hashAlgorithm = hashAlgorithm;
     }
     public CleanerConfig(){}
+
+    public CleanerConfig(Boolean enableCleaner){
+        this.enableCleaner = enableCleaner;
+    }
 }

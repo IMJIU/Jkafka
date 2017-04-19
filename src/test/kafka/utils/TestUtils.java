@@ -1,21 +1,23 @@
 package kafka.utils;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import kafka.func.Action;
+import kafka.log.CleanerConfig;
+import kafka.log.LogConfig;
+import kafka.log.LogManager;
 import kafka.message.ByteBufferMessageSet;
 import kafka.message.CompressionCodec;
 import kafka.message.Message;
 import kafka.message.MessageAndOffset;
+import kafka.server.BrokerState;
 import kafka.utils.IteratorTemplate;
 import org.junit.Assert;
 
 import java.io.*;
 import java.net.ServerSocket;
 import java.nio.ByteBuffer;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Properties;
-import java.util.Random;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -671,7 +673,8 @@ public class TestUtils {
             }
         }
     }
-//
+
+    //
 //    /**
 //     * Wait until the given condition is true or throw an exception if the given wait time elapses.
 //     */
@@ -746,9 +749,9 @@ public class TestUtils {
 //        file.close();
 //    }
 //
-    public static void  appendNonsenseToFile(File fileName, Integer size) throws IOException {
+    public static void appendNonsenseToFile(File fileName, Integer size) throws IOException {
         FileOutputStream file = new FileOutputStream(fileName, true);
-        for(int i = 0;i<size;i++)
+        for (int i = 0; i < size; i++)
             file.write(random.nextInt(255));
         file.close();
     }
@@ -786,28 +789,27 @@ public class TestUtils {
 //    }
 //
 //
-//    /**
-//     * Create new LogManager instance with default configuration for testing
-//     */
-//    public void  createLogManager(
-//            Array logDirs<File> = Array.empty<File>,
-//            LogConfig defaultConfig = LogConfig(),
-//    CleanerConfig cleanerConfig = CleanerConfig(enableCleaner = false),
-//    MockTime time = new MockTime()) =
-//    {
-//        new LogManager(
-//                logDirs = logDirs,
-//                topicConfigs = Map(),
-//                defaultConfig = defaultConfig,
-//                cleanerConfig = cleanerConfig,
-//                ioThreads = 4,
-//                flushCheckMs = 1000L,
-//                flushCheckpointMs = 10000L,
-//                retentionCheckMs = 1000L,
-//                scheduler = time.scheduler,
-//                time = time,
-//                brokerState = new BrokerState());
-//    }
+
+    /**
+     * Create new LogManager instance with default configuration for testing
+     */
+    public static LogManager createLogManager(List<File> logDirs, LogConfig defaultConfig, CleanerConfig cleanerConfig, MockTime time) throws Exception {
+        return new LogManager(
+                logDirs,
+                Maps.newHashMap(),
+                defaultConfig,
+                cleanerConfig,
+                4,
+                1000L,
+                10000L,
+                1000L,
+                time.scheduler,
+                new BrokerState(),
+                time
+        );
+    }
+
+
 //
 //    public void  sendMessagesToPartition(Seq configs<KafkaConfig>,
 //                                String topic,

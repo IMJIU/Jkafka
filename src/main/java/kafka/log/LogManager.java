@@ -71,7 +71,12 @@ public class LogManager extends Logging {
      * A background thread handles log retention by periodically truncating excess log segments.
      */
     public LogManager(File[] logDirs, Map<String, LogConfig> topicConfigs, LogConfig defaultConfig, CleanerConfig cleanerConfig, java.lang.Integer ioThreads, Long flushCheckMs, Long flushCheckpointMs, Long retentionCheckMs, Scheduler scheduler, BrokerState brokerState, Time time) throws Exception {
-        this.logDirs = Lists.newArrayList(logDirs);
+        this(Lists.newArrayList(logDirs), topicConfigs, defaultConfig, cleanerConfig, ioThreads, flushCheckMs, flushCheckpointMs,
+                retentionCheckMs, scheduler, brokerState, time);
+    }
+
+    public LogManager(List<File> logDirs, Map<String, LogConfig> topicConfigs, LogConfig defaultConfig, CleanerConfig cleanerConfig, java.lang.Integer ioThreads, Long flushCheckMs, Long flushCheckpointMs, Long retentionCheckMs, Scheduler scheduler, BrokerState brokerState, Time time) throws Exception {
+        this.logDirs = logDirs;
         this.topicConfigs = topicConfigs;
         this.defaultConfig = defaultConfig;
         this.cleanerConfig = cleanerConfig;
@@ -141,7 +146,12 @@ public class LogManager extends Logging {
      */
     private List<FileLock> lockLogDirs(List<File> dirs) {
         return dirs.stream().map(dir -> {
-            FileLock lock = new FileLock(new File(dir, LockFile));
+            FileLock lock = null;
+            try {
+                lock = new FileLock(new File(dir, LockFile));
+            } catch (IOException e) {
+                error(e.getMessage(),e);
+            }
             if (!lock.tryLock())
                 throw new KafkaException("Failed to acquire lock on file .lock in " + lock.file.getParentFile().getAbsolutePath() +
                         ". A Kafka instance in another process or thread is using this directory.");

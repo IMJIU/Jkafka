@@ -17,11 +17,15 @@ package kafka.cache;
 
 import sun.nio.ch.DirectBuffer;
 
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.lang.ref.SoftReference;
 import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.DatagramChannel;
+import java.nio.channels.FileChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.Random;
 import java.util.Vector;
@@ -242,7 +246,46 @@ final class SocketSendBufferPool {
         }
 
     }
+    static class FileSendBuffer implements SendBuffer {
 
+        final ByteBuffer buffer;
+        final int initialPos;
+        final File file ;
+        final RandomAccessFile rf ;
+
+        FileSendBuffer(byte[] buffer) throws FileNotFoundException {
+            file = new File("d:/temp");
+            rf = new RandomAccessFile(file,"rw");
+            this.buffer = ByteBuffer.allocate(buffer.length);
+            this.buffer.put(buffer);
+            initialPos = 0;
+        }
+
+        public final boolean finished() {
+            return !buffer.hasRemaining();
+        }
+
+        public final long writtenBytes() {
+            return buffer.position() - initialPos;
+        }
+
+        public final long totalBytes() {
+            return buffer.limit() - initialPos;
+        }
+
+        public final long transferTo(WritableByteChannel ch) throws IOException {
+            return ch.write(buffer);
+        }
+
+        public final long transferTo(DatagramChannel ch, SocketAddress raddr) throws IOException {
+            return ch.send(buffer, raddr);
+        }
+
+        public void release() {
+            // Unpooled.
+        }
+
+    }
     static final class EmptySendBuffer implements SendBuffer {
 
         public boolean finished() {

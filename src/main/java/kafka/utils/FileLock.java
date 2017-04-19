@@ -16,8 +16,9 @@ import java.nio.channels.OverlappingFileLockException;
 public class FileLock extends Logging {
     public File file;
 
-    public FileLock(File file) {
+    public FileLock(File file) throws IOException {
         this.file = file;
+        init();
     }
 
     public void init() throws IOException {
