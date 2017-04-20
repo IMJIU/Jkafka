@@ -27,7 +27,7 @@ import java.util.zip.CRC32;
  * 3. You have tests for it if it is nontrivial in any way
  */
 public class Utils {
-    private static Logging logger = Logging.create(Utils.class.getName());
+    private static Logging logger = Logging.getLogger(Utils.class.getName());
 
     /**
      * Wrap the given function in a java.lang.Runnable

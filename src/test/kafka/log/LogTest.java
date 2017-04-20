@@ -29,7 +29,7 @@ import java.util.stream.Stream;
  * Created by Administrator on 2017/4/3.
  */
 public class LogTest {
-    Logging logging = Logging.create(LogTest.class.getName());
+    Logging logging = Logging.getLogger(LogTest.class.getName());
     File logDir = null;
     MockTime time = new MockTime(0L);
     KafkaConfig config = null;
