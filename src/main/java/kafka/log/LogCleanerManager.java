@@ -246,4 +246,9 @@ public class LogCleanerManager extends KafkaMetricsGroup {
         });
     }
 }
+enum LogCleaningState {
+    LogCleaningInProgress,
+    LogCleaningAborted,
+    LogCleaningPaused
+}
 

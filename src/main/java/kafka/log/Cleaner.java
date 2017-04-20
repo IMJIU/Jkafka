@@ -39,14 +39,14 @@ public class Cleaner extends Logging {
 
 
     /* cleaning stats - one instance for the current (or next) cleaning cycle and one for the last completed cycle */
-    Tuple<CleanerStats, CleanerStats> statsUnderlying ;
-    public CleanerStats stats ;
+    Tuple<CleanerStats, CleanerStats> statsUnderlying;
+    public CleanerStats stats;
 
     /* buffer used for read i/o */
-    private ByteBuffer readBuffer ;
+    private ByteBuffer readBuffer;
 
     /* buffer used for write i/o */
-    private ByteBuffer writeBuffer ;
+    private ByteBuffer writeBuffer;
 
     /**
      * @param id           An identifier used for logging
@@ -252,7 +252,7 @@ public class Cleaner extends Logging {
      * @return A list of grouped segments
      */
     List<List<LogSegment>> groupSegmentsBySize(Collection<LogSegment> segments, Integer maxSize, Integer maxIndexSize) {
-        List<LogSegment>segs = Lists.newArrayList(segments);
+        List<LogSegment> segs = Lists.newArrayList(segments);
         List<List<LogSegment>> grouped = Lists.newArrayList();
         while (!segs.isEmpty()) {
             List<LogSegment> group = Lists.newArrayList(segs.get(0));
@@ -332,5 +332,106 @@ public class Cleaner extends Logging {
         }
         restoreBuffers();
         return offset;
+    }
+}
+
+class CleanerConfig {
+    public Integer numThreads = 1;
+    public Long dedupeBufferSize = 4 * 1024 * 1024L;
+    public Double dedupeBufferLoadFactor = 0.9d;
+    public Integer ioBufferSize = 1024 * 1024;
+    public Integer maxMessageSize = 32 * 1024 * 1024;
+    public Double maxIoBytesPerSecond = java.lang.Double.MAX_VALUE;
+    public Long backOffMs = 15 * 1000L;
+    public Boolean enableCleaner = true;
+    public String hashAlgorithm = "MD5";
+
+    /**
+     * Configuration parameters for the log cleaner
+     *
+     * @param numThreads             The number of cleaner threads to run
+     * @param dedupeBufferSize       The total memory used for log deduplication
+     * @param dedupeBufferLoadFactor The maximum percent full for the deduplication buffer
+     * @param maxMessageSize         The maximum size of a message that can appear in the log
+     * @param maxIoBytesPerSecond    The maximum read and write I/O that all cleaner threads are allowed to do
+     * @param backOffMs              The amount of time to wait before rechecking if no logs are eligible for cleaning
+     * @param enableCleaner          Allows completely disabling the log cleaner
+     * @param hashAlgorithm          The hash algorithm to use in key comparison.
+     */
+    public CleanerConfig(Integer numThreads, Long dedupeBufferSize, Double dedupeBufferLoadFactor, Integer ioBufferSize, Integer maxMessageSize, Double maxIoBytesPerSecond, Long backOffMs, Boolean enableCleaner, String hashAlgorithm) {
+        this.numThreads = numThreads;
+        this.dedupeBufferSize = dedupeBufferSize;
+        this.dedupeBufferLoadFactor = dedupeBufferLoadFactor;
+        this.ioBufferSize = ioBufferSize;
+        this.maxMessageSize = maxMessageSize;
+        this.maxIoBytesPerSecond = maxIoBytesPerSecond;
+        this.backOffMs = backOffMs;
+        this.enableCleaner = enableCleaner;
+        this.hashAlgorithm = hashAlgorithm;
+    }
+
+    public CleanerConfig() {
+    }
+
+    public CleanerConfig(Boolean enableCleaner) {
+        this.enableCleaner = enableCleaner;
+    }
+}
+
+class CleanerStats {
+    public Time time;
+
+    /**
+     * A simple struct for collecting stats about log cleaning
+     */
+    public CleanerStats(Time time) {
+        this.time = time;
+        clear();
+        elapsedSecs = (endTime - startTime) / 1000.0;
+        elapsedIndexSecs = (mapCompleteTime - startTime) / 1000.0;
+
+    }
+
+    public Long startTime, mapCompleteTime, endTime, bytesRead, bytesWritten, mapBytesRead, mapMessagesRead, messagesRead, messagesWritten = 0L;
+    public Double bufferUtilization = 0.0d;
+
+    public void readMessage(Integer size) {
+        messagesRead += 1;
+        bytesRead += size;
+    }
+
+    public void recopyMessage(Integer size) {
+        messagesWritten += 1;
+        bytesWritten += size;
+    }
+
+    public void indexMessage(Integer size) {
+        mapMessagesRead += 1;
+        mapBytesRead += size;
+    }
+
+    public void indexDone() {
+        mapCompleteTime = time.milliseconds();
+    }
+
+    public void allDone() {
+        endTime = time.milliseconds();
+    }
+
+    public Double elapsedSecs;
+
+    public Double elapsedIndexSecs;
+
+    public void clear() {
+        startTime = time.milliseconds();
+        mapCompleteTime = -1L;
+        endTime = -1L;
+        bytesRead = 0L;
+        bytesWritten = 0L;
+        mapBytesRead = 0L;
+        mapMessagesRead = 0L;
+        messagesRead = 0L;
+        messagesWritten = 0L;
+        bufferUtilization = 0.0d;
     }
 }
