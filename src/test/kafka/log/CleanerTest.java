@@ -2,11 +2,9 @@ package kafka.log;/**
  * Created by zhoulf on 2017/4/10.
  */
 
-import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
-import com.google.common.collect.UnmodifiableIterator;
 import kafka.common.LogCleaningAbortedException;
-import kafka.func.ActionWithP;
+import kafka.func.ActionWithParam;
 import kafka.func.Tuple;
 import kafka.message.ByteBufferMessageSet;
 import kafka.message.Message;
@@ -113,10 +111,10 @@ public class CleanerTest {
                 .collect(Collectors.toList());
     }
 
-    public ActionWithP<TopicAndPartition> noOpCheckDone = (topicAndPartition) -> {
+    public ActionWithParam<TopicAndPartition> noOpCheckDone = (topicAndPartition) -> {
         /* do nothing */
     };
-    public ActionWithP<TopicAndPartition> abortCheckDone = (topicAndPartition) -> {
+    public ActionWithParam<TopicAndPartition> abortCheckDone = (topicAndPartition) -> {
         throw new LogCleaningAbortedException();
     };
 
@@ -249,7 +247,7 @@ public class CleanerTest {
         return makeCleaner(capacity, noOpCheckDone);
     }
 
-    public Cleaner makeCleaner(Integer capacity, ActionWithP<TopicAndPartition> checkDone) {
+    public Cleaner makeCleaner(Integer capacity, ActionWithParam<TopicAndPartition> checkDone) {
         return new Cleaner(0,
                 new FakeOffsetMap(capacity),
                 64 * 1024,

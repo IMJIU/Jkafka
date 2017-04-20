@@ -5,7 +5,7 @@ package kafka.log;/**
 import com.yammer.metrics.core.Gauge;
 import kafka.common.LogCleaningAbortedException;
 import kafka.common.ThreadShutdownException;
-import kafka.func.ActionWithP;
+import kafka.func.ActionWithParam;
 import kafka.metrics.KafkaMetricsGroup;
 import kafka.utils.Pool;
 import kafka.utils.ShutdownableThread;
@@ -215,7 +215,7 @@ public class LogCleaner extends KafkaMetricsGroup {
 
         public volatile CleanerStats lastStats;
         private CountDownLatch backOffWaitLatch = new CountDownLatch(1);
-        private ActionWithP<TopicAndPartition> checkDone = (topicAndPartition) -> {
+        private ActionWithParam<TopicAndPartition> checkDone = (topicAndPartition) -> {
             if (!isRunning.get())
                 throw new ThreadShutdownException();
             cleanerManager.checkCleaningAborted(topicAndPartition);

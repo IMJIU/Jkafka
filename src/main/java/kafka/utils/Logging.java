@@ -3,6 +3,7 @@ package kafka.utils;/**
  */
 
 import kafka.func.Action;
+import kafka.func.ActionWithThrow;
 import org.apache.log4j.Logger;
 
 /**
@@ -131,7 +132,7 @@ public class Logging {
     public void error(String msg, Throwable e) {
         logger.error(msgWithLogIdent(msg), e);
     }
-    public void swallowError(Action action) {
+    public void swallowError(ActionWithThrow action) {
         Utils.swallow(action, (e) -> logger.error(e.getMessage(), e));
     }
 

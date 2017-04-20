@@ -7,6 +7,6 @@ package kafka.func;/**
  * @create 2017-03-29 12:44
  **/
 @FunctionalInterface
-public interface ActionWithP<P> {
-    void invoke(P parameter);
+public interface ActionWithThrow {
+    void invoke() throws Exception;
 }

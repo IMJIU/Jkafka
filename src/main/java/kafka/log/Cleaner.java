@@ -4,7 +4,7 @@ package kafka.log;/**
 
 import com.google.common.collect.Lists;
 import kafka.common.LogCleaningAbortedException;
-import kafka.func.ActionWithP;
+import kafka.func.ActionWithParam;
 import kafka.func.Tuple;
 import kafka.message.ByteBufferMessageSet;
 import kafka.message.Message;
@@ -35,7 +35,7 @@ public class Cleaner extends Logging {
     public Double dupBufferLoadFactor;
     public Throttler throttler;
     public Time time;
-    public ActionWithP<TopicAndPartition> checkDone;
+    public ActionWithParam<TopicAndPartition> checkDone;
 
 
     /* cleaning stats - one instance for the current (or next) cleaning cycle and one for the last completed cycle */
@@ -55,7 +55,7 @@ public class Cleaner extends Logging {
      * @param throttler    The throttler instance to use for limiting I/O rate.
      * @param time         The time instance
      */
-    public Cleaner(Integer id, OffsetMap offsetMap, Integer ioBufferSize, Integer maxIoBufferSize, Double dupBufferLoadFactor, Throttler throttler, Time time, ActionWithP<TopicAndPartition> checkDone) {
+    public Cleaner(Integer id, OffsetMap offsetMap, Integer ioBufferSize, Integer maxIoBufferSize, Double dupBufferLoadFactor, Throttler throttler, Time time, ActionWithParam<TopicAndPartition> checkDone) {
         this.id = id;
         this.offsetMap = offsetMap;
         this.ioBufferSize = ioBufferSize;

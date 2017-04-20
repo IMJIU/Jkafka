@@ -5,8 +5,6 @@ package kafka.utils;/**
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import kafka.func.*;
-import kafka.log.Log;
-import kafka.log.TopicAndPartition;
 
 import java.io.*;
 import java.nio.ByteBuffer;
@@ -14,7 +12,6 @@ import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
 import java.util.*;
 import java.util.concurrent.locks.Lock;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.zip.CRC32;
 
@@ -164,7 +161,7 @@ public class Utils {
      * @param log    The log method to use for logging. E.g. logger.warn
      * @param action The action to execute
      */
-    public static void swallow(Action action, ActionWithP<Throwable> log) {
+    public static void swallow(ActionWithThrow action, ActionWithParam<Throwable> log) {
         try {
             action.invoke();
         } catch (Exception e) {
@@ -800,6 +797,16 @@ public class Utils {
         if (map != null) {
             for (Map.Entry<K, V> entry : map.entrySet()) {
                 result.put(entry.getKey(), processor.process(entry.getValue()));
+            }
+        }
+        return result;
+    }
+
+    public static <K, V, K2> Map<K2, V> mapKey(Map<K, V> map, Processor<K, K2> processor) {
+        Map<K2, V> result = Maps.newHashMap();
+        if (map != null) {
+            for (Map.Entry<K, V> entry : map.entrySet()) {
+                result.put(processor.process(entry.getKey()),entry.getValue());
             }
         }
         return result;
