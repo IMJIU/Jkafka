@@ -1,5 +1,4 @@
 
-import com.google.common.collect.Lists;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -13,8 +12,8 @@ import java.util.List;
  * @create 2017-03-30 10:04
  **/
 public class ScalaTranslator {
-    public static final String main = "e:/github/JKafka/src/main/java/kafka/";
-    public static final String test = "e:/github/JKafka/src/test/kafka/";
+    public static final String main = "g:/github/JKafka/src/main/java/kafka/";
+    public static final String test = "g:/github/JKafka/src/test/kafka/";
 
     public static void main(String[] args) throws IOException {
 //        System.out.println("ksdjfkasdf<Int> threadId)".replaceAll("([\\s\\(<])Int([\\s>])", "$1Integer$2"));
@@ -23,7 +22,7 @@ public class ScalaTranslator {
 //                main + "cluster/Partition.java",
 //                main + "utils/Pool.java",
 //                main + "log/LogConfig.java",
-                main + "log/OffsetCheckpoint.java");
+                main + "api/ProducerRequest.java");
 //        List<String> filePaths = Arrays.asList(main + "log/Log.java");
         for (String p : filePaths) {
             convertToJava(p, true);
@@ -32,9 +31,12 @@ public class ScalaTranslator {
 
 
     public static void convertToJava(String filePath, boolean write) throws IOException {
-        List<Character> lastList = Lists.newArrayList('[', '(', '}', '{', ';', '*', '/', ',', '>', '=','+');
+        char[] lastList = new char[]{'[', '(', '}', '{', ';', '*', '/', ',', '>', '=','+'};
         String[] ps = new String[]{
                 " def ", "public void ",
+                "<Int,", "<Integer,",
+                 ",Int>", ",Integer>",
+                "([\\s\\(<])Int([\\s>])", "$1Integer$2",
                 "([\\s\\(<])Int([\\s>])", "$1Integer$2",
                 "(\\w+):\\s?(\\w+)", "$2 $1",
                 "public(.+):\\s?(\\w+)\\s?=", "public $2 $1",
@@ -78,10 +80,10 @@ public class ScalaTranslator {
         }
     }
 
-    private static void addDelimit(List<Character> lastList, StringBuilder content, String s) {
+    private static void addDelimit(char[] lastList, StringBuilder content, String s) {
         char last = s.charAt(s.length() - 1);
         boolean inLast = false;
-        for (Character c : lastList) {
+        for (char c : lastList) {
             if (c == last) {
                 inLast = true;
                 break;

@@ -1,7 +1,7 @@
 package kafka.network;
 
 import kafka.common.KafkaException;
-import kafka.func.Processor;
+import kafka.func.Handler;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketException;
@@ -62,7 +62,7 @@ public class Acceptor extends AbstractServerThread {
                             key = iter.next();
                             iter.remove();
                             if (key.isAcceptable())
-                                accept(key, processors(currentProcessor));
+                                accept(key, processors[currentProcessor]);
                             else
                                 throw new IllegalStateException("Unrecognized key state for acceptor thread.");
 

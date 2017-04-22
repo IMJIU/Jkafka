@@ -3,7 +3,7 @@ package kafka.utils;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import kafka.common.KafkaException;
-import kafka.func.Processor;
+import kafka.func.Handler;
 import kafka.func.Tuple;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -11,11 +11,11 @@ import java.util.concurrent.ConcurrentHashMap;
 public class Pool<K, V> implements Iterable<Tuple<K, V>> {
     private ConcurrentHashMap<K, V> pool = new ConcurrentHashMap<K, V>();
     private Object createLock = new Object();
-    public Optional<Processor<K, V>> valueFactory;
+    public Optional<Handler<K, V>> valueFactory;
     public Pool() {
         this.valueFactory = Optional.empty();
     }
-    public Pool(Optional<Processor<K, V>> valueFactory) {
+    public Pool(Optional<Handler<K, V>> valueFactory) {
         this.valueFactory = valueFactory;
     }
 
@@ -60,7 +60,7 @@ public class Pool<K, V> implements Iterable<Tuple<K, V>> {
             synchronized (createLock) {
                 curr = pool.get(key);
                 if (curr == null) {
-                    pool.put(key, valueFactory.get().process(key));
+                    pool.put(key, valueFactory.get().handle(key));
                 }
                 return pool.get(key);
             }

@@ -77,7 +77,7 @@ public class Logging {
             logger.debug(msgWithLogIdent(msg), e);
     }
 
-    public void swallowDebug(Action action) {
+    public void swallowDebug(ActionWithThrow action) {
         Utils.swallow(action, (e) -> logger.debug(e.getMessage(), e));
     }
 
@@ -97,7 +97,7 @@ public class Logging {
             logger.info(msgWithLogIdent(msg), e);
     }
 
-    public void swallowInfo(Action action) {
+    public void swallowInfo(ActionWithThrow action) {
         Utils.swallow(action, (e) -> logger.info(e.getMessage(), e));
     }
 
@@ -113,11 +113,11 @@ public class Logging {
         logger.warn(msgWithLogIdent(msg), e);
     }
 
-    public void swallowWarn(Action action) {
+    public void swallowWarn(ActionWithThrow action) {
         Utils.swallow(action, (e) -> logger.warn(e.getMessage(), e));
     }
 
-    public void swallow(Action action) {
+    public void swallow(ActionWithThrow action) {
         swallowWarn(action);
     }
 

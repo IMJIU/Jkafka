@@ -1,9 +1,11 @@
 package kafka.log;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import kafka.common.KafkaException;
 import kafka.common.OffsetOutOfRangeException;
 import kafka.message.ByteBufferMessageSet;
+import kafka.server.BrokerState;
 import kafka.utils.MockTime;
 import kafka.utils.TestUtils;
 import kafka.utils.Utils;
@@ -274,16 +276,34 @@ public class LogManagerTest {
 
 
     private LogManager createLogManager() throws IOException {
-        return TestUtils.createLogManager(Lists.newArrayList(this.logDir),
+        return new LogManager(
+                Lists.newArrayList(this.logDir),
+                Maps.newHashMap(),
                 logConfig,
                 cleanerConfig,
-                time);
+                4,
+                1000L,
+                10000L,
+                1000L,
+                time.scheduler,
+                new BrokerState(),
+                time
+        );
     }
 
     private LogManager createLogManager(List<File> logDirs) throws IOException {
-        return TestUtils.createLogManager(logDirs,
+        return new LogManager(
+                logDirs,
+                Maps.newHashMap(),
                 logConfig,
                 cleanerConfig,
-                time);
+                4,
+                1000L,
+                10000L,
+                1000L,
+                time.scheduler,
+                new BrokerState(),
+                time
+        );
     }
 }

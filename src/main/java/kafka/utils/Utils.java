@@ -170,7 +170,7 @@ public class Utils {
         }
     }
 
-    public static void swallow(Action action) {
+    public static void swallow(ActionWithThrow action) {
         swallow(action, null);
     }
 //
@@ -770,10 +770,10 @@ public class Utils {
                 | (buffer[offset] << 8 * 3);
     }
 
-    public static <T, K> Map<K, List<T>> groupBy(Iterable<T> it, Processor<T, K> processor) {
+    public static <T, K> Map<K, List<T>> groupBy(Iterable<T> it, Handler<T, K> handler) {
         Map<K, List<T>> result = Maps.newHashMap();
         for (T t : it) {
-            K key = processor.process(t);
+            K key = handler.handle(t);
             List<T> itemList = result.getOrDefault(key, Lists.newArrayList());
             itemList.add(t);
             result.put(key, itemList);
@@ -781,10 +781,10 @@ public class Utils {
         return result;
     }
 
-    public static <K, V, V2> Map<V2, Map<K, V>> groupBy(Map<K, V> map, Processor<V, V2> processor) {
+    public static <K, V, V2> Map<V2, Map<K, V>> groupBy(Map<K, V> map, Handler<V, V2> handler) {
         Map<V2, Map<K, V>> maps = Maps.newHashMap();
         for (Map.Entry<K, V> entry : map.entrySet()) {
-            V2 tag = processor.process(entry.getValue());
+            V2 tag = handler.handle(entry.getValue());
             Map<K, V> m = maps.getOrDefault(tag, Maps.newHashMap());
             m.put(entry.getKey(), entry.getValue());
             maps.put(tag, m);
@@ -792,21 +792,21 @@ public class Utils {
         return maps;
     }
 
-    public static <K, V, V2> Map<K, V2> map(Map<K, V> map, Processor<V, V2> processor) {
+    public static <K, V, V2> Map<K, V2> map(Map<K, V> map, Handler<V, V2> handler) {
         Map<K, V2> result = Maps.newHashMap();
         if (map != null) {
             for (Map.Entry<K, V> entry : map.entrySet()) {
-                result.put(entry.getKey(), processor.process(entry.getValue()));
+                result.put(entry.getKey(), handler.handle(entry.getValue()));
             }
         }
         return result;
     }
 
-    public static <K, V, K2> Map<K2, V> mapKey(Map<K, V> map, Processor<K, K2> processor) {
+    public static <K, V, K2> Map<K2, V> mapKey(Map<K, V> map, Handler<K, K2> handler) {
         Map<K2, V> result = Maps.newHashMap();
         if (map != null) {
             for (Map.Entry<K, V> entry : map.entrySet()) {
-                result.put(processor.process(entry.getKey()),entry.getValue());
+                result.put(handler.handle(entry.getKey()),entry.getValue());
             }
         }
         return result;

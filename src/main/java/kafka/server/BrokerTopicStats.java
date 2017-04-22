@@ -1,6 +1,6 @@
 package kafka.server;
 
-import kafka.func.Processor;
+import kafka.func.Handler;
 import kafka.utils.Pool;
 
 import java.util.Optional;
@@ -9,7 +9,7 @@ import java.util.Optional;
  * Created by Administrator on 2017/4/2.
  */
 public class BrokerTopicStats {
-    private static Processor<String,BrokerTopicMetrics> valueFactory = (k) -> new BrokerTopicMetrics(Optional.of(k));
+    private static Handler<String,BrokerTopicMetrics> valueFactory = (k) -> new BrokerTopicMetrics(Optional.of(k));
     private static Pool<String, BrokerTopicMetrics> stats = new Pool<>(Optional.of(valueFactory));
     private static BrokerTopicMetrics allTopicsStats = new BrokerTopicMetrics(Optional.empty());
 

@@ -1,7 +1,7 @@
 package kafka.utils;
 
 import com.google.common.collect.Sets;
-import kafka.func.Processor;
+import kafka.func.Handler;
 import kafka.func.Tuple;
 import kafka.message.CompressionCodec;
 
@@ -199,12 +199,12 @@ public class VerifiableProperties extends Logging {
     /**
      * Get a Map<String, String> from a property list in the form v2 k1, v2 k2, ...
      */
-    public Map<String, String> getMap(String name, Processor<String, Boolean> valid) {
+    public Map<String, String> getMap(String name, Handler<String, Boolean> valid) {
         try {
             Map<String, String> m = Utils.parseCsvMap(getString(name, ""));
             // TODO: 2017/4/4     case (key,value)=>  if (!valid.process(value))
             m.forEach((key, value) -> {
-                if (!valid.process(key))
+                if (!valid.handle(key))
                     throw new IllegalArgumentException(String.format("Invalid entry '%s' = '%s' for property '%s'", key, value, name));
             });
             return m;

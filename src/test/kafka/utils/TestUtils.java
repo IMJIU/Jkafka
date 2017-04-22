@@ -3,7 +3,6 @@ package kafka.utils;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import kafka.func.Action;
-import kafka.log.CleanerConfig;
 import kafka.log.LogConfig;
 import kafka.log.LogManager;
 import kafka.message.ByteBufferMessageSet;
@@ -11,9 +10,7 @@ import kafka.message.CompressionCodec;
 import kafka.message.Message;
 import kafka.message.MessageAndOffset;
 import kafka.server.BrokerState;
-import kafka.utils.IteratorTemplate;
 import org.junit.Assert;
-
 import java.io.*;
 import java.net.ServerSocket;
 import java.nio.ByteBuffer;
@@ -790,24 +787,7 @@ public class TestUtils {
 //
 //
 
-    /**
-     * Create new LogManager instance with default configuration for testing
-     */
-    public static LogManager createLogManager(List<File> logDirs, LogConfig defaultConfig, CleanerConfig cleanerConfig, MockTime time) throws IOException {
-        return new LogManager(
-                logDirs,
-                Maps.newHashMap(),
-                defaultConfig,
-                cleanerConfig,
-                4,
-                1000L,
-                10000L,
-                1000L,
-                time.scheduler,
-                new BrokerState(),
-                time
-        );
-    }
+
 
 
 
