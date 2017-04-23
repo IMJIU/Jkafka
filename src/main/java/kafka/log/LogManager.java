@@ -97,7 +97,7 @@ public class LogManager extends Logging {
             try {
                 return Tuple.of(dir, new OffsetCheckpoint(new File(dir, RecoveryPointCheckpointFile)));
             } catch (IOException e) {
-                e.printStackTrace();
+               error(e.getMessage(),e);
             }
             return null;
         }).collect(Collectors.toMap(t -> t.v1, t -> t.v2));
@@ -124,7 +124,7 @@ public class LogManager extends Logging {
             try {
                 return dir.getCanonicalPath();
             } catch (IOException e) {
-                e.printStackTrace();
+                error(e.getMessage(),e);
             }
             return "";
         }).collect(Collectors.toSet()).size() < dirs.size()) {

@@ -53,7 +53,7 @@ public class FileLock extends Logging {
                 flock = channel.tryLock();
                 return flock != null;
             } catch (IOException e) {
-                e.printStackTrace();
+                error(e.getMessage(),e);
             } catch (OverlappingFileLockException e) {
                 return false;
             }
