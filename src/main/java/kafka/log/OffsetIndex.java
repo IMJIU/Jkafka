@@ -305,16 +305,16 @@ public class OffsetIndex extends Logging {
                     this.maxEntries = this.mmap.limit() / 8;
                     this.mmap.position(position);
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    error(e.getMessage(),e);
                 } finally {
                     try {
                         raf.close();
                     } catch (IOException e) {
-                        e.printStackTrace();
+                        error(e.getMessage(),e);
                     }
                 }
             } catch (FileNotFoundException e) {
-                e.printStackTrace();
+                error(e.getMessage(),e);
             }
         });
     }

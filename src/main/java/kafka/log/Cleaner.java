@@ -158,7 +158,7 @@ public class Cleaner extends Logging {
             cleaned.delete();
             throw e;
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            error(e.getMessage(),e);
         }
     }
 

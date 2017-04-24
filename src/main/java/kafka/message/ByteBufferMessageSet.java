@@ -5,6 +5,7 @@ package kafka.message;/**
 import com.google.common.collect.Lists;
 import kafka.utils.IteratorTemplate;
 import kafka.utils.Itor;
+import kafka.utils.Logging;
 import org.apache.commons.collections.CollectionUtils;
 
 import java.io.ByteArrayOutputStream;
@@ -24,6 +25,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public class ByteBufferMessageSet extends MessageSet {
     public ByteBuffer buffer;
     private int shallowValidByteCount = -1;
+    private static final Logging logger = Logging.getLogger(ByteBufferMessageSet.class.getName());
 
     public ByteBufferMessageSet(ByteBuffer buffer) {
         this.buffer = buffer;
@@ -57,13 +59,13 @@ public class ByteBufferMessageSet extends MessageSet {
                         output.write(message.buffer.array(), message.buffer.arrayOffset(), message.buffer.limit());
                     }
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    logger.error(e.getMessage(), e);
                 }
             } finally {
                 try {
                     output.close();
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    logger.error(e.getMessage(),e);
                 }
             }
             byte[] bytes = byteArrayStream.toByteArray();
@@ -170,7 +172,7 @@ public class ByteBufferMessageSet extends MessageSet {
             }
             buffer.reset();
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.error(e.getMessage(),e);
         }
         return written;
     }

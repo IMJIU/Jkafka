@@ -43,7 +43,7 @@ public class OffsetCheckpoint extends Logging {
                         writer.write(String.format("%s %d %d", topicPart.topic, topicPart.partition, offset));
                         writer.newLine();
                     } catch (IOException e) {
-                        e.printStackTrace();
+                        error(e.getMessage(),e);
                     }
                 });
 

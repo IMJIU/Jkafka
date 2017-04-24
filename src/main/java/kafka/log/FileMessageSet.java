@@ -60,7 +60,7 @@ public class FileMessageSet extends MessageSet {
                 channel.position(channel.size());
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            error(e.getMessage(),e);
         }
     }
 
@@ -229,7 +229,7 @@ public class FileMessageSet extends MessageSet {
                     location += size + 12;
                     return new MessageAndOffset(new Message(buffer), offset);
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    error(e.getMessage(),e);
                 }
                 return null;
             }
@@ -251,7 +251,7 @@ public class FileMessageSet extends MessageSet {
             int written = messages.writeTo(channel, 0L, messages.sizeInBytes());
             _size.getAndAdd(written);
         } catch (IOException e) {
-            e.printStackTrace();
+            error(e.getMessage(),e);
         }
     }
 
@@ -279,7 +279,7 @@ public class FileMessageSet extends MessageSet {
         try {
             channel.close();
         } catch (IOException e) {
-            e.printStackTrace();
+            error(e.getMessage(),e);
         }
         return file.delete();
     }

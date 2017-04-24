@@ -3,6 +3,7 @@ package kafka.log;/**
  */
 
 import kafka.annotation.nonthreadsafe;
+import kafka.utils.Logging;
 import kafka.utils.Prediction;
 import kafka.utils.Utils;
 
@@ -40,9 +41,14 @@ public interface OffsetMap {
  *
  */
 @nonthreadsafe
-class SkimpyOffsetMap implements OffsetMap {
+class SkimpyOffsetMap extends Logging implements OffsetMap {
     public Integer memory;
     public String hashAlgorithm;
+
+    @Override
+    public String loggerName() {
+        return SkimpyOffsetMap.class.getName();
+    }
 
     /**
      *
@@ -57,7 +63,7 @@ class SkimpyOffsetMap implements OffsetMap {
         try {
             digest = MessageDigest.getInstance(hashAlgorithm);
         } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
+            error(e.getMessage(),e);
         }
     }
 
@@ -128,7 +134,7 @@ class SkimpyOffsetMap implements OffsetMap {
             bytes.putLong(offset);
             entries += 1;
         } catch (DigestException e) {
-            e.printStackTrace();
+            error(e.getMessage(),e);
         }
 
     }
@@ -163,7 +169,7 @@ class SkimpyOffsetMap implements OffsetMap {
             } while (!Arrays.equals(hash1, hash2));
             bytes.getLong();
         } catch (DigestException e) {
-            e.printStackTrace();
+            error(e.getMessage(),e);
         }
         return -1L;
     }

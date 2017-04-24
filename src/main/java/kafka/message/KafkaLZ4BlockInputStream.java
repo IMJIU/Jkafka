@@ -12,6 +12,7 @@ import java.io.InputStream;
 import kafka.message.KafkaLZ4BlockOutputStream.BD;
 import kafka.message.KafkaLZ4BlockOutputStream.FLG;
 
+import kafka.utils.Logging;
 import kafka.utils.Utils;
 import net.jpountz.lz4.LZ4Exception;
 import net.jpountz.lz4.LZ4Factory;
@@ -25,7 +26,7 @@ import net.jpountz.xxhash.XXHashFactory;
  * @see <a href="https://docs.google.com/document/d/1Tdxmn5_2e5p1y4PtXkatLndWVb0R8QARJFe6JI4Keuo/edit">LZ4 Framing Format Spec</a>
  */
 public final class KafkaLZ4BlockInputStream extends FilterInputStream {
-
+    private static final Logging logger = Logging.getLogger(KafkaLZ4BlockInputStream.class.getName());
     public static final String PREMATURE_EOS = "Stream ended prematurely";
     public static final String NOT_SUPPORTED = "Stream unsupported";
     public static final String BLOCK_HASH_MISMATCH = "Block checksum mismatch";
@@ -132,7 +133,7 @@ public final class KafkaLZ4BlockInputStream extends FilterInputStream {
             try {
                 bufferSize = decompressor.decompress(compressedBuffer, 0, blockSize, buffer, 0, maxBlockSize);
             } catch (LZ4Exception e) {
-                e.printStackTrace();
+                logger.error(e.getMessage(),e);
 //                throw new IOException(e);
                 throw new IOException(e.getMessage());
             }

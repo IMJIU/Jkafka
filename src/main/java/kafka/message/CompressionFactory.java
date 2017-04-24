@@ -2,6 +2,7 @@ package kafka.message;/**
  * Created by zhoulf on 2017/3/24.
  */
 
+import kafka.utils.Logging;
 import org.xerial.snappy.SnappyInputStream;
 import org.xerial.snappy.SnappyOutputStream;
 
@@ -16,6 +17,7 @@ import java.util.zip.GZIPOutputStream;
  * @create 2017-03-24 11:20
  **/
 public class CompressionFactory {
+    private static final Logging logger = Logging.getLogger(CompressionFactory.class.getName());
     public static OutputStream apply(CompressionCodec compressionCodec, OutputStream stream) {
         try {
             switch (compressionCodec) {
@@ -29,7 +31,7 @@ public class CompressionFactory {
                     throw new kafka.common.UnknownCodecException("Unknown Codec: " + compressionCodec);
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.error(e.getMessage(),e);
         }
         return null;
     }
@@ -47,7 +49,7 @@ public class CompressionFactory {
                     throw new kafka.common.UnknownCodecException("Unknown Codec: " + compressionCodec);
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.error(e.getMessage(),e);
         }
         return null;
     }

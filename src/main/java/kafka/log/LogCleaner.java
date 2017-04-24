@@ -129,7 +129,7 @@ public class LogCleaner extends KafkaMetricsGroup {
             try {
                 c.shutdown();
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                error(e.getMessage(),e);
             }
         });
     }
@@ -229,9 +229,9 @@ public class LogCleaner extends KafkaMetricsGroup {
             try {
                 cleanOrSleep();
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                error(e.getMessage(),e);
             } catch (IOException e) {
-                e.printStackTrace();
+                error(e.getMessage(),e);
             }
         }
 

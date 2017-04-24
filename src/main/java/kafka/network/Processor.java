@@ -104,7 +104,7 @@ public class Processor extends AbstractServerThread {
                 }
 //            maybeCloseOldestConnection();
             } catch (IOException e) {
-                e.printStackTrace();
+                error(e.getMessage(),e);
             }
         }
 

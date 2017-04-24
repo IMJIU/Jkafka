@@ -79,9 +79,9 @@ public class Acceptor extends AbstractServerThread {
             swallowError(() -> selector.close());
             shutdownComplete();
         } catch (ClosedChannelException e) {
-            e.printStackTrace();
+            error(e.getMessage(),e);
         } catch (IOException e) {
-            e.printStackTrace();
+            error(e.getMessage(),e);
         }
 
     }

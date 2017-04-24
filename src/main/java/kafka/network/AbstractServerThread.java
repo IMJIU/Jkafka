@@ -125,7 +125,7 @@ public abstract class AbstractServerThread extends Logging implements Runnable {
     }
 }
 
-class ConnectionQuotas {
+class ConnectionQuotas extends Logging{
     public Integer defaultMax;
     public Map<String, Integer> overrideQuotas;
     private Map<InetAddress, Integer> overrides;
@@ -138,7 +138,7 @@ class ConnectionQuotas {
             try {
                 return InetAddress.getByName(k);
             } catch (UnknownHostException e) {
-                e.printStackTrace();
+                error(e.getMessage(),e);
             }
             return null;
         });
