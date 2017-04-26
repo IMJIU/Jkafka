@@ -1,47 +1,50 @@
-
+import com.google.common.collect.Lists;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
+import java.net.*;
+import java.util.*;
 
 /**
  * @author
  * @create 2017-03-30 10:04
  **/
 public class ScalaTranslator {
-    public final String env = "";
-    public  final String main = "e:/github/JKafka/src/main/java/kafka/";
-    public  final String test = "e:/github/JKafka/src/test/kafka/";
-    static{
+    public static String main = "g:/github/JKafka/src/main/java/kafka/";
+    public static String test = "g:/github/JKafka/src/test/kafka/";
 
+    static {
+        String ip = getMyIp();
+        if (ip.equals("10.8.72.109")) {
+            main = "e:/github/JKafka/src/main/java/kafka/";
+            test = "e:/github/JKafka/src/test/kafka/";
+        }
     }
 
     public static void main(String[] args) throws IOException {
-
 //        System.out.println("ksdjfkasdf<Int> threadId)".replaceAll("([\\s\\(<])Int([\\s>])", "$1Integer$2"));
         List<String> filePaths = Arrays.asList(
 //                main + "server/ReplicaManager.java",
 //                main + "cluster/Partition.java",
 //                main + "utils/Pool.java",
 //                main + "log/LogConfig.java",
-                main + "api/ApiUtils.java");
+                main + "network/BoundedByteBufferSend.java");
 //        List<String> filePaths = Arrays.asList(main + "log/Log.java");
         for (String p : filePaths) {
-            convertToJava(p, true);
+//            convertToJava(p, true);
         }
     }
 
 
     public static void convertToJava(String filePath, boolean write) throws IOException {
-        char[] lastList = new char[]{'[', '(', '}', '{', ';', '*', '/', ',', '>', '=','+'};
+        List<Character> lastList = Lists.newArrayList('[', '(', '}', '{', ';', '*', '/', ',', '>', '=', '+');
         String[] ps = new String[]{
+                "Int ", "Integer ",
+                "Int>", "Integer>",
+                "<Int,", "<Integer,>",
                 " def ", "public void ",
-                "<Int,", "<Integer,",
-                 ",Int>", ",Integer>",
-                "([\\s\\(<])Int([\\s>])", "$1Integer$2",
                 "([\\s\\(<])Int([\\s>])", "$1Integer$2",
                 "(\\w+):\\s?(\\w+)", "$2 $1",
                 "public(.+):\\s?(\\w+)\\s?=", "public $2 $1",
@@ -52,9 +55,9 @@ public class ScalaTranslator {
                 "Long.MaxValue", "Long.MAX_VALUE",
                 "Double.MaxValue", "Double.MAX_VALUE",
                 " assertEquals", "Assert.assertEquals",
-                " assertTrue"," Assert.assertTrue"
+                "val\\s(\\S+)\\s?\\s?:\\s?(\\S+)", "$2 $1",
+                " assertTrue", " Assert.assertTrue"
         };
-        String p = "(\\w+):\\s?(\\w+)";
         StringBuilder content = new StringBuilder();
         boolean comment = false;
         BufferedReader reader = new BufferedReader(new FileReader(filePath));
@@ -85,10 +88,10 @@ public class ScalaTranslator {
         }
     }
 
-    private static void addDelimit(char[] lastList, StringBuilder content, String s) {
+    private static void addDelimit(List<Character> lastList, StringBuilder content, String s) {
         char last = s.charAt(s.length() - 1);
         boolean inLast = false;
-        for (char c : lastList) {
+        for (Character c : lastList) {
             if (c == last) {
                 inLast = true;
                 break;
@@ -100,4 +103,40 @@ public class ScalaTranslator {
             }
         }
     }
+
+    @SuppressWarnings("rawtypes")
+    public static String getMyIp() {
+        String localip = null;// 本地IP，如果没有配置外网IP则返回它
+        String netip = null;// 外网IP
+        try {
+            Enumeration netInterfaces = NetworkInterface.getNetworkInterfaces();
+            InetAddress ip = null;
+            boolean finded = false;// 是否找到外网IP
+            while (netInterfaces.hasMoreElements() && !finded) {
+                NetworkInterface ni = (NetworkInterface) netInterfaces.nextElement();
+                Enumeration address = ni.getInetAddresses();
+                while (address.hasMoreElements()) {
+                    ip = (InetAddress) address.nextElement();
+                    if (!ip.isSiteLocalAddress() && !ip.isLoopbackAddress() && ip.getHostAddress().indexOf(":") ==
+                            -1) {// 外网IP
+                        netip = ip.getHostAddress();
+                        finded = true;
+                        break;
+                    } else if (ip.isSiteLocalAddress() && !ip.isLoopbackAddress() && ip.getHostAddress().indexOf(":")
+                            == -1) {// 内网IP
+                        localip = ip.getHostAddress();
+                    }
+                }
+            }
+        } catch (SocketException e) {
+            e.printStackTrace();
+        }
+
+        if (netip != null && !"".equals(netip)) {
+            return netip;
+        } else {
+            return localip;
+        }
+    }
 }
+
