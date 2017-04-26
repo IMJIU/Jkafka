@@ -9,6 +9,7 @@ import kafka.func.*;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.channels.ReadableByteChannel;
 import java.nio.charset.Charset;
 import java.util.*;
 import java.util.concurrent.locks.Lock;
@@ -414,21 +415,18 @@ public class Utils {
 //        m;
 //    }
 //
-//    /**
-//     * Read some bytes into the provided buffer, and return the number of bytes read. If the
-//     * channel has been closed or we get -1 on the read for any reason, throw an EOFException
-//     */
-//    def read(ReadableByteChannel channel, ByteBuffer buffer);
-//
-//    :Int=
-//
-//    {
-//        channel.read(buffer) match {
-//        case -1 =>throw new EOFException("Received -1 when reading from channel, socket has likely been closed.");
-//        case n:;
-//            Integer =>n;
-//    }
-//    }
+
+    /**
+     * Read some bytes into the provided buffer, and return the number of bytes read. If the
+     * channel has been closed or we get -1 on the read for any reason, throw an EOFException
+     */
+    public static Integer read(ReadableByteChannel channel, ByteBuffer buffer) throws IOException {
+        int result = channel.read(buffer);
+        if (result == -1) {
+            throw new EOFException("Received -1 when reading from channel, socket has likely been closed.");
+        }
+        return new Integer(result);
+    }
 //
 //    /**
 //     * Throw an exception if the given value is null, else return it. You can use this like:
@@ -792,6 +790,17 @@ public class Utils {
         return maps;
     }
 
+    public static <K, V, K2> Map<K2, Map<K, V>> groupByKey(Map<K, V> map, Handler<K, K2> handler) {
+        Map<K2, Map<K, V>> maps = Maps.newHashMap();
+        for (Map.Entry<K, V> entry : map.entrySet()) {
+            K2 tag = handler.handle(entry.getKey());
+            Map<K, V> m = maps.getOrDefault(tag, Maps.newHashMap());
+            m.put(entry.getKey(), entry.getValue());
+            maps.put(tag, m);
+        }
+        return maps;
+    }
+
     public static <K, V, V2> Map<K, V2> map(Map<K, V> map, Handler<V, V2> handler) {
         Map<K, V2> result = Maps.newHashMap();
         if (map != null) {
@@ -806,7 +815,7 @@ public class Utils {
         Map<K2, V> result = Maps.newHashMap();
         if (map != null) {
             for (Map.Entry<K, V> entry : map.entrySet()) {
-                result.put(handler.handle(entry.getKey()),entry.getValue());
+                result.put(handler.handle(entry.getKey()), entry.getValue());
             }
         }
         return result;
@@ -815,10 +824,20 @@ public class Utils {
     public static <T> int size(Iterable<T> iterable) {
         Iterator<T> it = iterable.iterator();
         int size = 0;
-        while(it.hasNext()){
+        while (it.hasNext()) {
             it.next();
             size++;
         }
         return size;
+    }
+
+
+
+    public static <K, V> Map<K, V> toMap(List<Tuple<K, V>> list) {
+        Map<K, V> map = Maps.newHashMap();
+        for (Tuple<K, V> kv: list) {
+            map.put(kv.v1,kv.v2);
+        }
+        return map;
     }
 }

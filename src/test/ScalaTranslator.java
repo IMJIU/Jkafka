@@ -12,17 +12,22 @@ import java.util.List;
  * @create 2017-03-30 10:04
  **/
 public class ScalaTranslator {
-    public static final String main = "g:/github/JKafka/src/main/java/kafka/";
-    public static final String test = "g:/github/JKafka/src/test/kafka/";
+    public final String env = "";
+    public  final String main = "e:/github/JKafka/src/main/java/kafka/";
+    public  final String test = "e:/github/JKafka/src/test/kafka/";
+    static{
+
+    }
 
     public static void main(String[] args) throws IOException {
+
 //        System.out.println("ksdjfkasdf<Int> threadId)".replaceAll("([\\s\\(<])Int([\\s>])", "$1Integer$2"));
         List<String> filePaths = Arrays.asList(
 //                main + "server/ReplicaManager.java",
 //                main + "cluster/Partition.java",
 //                main + "utils/Pool.java",
 //                main + "log/LogConfig.java",
-                main + "api/ProducerRequest.java");
+                main + "api/ApiUtils.java");
 //        List<String> filePaths = Arrays.asList(main + "log/Log.java");
         for (String p : filePaths) {
             convertToJava(p, true);

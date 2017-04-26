@@ -3,27 +3,33 @@ package kafka.network;/**
  */
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.yammer.metrics.core.Gauge;
+import com.yammer.metrics.core.Histogram;
+import com.yammer.metrics.core.Metric;
+import kafka.api.ProducerRequest;
 import kafka.api.RequestKeys;
 import kafka.api.RequestOrResponse;
 import kafka.func.ActionWithParam;
+import kafka.func.Handler;
 import kafka.metrics.KafkaMetricsGroup;
 import kafka.utils.Logging;
 import kafka.utils.Time;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
-/**
- * @author
- * @create 2017-04-20 14 18
- **/
+
 public class RequestChannel extends KafkaMetricsGroup {
     Integer numProcessors;
     Integer queueSize;
@@ -64,12 +70,12 @@ public class RequestChannel extends KafkaMetricsGroup {
 
 
     public ByteBuffer getShutdownReceive() {
-//        ProducerRequest emptyProducerRequest = new ProducerRequest(0, 0, "", 0, 0, collection.mutable.Map < TopicAndPartition, ByteBufferMessageSet > ());
-//        ByteBuffer byteBuffer = ByteBuffer.allocate(emptyProducerRequest.sizeInBytes + 2);
-//        byteBuffer.putShort(RequestKeys.ProduceKey);
-//        emptyProducerRequest.writeTo(byteBuffer);
-//        byteBuffer.rewind();
-//        return byteBuffer;
+        ProducerRequest emptyProducerRequest = new ProducerRequest(0, 0, "", 0, 0, Maps.newHashMap());
+        ByteBuffer byteBuffer = ByteBuffer.allocate(emptyProducerRequest.sizeInBytes + 2);
+        byteBuffer.putShort(RequestKeys.ProduceKey);
+        emptyProducerRequest.writeTo(byteBuffer);
+        byteBuffer.rewind();
+        return byteBuffer;
         return null;
     }
 
@@ -152,7 +158,8 @@ public class RequestChannel extends KafkaMetricsGroup {
             this(processor, requestKey, buffer, startTimeMs, new InetSocketAddress(0));
         }
 
-        public Request(Integer processor, Object requestKey, ByteBuffer buffer, Long startTimeMs, SocketAddress remoteAddress) {
+        public Request(Integer processor, Object requestKey, ByteBuffer buffer, Long startTimeMs, SocketAddress
+                remoteAddress) {
             this.processor = processor;
             this.requestKey = requestKey;
             this.buffer = buffer;
@@ -207,10 +214,14 @@ public class RequestChannel extends KafkaMetricsGroup {
 //                m.responseSendTimeHist.update(responseSendTime);
 //                m.totalTimeHist.update(totalTime);
 //            }
-//            requestLogger.trace(String.format("Completed request:%s from client %s;totalTime:%d,requestQueueTime:%d,localTime:%d,remoteTime:%d,responseQueueTime:%d,sendTime:%d",
-//                    requestObj.describe(true), remoteAddress, totalTime, requestQueueTime, apiLocalTime, apiRemoteTime, responseQueueTime, responseSendTime));
-//            requestLogger.debug(String.format("Completed request:%s from client %s;totalTime:%d,requestQueueTime:%d,localTime:%d,remoteTime:%d,responseQueueTime:%d,sendTime:%d",
-//                    requestObj.describe(false), remoteAddress, totalTime, requestQueueTime, apiLocalTime, apiRemoteTime, responseQueueTime, responseSendTime));
+//            requestLogger.trace(String.format("Completed request:%s from client %s;totalTime:%d,
+// requestQueueTime:%d,localTime:%d,remoteTime:%d,responseQueueTime:%d,sendTime:%d",
+//                    requestObj.describe(true), remoteAddress, totalTime, requestQueueTime, apiLocalTime,
+// apiRemoteTime, responseQueueTime, responseSendTime));
+//            requestLogger.debug(String.format("Completed request:%s from client %s;totalTime:%d,
+// requestQueueTime:%d,localTime:%d,remoteTime:%d,responseQueueTime:%d,sendTime:%d",
+//                    requestObj.describe(false), remoteAddress, totalTime, requestQueueTime, apiLocalTime,
+// apiRemoteTime, responseQueueTime, responseSendTime));
         }
     }
 
@@ -228,7 +239,8 @@ public class RequestChannel extends KafkaMetricsGroup {
         }
 
         public Response(Integer processor, Request request, Send responseSend) {
-            this(processor, request, responseSend, responseSend == null ? ResponseAction.NoOpAction : ResponseAction.SendAction);
+            this(processor, request, responseSend, responseSend == null ? ResponseAction.NoOpAction : ResponseAction
+                    .SendAction);
             request.responseCompleteTimeMs = Time.get().milliseconds();
         }
 
@@ -245,48 +257,53 @@ public class RequestChannel extends KafkaMetricsGroup {
 }
 
 class RequestMetrics extends KafkaMetricsGroup {
-//    HashMap<String, RequestMetrics> metricsMap = new HashMap<>();
-//    String consumerFetchMetricName = RequestKeys.nameForKey(RequestKeys.FetchKey) + "Consumer";
-//    String followFetchMetricName = RequestKeys.nameForKey(RequestKeys.FetchKey) + "Follower";
-//    (RequestKeys.keyToNameAndDeserializerMap.values.map(e=>e._1);
-//    ++
-//
-//    List(consumerFetchMetricName, followFetchMetricName)
-//
-//    ).
-//
-//    foreach(name=>metricsMap.put(name, new RequestMetrics(name)
-//
-//    ))
-//
-//    val tags = Map("request"
-//    ->name);
-//    public requestRate=
-//
-//    newMeter("RequestsPerSec","requests",TimeUnit.SECONDS, tags);
-//    // time a request spent in a request queue;
-//    public requestQueueTimeHist=
-//
-//    newHistogram("RequestQueueTimeMs",biased=true, tags);
-//    // time a request takes to be processed at the local broker;
-//    public localTimeHist=
-//
-//    newHistogram("LocalTimeMs",biased=true, tags);
-//    // time a request takes to wait on remote brokers (only relevant to fetch and produce requests);
-//    public remoteTimeHist=
-//
-//    newHistogram("RemoteTimeMs",biased=true, tags);
-//    // time a response spent in a response queue;
-//    public responseQueueTimeHist=
-//
-//    newHistogram("ResponseQueueTimeMs",biased=true, tags);
-//    // time to send the response to the requester;
-//    public responseSendTimeHist=
-//
-//    newHistogram("ResponseSendTimeMs",biased=true, tags);
-//
-//    public totalTimeHist=
-//
-//    newHistogram("TotalTimeMs",biased=true, tags);
+    public String name;
+    public static HashMap<String, RequestMetrics> metricsMap = new HashMap<>();
+    public static String consumerFetchMetricName = RequestKeys.nameForKey(RequestKeys.FetchKey) + "Consumer";
+    public static String followFetchMetricName = RequestKeys.nameForKey(RequestKeys.FetchKey) + "Follower";
+
+    public RequestMetrics(String name) {
+        this.name = name;
+    }
+
+    static {
+        List<String> list = RequestKeys.keyToNameAndDeserializerMap.values().stream().map(e -> e.v1).collect
+                (Collectors.toList());
+        List<String> nameList = Lists.newArrayList(consumerFetchMetricName, followFetchMetricName);
+        list.addAll(nameList);
+        list.forEach(name -> metricsMap.put(name, new RequestMetrics(name)));
+    }
+
+    public Map<String, String> tags;
+    public Metric requestRate;
+    // time a request spent in a request queue;
+    public Histogram requestQueueTimeHist;
+    // time a request takes to be processed at the local broker;
+    public Histogram localTimeHist;
+    // time a request takes to wait on remote brokers (only relevant to fetch and produce requests);
+    public Histogram remoteTimeHist;
+    // time a response spent in a response queue;
+    public Histogram responseQueueTimeHist;
+    // time to send the response to the requester;
+    public Histogram responseSendTimeHist;
+
+    public Histogram totalTimeHist;
+
+    public void init() {
+        tags = Maps.newHashMap();
+        tags.put("request", name);
+        requestRate = newMeter("RequestsPerSec", "requests", TimeUnit.SECONDS, tags);
+        // time a request spent in a request queue;
+        requestQueueTimeHist = newHistogram("RequestQueueTimeMs", true, tags);
+        // time a request takes to be processed at the local broker;
+        localTimeHist = newHistogram("LocalTimeMs", true, tags);
+        // time a request takes to wait on remote brokers (only relevant to fetch and produce requests);
+        remoteTimeHist = newHistogram("RemoteTimeMs", true, tags);
+        // time a response spent in a response queue;
+        responseQueueTimeHist = newHistogram("ResponseQueueTimeMs", true, tags);
+        // time to send the response to the requester;
+        responseSendTimeHist = newHistogram("ResponseSendTimeMs", true, tags);
+        totalTimeHist = newHistogram("TotalTimeMs", true, tags);
+    }
 }
 

@@ -11,6 +11,12 @@ import java.util.Optional;
  */
 public abstract class RequestOrResponse extends Logging {
     Optional<Short> requestId = Optional.empty();
+    public RequestOrResponse() {
+        this.requestId = Optional.empty();
+    }
+    public RequestOrResponse(Optional<Short> requestId) {
+        this.requestId = requestId;
+    }
 
     public abstract Integer sizeInBytes();
 

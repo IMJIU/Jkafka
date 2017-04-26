@@ -2,6 +2,7 @@ package kafka.network;
 
 
 import com.yammer.metrics.core.Meter;
+import kafka.common.KafkaException;
 import kafka.utils.SystemTime;
 import kafka.utils.Time;
 
@@ -58,9 +59,9 @@ public class Processor extends AbstractServerThread {
         while (isRunning()) {
             try {
                 // setup any new connections that have been queued up;
-//            configureNewConnections();
+                configureNewConnections();
                 // register any new responses for writing;
-//            processNewResponses();
+                processNewResponses();
                 Long startSelectTime = time.nanoseconds();
                 int ready = 0;
 
@@ -85,9 +86,9 @@ public class Processor extends AbstractServerThread {
                             key = iter.next();
                             iter.remove();
                             if (key.isReadable()) {
-//                            read(key);
+                                read(key);
                             } else if (key.isWritable()) {
-//                                write(key);
+                                write(key);
                             } else if (!key.isValid()) {
                                 close(key);
                             } else {
@@ -102,19 +103,18 @@ public class Processor extends AbstractServerThread {
                         }
                     }
                 }
-//            maybeCloseOldestConnection();
+                maybeCloseOldestConnection();
             } catch (IOException e) {
                 error(e.getMessage(),e);
             }
         }
-
-
         debug("Closing selector.");
-
-//        closeAll();
-
+        try {
+            closeAll();
+        } catch (IOException e) {
+            error(e.getMessage(), e);
+        }
         swallowError(() -> selector.close());
-
         shutdownComplete();
     }
 
@@ -126,44 +126,42 @@ public class Processor extends AbstractServerThread {
         lruConnections.remove(key);
         super.close(key);
     }
-//
-//    private void processNewResponses() {
-//        var curr = requestChannel.receiveResponse(id);
-//        while (curr != null) {
-//            SelectionKey key = (SelectionKey)curr.request.requestKey;
-//            try {
-//                curr.responseAction match {
-//                    case RequestChannel.NoOpAction =>{
-//                        // There is no response to send to the client, we need to read more pipelined requests;
-//                        // that are sitting in the server's socket buffer;
-//                        curr.request.updateRequestMetrics;
-//                        trace("Socket server received empty response to send, registering for read: " + curr)
-//                        key.interestOps(SelectionKey.OP_READ);
-//                        key.attach(null);
-//                    }
-//                    case RequestChannel.SendAction =>{
-//                        trace("Socket server received response to send, registering for write: " + curr)
-//                        key.interestOps(SelectionKey.OP_WRITE);
-//                        key.attach(curr);
-//                    }
-//                    case RequestChannel.CloseConnectionAction =>{
-//                        curr.request.updateRequestMetrics;
-//                        trace("Closing socket connection actively according to the response code.");
-//                        close(key);
-//                    }
-//                    case responseCode =>throw new KafkaException("No mapping found for response code " + responseCode)
-//                }
-//            } catch {
-//                case CancelledKeyException e =>{
-//                    debug("Ignoring response for closed socket.")
-//                    close(key);
-//                }
-//            }finally{
-//                curr = requestChannel.receiveResponse(id);
-//            }
-//        }
-//    }
-//
+
+    private void processNewResponses() {
+        RequestChannel.Response curr = requestChannel.receiveResponse(id);
+        while (curr != null) {
+            SelectionKey key = (SelectionKey) curr.request.requestKey;
+            try {
+                switch (curr.responseAction) {
+                    case NoOpAction:
+                        // There is no response to send to the client, we need to read more pipelined requests;
+                        // that are sitting in the server's socket buffer;
+                        curr.request.updateRequestMetrics();
+                        trace("Socket server received empty response to send, registering for read: " + curr);
+                        key.interestOps(SelectionKey.OP_READ);
+                        key.attach(null);
+                        break;
+                    case SendAction:
+                        trace("Socket server received response to send, registering for write: " + curr);
+                        key.interestOps(SelectionKey.OP_WRITE);
+                        key.attach(curr);
+                        break;
+                    case CloseConnectionAction:
+                        curr.request.updateRequestMetrics();
+                        trace("Closing socket connection actively according to the response code.");
+                        close(key);
+                        break;
+                    default:
+                        throw new KafkaException("No mapping found for response code ");
+                }
+            } catch (CancelledKeyException e) {
+                debug("Ignoring response for closed socket.");
+                close(key);
+            } finally {
+                curr = requestChannel.receiveResponse(id);
+            }
+        }
+    }
 
     /**
      * Queue up a new connection for reading
@@ -173,103 +171,95 @@ public class Processor extends AbstractServerThread {
         wakeup();
     }
 
-    //
-//    /**
-//     * Register any new connections that have been queued up
-//     */
-//    privatepublic
-//
-//    void configureNewConnections() {
-//        while (newConnections.size() > 0) {
-//            val channel = newConnections.poll();
-//            debug("Processor " + id + " listening to new connection from " + channel.socket.getRemoteSocketAddress);
-//            channel.register(selector, SelectionKey.OP_READ);
-//        }
-//    }
-//
-//    /*
-//     * Process reads from ready sockets
-//     */
-//    public void read(SelectionKey key) {
-//        lruConnections.put(key, currentTimeNanos);
-//        val socketChannel = channelFor(key);
-//        var receive = key.attachment.asInstanceOf < Receive >
-//        if (key.attachment == null) {
-//            receive = new BoundedByteBufferReceive(maxRequestSize);
-//            key.attach(receive);
-//        }
-//        val read = receive.readFrom(socketChannel);
-//        val address = socketChannel.socket.getRemoteSocketAddress();
-//        trace(read + " bytes read from " + address);
-//        if (read < 0) {
-//            close(key);
-//        } else if (receive.complete) {
-//            val req = RequestChannel.Request(processor = id, requestKey = key, buffer = receive.buffer, startTimeMs = time.milliseconds, remoteAddress = address);
-//            requestChannel.sendRequest(req);
-//            key.attach(null);
-//            // explicitly reset interest ops to not READ, no need to wake up the selector just yet;
-//            key.interestOps(key.interestOps & (~SelectionKey.OP_READ));
-//        } else {
-//            // more reading to be done;
-//            trace("Did not finish reading, registering for read again on connection " + socketChannel.socket.getRemoteSocketAddress())
-//            key.interestOps(SelectionKey.OP_READ);
-//            wakeup();
-//        }
-//    }
-//
-//    /*
-//     * Process writes to ready sockets
-//     */
-//    public void write(SelectionKey key) {
-//        val socketChannel = channelFor(key);
-//        val response = key.attachment().asInstanceOf < RequestChannel.Response >
-//                val responseSend = response.responseSend;
-//        if (responseSend == null)
-//            throw new IllegalStateException("Registered for write interest but no response attached to key.")
-//        val written = responseSend.writeTo(socketChannel);
-//        trace(written + " bytes written to " + socketChannel.socket.getRemoteSocketAddress() + " using key " + key);
-//        if (responseSend.complete) {
-//            response.request.updateRequestMetrics();
-//            key.attach(null);
-//            trace("Finished writing, registering for read on connection " + socketChannel.socket.getRemoteSocketAddress())
-//            key.interestOps(SelectionKey.OP_READ);
-//        } else {
-//            trace("Did not finish writing, registering for write again on connection " + socketChannel.socket.getRemoteSocketAddress())
-//            key.interestOps(SelectionKey.OP_WRITE);
-//            wakeup();
-//        }
-//    }
-//
+
+    /**
+     * Register any new connections that have been queued up
+     */
+    private void configureNewConnections() throws ClosedChannelException {
+        while (newConnections.size() > 0) {
+            SocketChannel channel = newConnections.poll();
+            debug("Processor " + id + " listening to new connection from " + channel.socket().getRemoteSocketAddress());
+            channel.register(selector, SelectionKey.OP_READ);
+        }
+    }
+
+    /**
+     * Process reads from ready sockets
+     */
+    public void read(SelectionKey key) {
+        try {
+            lruConnections.put(key, currentTimeNanos);
+            SocketChannel socketChannel = channelFor(key);
+            Receive receive = (Receive) key.attachment();
+            if (key.attachment() == null) {
+                receive = new BoundedByteBufferReceive(maxRequestSize);
+                key.attach(receive);
+            }
+            Integer read = receive.readFrom(socketChannel);
+            SocketAddress address = socketChannel.socket().getRemoteSocketAddress();
+            trace(read + " bytes read from " + address);
+            if (read < 0) {
+                close(key);
+            } else if (receive.complete()) {
+                RequestChannel.Request req = new RequestChannel.Request(id, key, receive.buffer, time.milliseconds(), address);
+                requestChannel.sendRequest(req);
+                key.attach(null);
+                // explicitly reset interest ops to not READ, no need to wake up the selector just yet;
+                key.interestOps(key.interestOps() & (~SelectionKey.OP_READ));
+            } else {
+                // more reading to be done;
+                trace("Did not finish reading, registering for read again on connection " + socketChannel.socket().getRemoteSocketAddress());
+                key.interestOps(SelectionKey.OP_READ);
+                wakeup();
+            }
+        } catch (InterruptedException e) {
+            error(e.getMessage(), e);
+        }
+    }
+
+
+    /*
+     * Process writes to ready sockets
+     */
+    public void write(SelectionKey key) {
+        SocketChannel socketChannel = channelFor(key);
+        RequestChannel.Response response = (RequestChannel.Response) key.attachment();
+        Send responseSend = response.responseSend;
+        if (responseSend == null)
+            throw new IllegalStateException("Registered for write interest but no response attached to key.");
+        Integer written = responseSend.writeTo(socketChannel);
+        trace(written + " bytes written to " + socketChannel.socket().getRemoteSocketAddress() + " using key " + key);
+        if (responseSend.complete()) {
+            response.request.updateRequestMetrics();
+            key.attach(null);
+            trace("Finished writing, registering for read on connection " + socketChannel.socket().getRemoteSocketAddress());
+            key.interestOps(SelectionKey.OP_READ);
+        } else {
+            trace("Did not finish writing, registering for write again on connection " + socketChannel.socket().getRemoteSocketAddress());
+            key.interestOps(SelectionKey.OP_WRITE);
+            wakeup();
+        }
+    }
+
     private SocketChannel channelFor(SelectionKey key) {
         return (SocketChannel) key.channel();
     }
-//
-//    privatevoid maybeCloseOldestConnection
-//
-//    {
-//        if (currentTimeNanos > nextIdleCloseCheckTime) {
-//            if (lruConnections.isEmpty) {
-//                nextIdleCloseCheckTime = currentTimeNanos + connectionsMaxIdleNanos;
-//            } else {
-//                val oldestConnectionEntry = lruConnections.entrySet.iterator().next();
-//                val connectionLastActiveTime = oldestConnectionEntry.getValue;
-//                nextIdleCloseCheckTime = connectionLastActiveTime + connectionsMaxIdleNanos;
-//                if (currentTimeNanos > nextIdleCloseCheckTime) {
-//                    val SelectionKey key = oldestConnectionEntry.getKey;
-//                    trace("About to close the idle connection from " + key.channel.asInstanceOf < SocketChannel >.socket.getRemoteSocketAddress;
-//                    +" due to being idle for " + (currentTimeNanos - connectionLastActiveTime) / 1000 / 1000 + " millis")
-//                    close(key);
-//                }
-//            }
-//        }
-//    }
-//
-//}
-//
-//    public void accept(SocketChannel socketChannel) {
-//        newConnections.add(socketChannel);
-//        wakeup();
-//    }
 
-
+    private void maybeCloseOldestConnection() {
+        if (currentTimeNanos > nextIdleCloseCheckTime) {
+            if (lruConnections.isEmpty()) {
+                nextIdleCloseCheckTime = currentTimeNanos + connectionsMaxIdleNanos;
+            } else {
+                Map.Entry<SelectionKey, Long> oldestConnectionEntry = lruConnections.entrySet().iterator().next();
+                Long connectionLastActiveTime = oldestConnectionEntry.getValue();
+                nextIdleCloseCheckTime = connectionLastActiveTime + connectionsMaxIdleNanos;
+                if (currentTimeNanos > nextIdleCloseCheckTime) {
+                    SelectionKey key = oldestConnectionEntry.getKey();
+                    trace("About to close the idle connection from " + ((SocketChannel) key.channel()).socket().getRemoteSocketAddress()
+                            + " due to being idle for " + (currentTimeNanos - connectionLastActiveTime) / 1000 / 1000 + " millis");
+                    close(key);
+                }
+            }
+        }
+    }
 }
