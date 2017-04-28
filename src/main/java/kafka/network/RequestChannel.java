@@ -70,13 +70,12 @@ public class RequestChannel extends KafkaMetricsGroup {
 
 
     public ByteBuffer getShutdownReceive() {
-        ProducerRequest emptyProducerRequest = new ProducerRequest(0, 0, "", 0, 0, Maps.newHashMap());
-        ByteBuffer byteBuffer = ByteBuffer.allocate(emptyProducerRequest.sizeInBytes + 2);
+        ProducerRequest emptyProducerRequest = new ProducerRequest((short)0, 0, "", (short)0, 0, Maps.newHashMap());
+        ByteBuffer byteBuffer = ByteBuffer.allocate(emptyProducerRequest.sizeInBytes() + 2);
         byteBuffer.putShort(RequestKeys.ProduceKey);
         emptyProducerRequest.writeTo(byteBuffer);
         byteBuffer.rewind();
         return byteBuffer;
-        return null;
     }
 
 

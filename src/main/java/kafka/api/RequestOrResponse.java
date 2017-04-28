@@ -10,7 +10,7 @@ import java.util.Optional;
  * Created by Administrator on 2017/4/21.
  */
 public abstract class RequestOrResponse extends Logging {
-    Optional<Short> requestId = Optional.empty();
+    public Optional<Short> requestId = Optional.empty();
     public RequestOrResponse() {
         this.requestId = Optional.empty();
     }
