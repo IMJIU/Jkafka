@@ -36,14 +36,14 @@ public class Throttler extends KafkaMetricsGroup {
         this.metricName = metricName;
         this.units = units;
         this.time = time;
-        if (metricName == null) {
+        if (this.metricName == null) {
             this.metricName = "throttler";
         }
         if(units == null){
             this.units = "entries";
         }
         periodStartNs = time.nanoseconds();
-        meter = newMeter(metricName, units, TimeUnit.SECONDS);
+        meter = newMeter(this.metricName, this.units, TimeUnit.SECONDS);
     }
     public Throttler(Double desiredRatePerSec, Long checkIntervalMs, Time time) {
         this(desiredRatePerSec,checkIntervalMs,true,null,null,time);

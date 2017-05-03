@@ -4,7 +4,6 @@ import com.google.common.collect.Maps;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.*;
 import com.yammer.metrics.core.Timer;
-import kafka.utils.Itor;
 import kafka.utils.Logging;
 
 import java.util.*;
@@ -30,8 +29,6 @@ public class KafkaMetricsGroup extends Logging {
         return explicitMetricName(pkg, simpleName, name, tags);
     }
 
-    //
-//
     private static MetricName explicitMetricName(String group, String typeName, String name, Map<String, String> tags) {
         if (tags == null) {
             tags = Maps.newHashMap();
@@ -52,25 +49,29 @@ public class KafkaMetricsGroup extends Logging {
         }
         return new MetricName(group, typeName, name, scope, nameBuilder.toString());
     }
-    public <T> Gauge<T> newGauge(String name, Gauge<T> metric){
-        return Metrics.defaultRegistry().newGauge(metricName(name, Collections.EMPTY_MAP),metric);
+
+    public <T> Gauge<T> newGauge(String name, Gauge<T> metric) {
+        return Metrics.defaultRegistry().newGauge(metricName(name, Collections.EMPTY_MAP), metric);
     }
-    public <T> Gauge<T> newGauge(String name, Gauge<T> metric, Map<String, String> tags){
-        return Metrics.defaultRegistry().newGauge(metricName(name, tags),metric);
+
+    public <T> Gauge<T> newGauge(String name, Gauge<T> metric, Map<String, String> tags) {
+        return Metrics.defaultRegistry().newGauge(metricName(name, tags), metric);
     }
+
     public Meter newMeter(String name, String eventType, TimeUnit timeUnit) {
-        return Metrics.defaultRegistry().newMeter(metricName(name,Maps.newHashMap()), eventType, timeUnit);
+        return Metrics.defaultRegistry().newMeter(metricName(name, Maps.newHashMap()), eventType, timeUnit);
     }
+
     public Meter newMeter(String name, String eventType, TimeUnit timeUnit, Map<String, String> tags) {
         return Metrics.defaultRegistry().newMeter(metricName(name, tags), eventType, timeUnit);
     }
 
 
-    public Histogram newHistogram(String name, Boolean biased, Map<String, String> tags){
-        if(biased==null){
-            biased=true;
+    public Histogram newHistogram(String name, Boolean biased, Map<String, String> tags) {
+        if (biased == null) {
+            biased = true;
         }
-       return  Metrics.defaultRegistry().newHistogram(metricName(name, tags),biased);
+        return Metrics.defaultRegistry().newHistogram(metricName(name, tags), biased);
     }
 
     public static Timer newTimer(String name, TimeUnit durationUnit, TimeUnit rateUnit, Map<String, String> tags) {
@@ -164,8 +165,8 @@ public class KafkaMetricsGroup extends Logging {
             }
         }
         if (filteredTags.size() > 0) {
-            if(sb.charAt(sb.length()-1)==','){
-                return Optional.of(sb.deleteCharAt(sb.length()-1).toString());
+            if (sb.charAt(sb.length() - 1) == ',') {
+                return Optional.of(sb.deleteCharAt(sb.length() - 1).toString());
             }
             return Optional.of(sb.toString());
         } else {
