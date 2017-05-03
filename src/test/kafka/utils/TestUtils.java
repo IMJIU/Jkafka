@@ -3,6 +3,7 @@ package kafka.utils;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import kafka.func.Action;
+import kafka.func.Fun;
 import kafka.log.LogConfig;
 import kafka.log.LogManager;
 import kafka.message.ByteBufferMessageSet;
@@ -11,6 +12,7 @@ import kafka.message.Message;
 import kafka.message.MessageAndOffset;
 import kafka.server.BrokerState;
 import org.junit.Assert;
+
 import java.io.*;
 import java.net.ServerSocket;
 import java.nio.ByteBuffer;
@@ -671,23 +673,27 @@ public class TestUtils {
         }
     }
 
-    //
-//    /**
-//     * Wait until the given condition is true or throw an exception if the given wait time elapses.
-//     */
-//    public void  waitUntilTrue(condition: () => Boolean, String msg, Long waitTime = 5000L): Boolean = {
-//        val startTime = System.currentTimeMillis();
-//        while (true) {
-//            if (condition())
-//                return true;
-//            if (System.currentTimeMillis() > startTime + waitTime)
-//                fail(msg);
-//            Thread.sleep(waitTime.min(100L));
-//        }
-//        // should never hit here;
+    public static Boolean waitUntilTrue(Fun<Boolean> condition, String msg) throws InterruptedException {
+        return waitUntilTrue(condition, msg, 5000L);
+    }
+
+    /**
+     * Wait until the given condition is true or throw an exception if the given wait time elapses.
+     */
+    public static Boolean waitUntilTrue(Fun<Boolean> condition, String msg, Long waitTime) throws InterruptedException {
+        long startTime = System.currentTimeMillis();
+        while (true) {
+            if (condition.invoke())
+                return true;
+            if (System.currentTimeMillis() > startTime + waitTime)
+                Assert.fail(msg);
+            Thread.sleep(Math.min(waitTime, 100L));
+        }
+        // should never hit here;
 //        throw new RuntimeException("unexpected error");
-//    }
-//
+    }
+
+    //
 //    public void  isLeaderLocalOnBroker(String topic, Integer partitionId, KafkaServer server): Boolean = {
 //        val partitionOpt = server.replicaManager.getPartition(topic, partitionId);
 //        partitionOpt match {
@@ -786,9 +792,6 @@ public class TestUtils {
 //    }
 //
 //
-
-
-
 
 
 //

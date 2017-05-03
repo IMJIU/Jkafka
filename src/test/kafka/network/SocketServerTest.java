@@ -2,153 +2,198 @@ package kafka.network;/**
  * Created by zhoulf on 2017/4/28.
  */
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
+import kafka.api.ProducerRequest;
+import kafka.producer.SyncProducerConfig;
+import kafka.utils.TestUtils;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
+
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.net.Socket;
+import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
+import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+
 /**
  * @author
  * @create 2017-04-28 02 11
  **/
 public class SocketServerTest {
+    SocketServer server;
 
-         SocketServer server = new SocketServer(0,
-                                                    host = null,
-                                                    port = kafka.utils.TestUtils.choosePort,
-                                                    numProcessorThreads = 1,
-                                                    maxQueuedRequests = 50,
-                                                    sendBufferSize = 300000,
-                                                    recvBufferSize = 300000,
-                                                    maxRequestSize = 50,
-                                                    maxConnectionsPerIp = 5,
-                                                    connectionsMaxIdleMs = 60*1000,
-                                                    maxConnectionsPerIpOverrides = Map.empty<String,Int>);
-  server.startup();
+    @Before
+    public void setup() throws IOException, InterruptedException {
+        server = new SocketServer(0,
+                null,
+                kafka.utils.TestUtils.choosePort(),
+                1,
+                50,
+                300000,
+                300000,
+                50,
+                5,
+                60 * 1000L,
+                Collections.emptyMap());
+        server.startup();
+    }
 
-       public void sendRequest(Socket socket, Short id, Array request<Byte>) {
-            val outgoing = new DataOutputStream(socket.getOutputStream);
-            outgoing.writeInt(request.length + 2);
-            outgoing.writeShort(id);
-            outgoing.write(request);
-            outgoing.flush();
-        }
+    public void sendRequest(Socket socket, Short id, byte[] request) throws IOException {
+        DataOutputStream outgoing = new DataOutputStream(socket.getOutputStream());
+        outgoing.writeInt(request.length + 2);
+        outgoing.writeShort(id);
+        outgoing.write(request);
+        outgoing.flush();
+    }
 
-       public void receiveResponse(Socket socket): Array<Byte> = {
-            val incoming = new DataInputStream(socket.getInputStream);
-            val len = incoming.readInt();
-            val response = new Array<Byte>(len);
-                    incoming.readFully(response);
-            response;
-        }
+    public byte[] receiveResponse(Socket socket) throws IOException {
+        DataInputStream incoming = new DataInputStream(socket.getInputStream());
+        Integer len = incoming.readInt();
+        byte[] response = new byte[len];
+        incoming.readFully(response);
+        return response;
+    }
 
-        /* A simple request handler that just echos back the response */
-       public void processRequest(RequestChannel channel) {
-            val request = channel.receiveRequest;
-            val byteBuffer = ByteBuffer.allocate(request.requestObj.sizeInBytes);
-            request.requestObj.writeTo(byteBuffer);
-            byteBuffer.rewind();
-            val send = new BoundedByteBufferSend(byteBuffer);
-            channel.sendResponse(new RequestChannel.Response(request.processor, request, send));
-        }
+    /* A simple request handler that just echos back the response */
+    public void processRequest(RequestChannel channel) throws InterruptedException {
+        RequestChannel.Request request = channel.receiveRequest();
+        ByteBuffer byteBuffer = ByteBuffer.allocate(request.requestObj.sizeInBytes());
+        request.requestObj.writeTo(byteBuffer);
+        byteBuffer.rewind();
+        BoundedByteBufferSend send = new BoundedByteBufferSend(byteBuffer);
+        channel.sendResponse(new RequestChannel.Response(request.processor, request, send));
+    }
 
-       public void connect(SocketServer s = server) = new Socket("localhost", s.port);
+    public Socket connect() throws IOException {
+        return connect(server);
+    }
 
-        @After
-       public void cleanup() {
-            server.shutdown();
-        }
-        @Test
-       public void simpleRequest() {
-            val socket = connect();
-            val correlationId = -1;
-            val clientId = SyncProducerConfig.DefaultClientId;
-            val ackTimeoutMs = SyncProducerConfig.DefaultAckTimeoutMs;
-            val ack = SyncProducerConfig.DefaultRequiredAcks;
-            val emptyRequest =
-                    new ProducerRequest(correlationId, clientId, ack, ackTimeoutMs, collection.mutable.Map<TopicAndPartition, ByteBufferMessageSet>());
+    public Socket connect(SocketServer s) throws IOException {
+        return new Socket("localhost", s.port);
+    }
 
-            val byteBuffer = ByteBuffer.allocate(emptyRequest.sizeInBytes);
-            emptyRequest.writeTo(byteBuffer);
-            byteBuffer.rewind();
-            val serializedBytes = new Array<Byte>(byteBuffer.remaining);
-                    byteBuffer.get(serializedBytes);
+    @After
+    public void cleanup() throws InterruptedException {
+        server.shutdown();
+    }
 
-            sendRequest(socket, 0, serializedBytes);
-            processRequest(server.requestChannel);
-           Assert.assertEquals(serializedBytes.toSeq, receiveResponse(socket).toSeq);
-        }
+    @Test
+    public void simpleRequest() throws IOException, InterruptedException {
+        Socket socket = connect();
+        Integer correlationId = -1;
+        String clientId = SyncProducerConfig.DefaultClientId;
+        Integer ackTimeoutMs = SyncProducerConfig.DefaultAckTimeoutMs;
+        Short ack = SyncProducerConfig.DefaultRequiredAcks;
+        ProducerRequest emptyRequest = new ProducerRequest(correlationId, clientId, ack, ackTimeoutMs, Maps.newHashMap());
 
-        @Test(expected = classOf<IOException>)
-       public void tooBigRequestIsRejected() {
-            val tooManyBytes = new Array<Byte>(server.maxRequestSize + 1);
-            new Random().nextBytes(tooManyBytes);
-            val socket = connect();
-            sendRequest(socket, 0, tooManyBytes);
-            receiveResponse(socket);
-        }
+        ByteBuffer byteBuffer = ByteBuffer.allocate(emptyRequest.sizeInBytes());
+        emptyRequest.writeTo(byteBuffer);
+        byteBuffer.rewind();
+        byte[] serializedBytes = new byte[byteBuffer.remaining()];
+        byteBuffer.get(serializedBytes);
 
-        @Test
-       public void testNullResponse() {
-            val socket = connect();
-            val bytes = new Array<Byte>(40);
-            sendRequest(socket, 0, bytes);
+        sendRequest(socket, (short) 0, serializedBytes);
+        processRequest(server.requestChannel);
+        Assert.assertEquals(Arrays.asList(serializedBytes), Arrays.asList(receiveResponse(socket)));
+    }
 
-            val request = server.requestChannel.receiveRequest;
-            // Since the response is not sent yet, the selection key should not be readable.;
-            TestUtils.waitUntilTrue(
-                    () => { (request.requestKey.asInstanceOf<SelectionKey>.interestOps & SelectionKey.OP_READ) != SelectionKey.OP_READ },
-                    "Socket key shouldn't be available for read")
+    @Test(expected = IOException.class)
+    public void tooBigRequestIsRejected() throws IOException {
+        byte[] tooManyBytes = new byte[server.maxRequestSize + 1];
+        new Random().nextBytes(tooManyBytes);
+        Socket socket = connect();
+        sendRequest(socket, (short) 0, tooManyBytes);
+        receiveResponse(socket);
+    }
 
-            server.requestChannel.sendResponse(new RequestChannel.Response(0, request, null));
+    @Test
+    public void testNullResponse() throws IOException, InterruptedException {
+        Socket socket = connect();
+        byte[] bytes = new byte[40];
+        sendRequest(socket, (short) 0, bytes);
 
-            // After the response is sent to the client (which is async and may take a bit of time), the socket key should be available for reads.;
-            TestUtils.waitUntilTrue(
-                    () => { (request.requestKey.asInstanceOf<SelectionKey>.interestOps & SelectionKey.OP_READ) == SelectionKey.OP_READ },
-                    "Socket key should be available for reads")
-        }
+        RequestChannel.Request request = server.requestChannel.receiveRequest();
+        // Since the response is not sent yet, the selection key should not be readable.;
+        TestUtils.waitUntilTrue(() -> (((SelectionKey) request.requestKey).interestOps() & SelectionKey.OP_READ) != SelectionKey.OP_READ,
+                "Socket key shouldn't be available for read");
 
-        @Test(expected = classOf<IOException>)
-       public void testSocketsCloseOnShutdown() {
-            // open a connection;
-            val socket = connect();
-            val bytes = new Array<Byte>(40);
-            // send a request first to make sure the connection has been picked up by the socket server;
-            sendRequest(socket, 0, bytes);
-            processRequest(server.requestChannel);
-            // then shutdown the server;
-            server.shutdown();
-            // doing a subsequent send should throw an exception as the connection should be closed.;
-            sendRequest(socket, 0, bytes);
-        }
+        server.requestChannel.sendResponse(new RequestChannel.Response(0, request, null));
 
-        @Test
-       public void testMaxConnectionsPerIp() {
-            // make the maximum allowable number of connections and then leak them;
-            val conns = (0 until server.maxConnectionsPerIp).map(i => connect());
-            // now try one more (should fail);
-            val conn = connect();
-            conn.setSoTimeout(3000);
-           Assert.assertEquals(-1, conn.getInputStream().read());
-        }
-        @Test
-       public Unit  void testMaxConnectionsPerIPOverrides() {
-            val overrideNum = 6;
-            val Map overrides<String, Int> = Map("localhost" -> overrideNum);
-            val SocketServer overrideServer = new SocketServer(0,
-                    host = null,
-                    port = kafka.utils.TestUtils.choosePort,
-                    numProcessorThreads = 1,
-                    maxQueuedRequests = 50,
-                    sendBufferSize = 300000,
-                    recvBufferSize = 300000,
-                    maxRequestSize = 50,
-                    maxConnectionsPerIp = 5,
-                    connectionsMaxIdleMs = 60*1000,
-                    maxConnectionsPerIpOverrides = overrides);
-            overrideServer.startup();
-            // make the maximum allowable number of connections and then leak them;
-            val conns = ((0 until overrideNum).map(i => connect(overrideServer)));
-            // now try one more (should fail);
-            val conn = connect(overrideServer);
-            conn.setSoTimeout(3000);
-           Assert.assertEquals(-1, conn.getInputStream.read());
-            overrideServer.shutdown();
-        }
+        // After the response is sent to the client (which is async and may take a bit of time), the socket key should be available for reads.;
+        TestUtils.waitUntilTrue(() -> (((SelectionKey) request.requestKey).interestOps() & SelectionKey.OP_READ) == SelectionKey.OP_READ,
+                "Socket key should be available for read");
+    }
+
+    @Test(expected = IOException.class)
+    public void testSocketsCloseOnShutdown() throws IOException, InterruptedException {
+        // open a connection;
+        Socket socket = connect();
+        byte[] bytes = new byte[40];
+        // send a request first to make sure the connection has been picked up by the socket server;
+        sendRequest(socket, (short) 0, bytes);
+        processRequest(server.requestChannel);
+        // then shutdown the server;
+        server.shutdown();
+        // doing a subsequent send should throw an exception as the connection should be closed.;
+        sendRequest(socket, (short) 0, bytes);
+    }
+
+    @Test
+    public void testMaxConnectionsPerIp() throws IOException {
+        // make the maximum allowable number of connections and then leak them;
+        List<Socket> conns = Stream.iterate(0, n -> n + 1).limit(server.maxConnectionsPerIp).map(i -> {
+            try {
+                return connect();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return null;
+        }).collect(Collectors.toList());
+        // now try one more (should fail);
+        Socket conn = connect();
+        conn.setSoTimeout(3000);
+        Assert.assertEquals(-1, conn.getInputStream().read());
+    }
+
+    @Test
+    public void testMaxConnectionsPerIPOverrides() throws IOException, InterruptedException {
+        Integer overrideNum = 6;
+        Map<String, Integer> overrides = ImmutableMap.of("localhost", overrideNum);
+        SocketServer overrideServer = new SocketServer(0,
+                null,
+                kafka.utils.TestUtils.choosePort(),
+                1,
+                50,
+                300000,
+                300000,
+                50,
+                5,
+                60 * 1000L,
+                overrides);
+        overrideServer.startup();
+        // make the maximum allowable number of connections and then leak them;
+
+        List<Socket> conns = Stream.iterate(0, n -> n + 1).limit(overrideNum).map(i -> {
+            try {
+                return connect(overrideServer);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return null;
+        }).collect(Collectors.toList());
+        // now try one more (should fail);
+        Socket conn = connect(overrideServer);
+        conn.setSoTimeout(3000);
+        Assert.assertEquals(-1, conn.getInputStream().read());
+        overrideServer.shutdown();
+    }
 
 }
