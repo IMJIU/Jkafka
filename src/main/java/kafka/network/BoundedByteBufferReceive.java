@@ -81,7 +81,7 @@ public class BoundedByteBufferReceive extends Receive {
     }
 
     private ByteBuffer byteBufferAllocate(Integer size) {
-        ByteBuffer buffer = null;
+        ByteBuffer buffer;
         try {
             buffer = ByteBuffer.allocate(size);
         } catch (OutOfMemoryError e) {

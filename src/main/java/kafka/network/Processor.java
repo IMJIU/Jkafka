@@ -31,7 +31,6 @@ public class Processor extends AbstractServerThread {
     public Meter idleMeter;
     public Integer totalProcessorThreads;
     public RequestChannel requestChannel;
-    public ConnectionQuotas connectionQuotas;
     public Long connectionsMaxIdleMs;
 
     private ConcurrentLinkedQueue<SocketChannel> newConnections = new ConcurrentLinkedQueue<SocketChannel>();
@@ -41,6 +40,7 @@ public class Processor extends AbstractServerThread {
     private Long nextIdleCloseCheckTime;
 
     public Processor(Integer id, Time time, Integer maxRequestSize, Meter aggregateIdleMeter, Meter idleMeter, Integer totalProcessorThreads, RequestChannel requestChannel, ConnectionQuotas connectionQuotas, long connectionsMaxIdleMs) {
+        super(connectionQuotas);
         this.id = id;
         this.time = time;
         this.maxRequestSize = maxRequestSize;
@@ -67,9 +67,7 @@ public class Processor extends AbstractServerThread {
                 // register any new responses for writing;
                 processNewResponses();
                 Long startSelectTime = time.nanoseconds();
-                int ready = 0;
-
-                ready = selector.select(300);
+                int ready = selector.select(300);
 
                 currentTimeNanos = time.nanoseconds();
                 Long idleTime = currentTimeNanos - startSelectTime;
@@ -205,7 +203,7 @@ public class Processor extends AbstractServerThread {
             if (read < 0) {
                 close(key);
             } else if (receive.complete()) {
-                RequestChannel.Request req = new RequestChannel.Request(id, key, receive.buffer, time.milliseconds(), address);
+                RequestChannel.Request req = new RequestChannel.Request(id, key, receive.buffer(), time.milliseconds(), address);
                 requestChannel.sendRequest(req);
                 key.attach(null);
                 // explicitly reset interest ops to not READ, no need to wake up the selector just yet;

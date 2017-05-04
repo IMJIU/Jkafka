@@ -19,9 +19,9 @@ public class Acceptor extends AbstractServerThread {
     private Processor[] processors;
     public Integer sendBufferSize;
     public Integer recvBufferSize;
-    public ConnectionQuotas connectionQuotas;
 
     public Acceptor(String host, Integer port, Processor[] processors, Integer sendBufferSize, Integer recvBufferSize, ConnectionQuotas connectionQuotas) throws IOException {
+        super(connectionQuotas);
         this.host = host;
         this.port = port;
         this.processors = processors;
@@ -32,6 +32,7 @@ public class Acceptor extends AbstractServerThread {
     }
 
     public Acceptor(ConnectionQuotas connectionQuotas) throws IOException {
+        super(connectionQuotas);
         this.connectionQuotas = connectionQuotas;
         init();
     }

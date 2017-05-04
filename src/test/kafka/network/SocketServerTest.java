@@ -102,7 +102,8 @@ public class SocketServerTest {
 
         sendRequest(socket, (short) 0, serializedBytes);
         processRequest(server.requestChannel);
-        Assert.assertEquals(Arrays.asList(serializedBytes), Arrays.asList(receiveResponse(socket)));
+        TestUtils.checkEquals(ByteBuffer.wrap(serializedBytes),ByteBuffer.wrap(receiveResponse(socket)));
+//        Assert.assertEquals(serializedBytes,receiveResponse(socket));
     }
 
     @Test(expected = IOException.class)

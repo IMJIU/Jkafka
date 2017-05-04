@@ -31,7 +31,7 @@ public abstract class Transmission extends Logging {
  */
 abstract class Receive extends Transmission {
 
-    public ByteBuffer buffer;
+    public abstract ByteBuffer buffer();
 
     public abstract Integer readFrom(ReadableByteChannel channel);
 

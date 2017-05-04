@@ -28,7 +28,9 @@ public abstract class AbstractServerThread extends Logging implements Runnable {
     private CountDownLatch shutdownLatch = new CountDownLatch(1);
     private AtomicBoolean alive = new AtomicBoolean(true);
 
-    public AbstractServerThread() {
+
+    public AbstractServerThread(ConnectionQuotas connectionQuotas) {
+        this.connectionQuotas = connectionQuotas;
         try {
             selector = Selector.open();
         } catch (IOException e) {
@@ -159,8 +161,8 @@ class ConnectionQuotas extends Logging{
             Integer count = counts.get(addr);
             if (count == 1)
                 counts.remove(addr);
-            else ;
-            counts.put(addr, count - 1);
+            else
+                counts.put(addr, count - 1);
         }
     }
 
