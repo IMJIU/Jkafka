@@ -34,16 +34,19 @@ public class RequestChannel extends KafkaMetricsGroup {
     Integer numProcessors;
     Integer queueSize;
     private List<ActionWithParam<Integer>> responseListeners = Lists.newArrayList();
-    private ArrayBlockingQueue<Request> requestQueue = new ArrayBlockingQueue<>(queueSize);
-    private BlockingQueue<Response>[] responseQueues = new BlockingQueue[numProcessors];
+    private ArrayBlockingQueue<Request> requestQueue ;
+    private BlockingQueue<Response>[] responseQueues;
     public Request AllDone;
 
     public RequestChannel(Integer numProcessors, Integer queueSize) {
         this.numProcessors = numProcessors;
         this.queueSize = queueSize;
+        init();
     }
 
     public void init() {
+        requestQueue = new ArrayBlockingQueue<>(queueSize);
+        responseQueues = new BlockingQueue[numProcessors];
         AllDone = new Request(1, 2, getShutdownReceive(), 0L);
         for (int i = 0; i < numProcessors; i++)
             responseQueues[i] = new LinkedBlockingQueue<>();

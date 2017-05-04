@@ -46,12 +46,14 @@ public class SocketServer extends KafkaMetricsGroup {
         this.connectionsMaxIdleMs = connectionsMaxIdleMs;
         this.maxConnectionsPerIpOverrides = maxConnectionsPerIpOverrides;
         loggerName("[Socket Server on Broker " + brokerId + "], ");
+        processors =  new Processor[numProcessorThreads];
+        requestChannel = new RequestChannel(numProcessorThreads, maxQueuedRequests);
     }
 
     private Time time = Time.get();
-    private Processor[] processors = new Processor[numProcessorThreads];
+    private Processor[] processors;
     private volatile Acceptor acceptor = null;
-    public RequestChannel requestChannel = new RequestChannel(numProcessorThreads, maxQueuedRequests);
+    public RequestChannel requestChannel ;
 
     /* a meter to track the average free capacity of the network processors */
     private Meter aggregateIdleMeter = newMeter("NetworkProcessorAvgIdlePercent", "percent", TimeUnit.NANOSECONDS);

@@ -29,7 +29,11 @@ public class ProducerRequest extends RequestOrResponse {
     Short requiredAcks;
     Integer ackTimeoutMs;
     Map<TopicAndPartition, ByteBufferMessageSet> data;
-
+    /**
+     * Partitions the data into a map of maps (one for each topic).
+     */
+    private Map<String, Map<TopicAndPartition, ByteBufferMessageSet>> dataGroupedByTopic;
+    public Map<TopicAndPartition, Integer> topicPartitionMessageSizeMap;
 
     public ProducerRequest(Short versionId, Integer correlationId, String clientId, Short requiredAcks, Integer
             ackTimeoutMs, Map<TopicAndPartition, ByteBufferMessageSet> data) {
@@ -40,6 +44,8 @@ public class ProducerRequest extends RequestOrResponse {
         this.requiredAcks = requiredAcks;
         this.ackTimeoutMs = ackTimeoutMs;
         this.data = data;
+        dataGroupedByTopic =Utils.groupByKey(data, k -> k.topic);
+        topicPartitionMessageSizeMap = Utils.map(data, r -> r.sizeInBytes());
     }
 
     public ProducerRequest(Integer correlationId,
@@ -80,13 +86,7 @@ public class ProducerRequest extends RequestOrResponse {
     };
 
 
-    //
-    /**
-     * Partitions the data into a map of maps (one for each topic).
-     */
-    private Map<String, Map<TopicAndPartition, ByteBufferMessageSet>> dataGroupedByTopic =
-            Utils.groupByKey(data, k -> k.topic);
-    public Map<TopicAndPartition, Integer> topicPartitionMessageSizeMap = Utils.map(data, r -> r.sizeInBytes());
+
 
 
     @Override
@@ -142,7 +142,9 @@ public class ProducerRequest extends RequestOrResponse {
     }
 
 
-    public Integer numPartitions = data.size();
+    public Integer numPartitions(){
+        return data.size();
+    }
 
     @Override
     public String toString() {

@@ -35,10 +35,10 @@ public class Processor extends AbstractServerThread {
     public Long connectionsMaxIdleMs;
 
     private ConcurrentLinkedQueue<SocketChannel> newConnections = new ConcurrentLinkedQueue<SocketChannel>();
-    private Long connectionsMaxIdleNanos = connectionsMaxIdleMs * 1000 * 1000;
+    private Long connectionsMaxIdleNanos;
     private Long currentTimeNanos = System.nanoTime();
     private LinkedHashMap<SelectionKey, Long> lruConnections = new LinkedHashMap<>();
-    private Long nextIdleCloseCheckTime = currentTimeNanos + connectionsMaxIdleNanos;
+    private Long nextIdleCloseCheckTime;
 
     public Processor(Integer id, Time time, Integer maxRequestSize, Meter aggregateIdleMeter, Meter idleMeter, Integer totalProcessorThreads, RequestChannel requestChannel, ConnectionQuotas connectionQuotas, long connectionsMaxIdleMs) {
         this.id = id;
@@ -50,6 +50,10 @@ public class Processor extends AbstractServerThread {
         this.requestChannel = requestChannel;
         this.connectionQuotas = connectionQuotas;
         this.connectionsMaxIdleMs = connectionsMaxIdleMs;
+        connectionsMaxIdleNanos = connectionsMaxIdleMs * 1000 * 1000;
+//        currentTimeNanos = System.nanoTime();
+//        lruConnections = new LinkedHashMap<>();
+        nextIdleCloseCheckTime = currentTimeNanos + connectionsMaxIdleNanos;
     }
 
 
@@ -105,7 +109,7 @@ public class Processor extends AbstractServerThread {
                 }
                 maybeCloseOldestConnection();
             } catch (IOException e) {
-                error(e.getMessage(),e);
+                error(e.getMessage(), e);
             }
         }
         debug("Closing selector.");
