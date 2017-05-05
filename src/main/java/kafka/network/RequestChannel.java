@@ -241,8 +241,8 @@ public class RequestChannel extends KafkaMetricsGroup {
         }
 
         public Response(Integer processor, Request request, Send responseSend) {
-            this(processor, request, responseSend, responseSend == null ? ResponseAction.NoOpAction : ResponseAction
-                    .SendAction);
+            this(processor, request, responseSend,
+                    responseSend == null ? ResponseAction.NoOpAction : ResponseAction.SendAction);
             request.responseCompleteTimeMs = Time.get().milliseconds();
         }
 

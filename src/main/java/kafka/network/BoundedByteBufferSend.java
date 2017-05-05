@@ -21,6 +21,7 @@ public class BoundedByteBufferSend extends Send {
 
     public BoundedByteBufferSend(ByteBuffer buffer) {
         this.buffer = buffer;
+        init();
     }
 
     public void init() {

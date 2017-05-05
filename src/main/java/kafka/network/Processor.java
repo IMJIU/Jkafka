@@ -51,8 +51,6 @@ public class Processor extends AbstractServerThread {
         this.connectionQuotas = connectionQuotas;
         this.connectionsMaxIdleMs = connectionsMaxIdleMs;
         connectionsMaxIdleNanos = connectionsMaxIdleMs * 1000 * 1000;
-//        currentTimeNanos = System.nanoTime();
-//        lruConnections = new LinkedHashMap<>();
         nextIdleCloseCheckTime = currentTimeNanos + connectionsMaxIdleNanos;
     }
 
