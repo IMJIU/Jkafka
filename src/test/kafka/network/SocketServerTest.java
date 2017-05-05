@@ -1,6 +1,4 @@
-package kafka.network;/**
- * Created by zhoulf on 2017/4/28.
- */
+package kafka.network;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
@@ -85,6 +83,10 @@ public class SocketServerTest {
         server.shutdown();
     }
 
+    /**
+     * 模拟客户端发送request请求  再模拟发送response响应（只是把request的字节发送）
+     * 再对比发送的结果 与 接收到的结果
+     */
     @Test
     public void simpleRequest() throws IOException, InterruptedException {
         Socket socket = connect();
@@ -102,10 +104,12 @@ public class SocketServerTest {
 
         sendRequest(socket, (short) 0, serializedBytes);
         processRequest(server.requestChannel);
-        TestUtils.checkEquals(ByteBuffer.wrap(serializedBytes),ByteBuffer.wrap(receiveResponse(socket)));
-//        Assert.assertEquals(serializedBytes,receiveResponse(socket));
+        TestUtils.checkEquals(ByteBuffer.wrap(serializedBytes), ByteBuffer.wrap(receiveResponse(socket)));
     }
 
+    /**
+     * 发送超过配置的最大消息大小（maxRequestSize），报错
+     */
     @Test(expected = IOException.class)
     public void tooBigRequestIsRejected() throws IOException {
         byte[] tooManyBytes = new byte[server.maxRequestSize + 1];
@@ -115,6 +119,12 @@ public class SocketServerTest {
         receiveResponse(socket);
     }
 
+    /**
+     * 发送request完后(读取完request, attach到key)，interestOps应该不为op_read
+     * 发送response后(send写入channel)，interestOps应该为op_read
+     * @throws IOException
+     * @throws InterruptedException
+     */
     @Test
     public void testNullResponse() throws IOException, InterruptedException {
         Socket socket = connect();
@@ -133,6 +143,9 @@ public class SocketServerTest {
                 "Socket key should be available for read");
     }
 
+    /**
+     * shutdown后 发送请求报错
+     */
     @Test(expected = IOException.class)
     public void testSocketsCloseOnShutdown() throws IOException, InterruptedException {
         // open a connection;
@@ -147,6 +160,9 @@ public class SocketServerTest {
         sendRequest(socket, (short) 0, bytes);
     }
 
+    /**
+     * 达到配置每个IP最大连接后，再连接读取为-1
+     */
     @Test
     public void testMaxConnectionsPerIp() throws IOException {
         // make the maximum allowable number of connections and then leak them;

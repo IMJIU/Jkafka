@@ -52,7 +52,6 @@ public class BoundedByteBufferReceive extends Receive {
         try {
             // have we read the request size yet?;
             if (sizeBuffer.remaining() > 0)
-
                 read += Utils.read(channel, sizeBuffer);
 
             // have we allocated the request buffer yet?;

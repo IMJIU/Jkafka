@@ -58,7 +58,7 @@ public class Acceptor extends AbstractServerThread {
                     Set<SelectionKey> keys = selector.selectedKeys();
                     Iterator<SelectionKey> iter = keys.iterator();
                     while (iter.hasNext() && isRunning()) {
-                        SelectionKey key = null;
+                        SelectionKey key;
                         try {
                             key = iter.next();
                             iter.remove();

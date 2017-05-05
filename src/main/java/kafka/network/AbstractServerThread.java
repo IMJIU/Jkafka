@@ -151,6 +151,7 @@ class ConnectionQuotas extends Logging{
             Integer count = counts.getOrDefault(addr, 0);
             counts.put(addr, count + 1);
             Integer max = overrides.getOrDefault(addr, defaultMax);
+            System.out.println(count+"-"+max);
             if (count >= max)
                 throw new TooManyConnectionsException(addr, max);
         }
