@@ -161,7 +161,7 @@ public class SocketServerTest {
     }
 
     /**
-     * 达到配置每个IP最大连接后，再连接读取为-1
+     * 达到配置每个IP最大连接后，再连接读取为-1(因为accepter会有TooManyConnectionsException，把socket关掉了)
      */
     @Test
     public void testMaxConnectionsPerIp() throws IOException {
@@ -180,6 +180,10 @@ public class SocketServerTest {
         Assert.assertEquals(-1, conn.getInputStream().read());
     }
 
+    /**
+     * 跟maxConnectionsPerIp差不多，只是重写这个参数值
+     * 达到配置每个IP最大连接后，再连接读取为-1(因为accepter会有TooManyConnectionsException，把socket关掉了)
+     */
     @Test
     public void testMaxConnectionsPerIPOverrides() throws IOException, InterruptedException {
         Integer overrideNum = 6;
