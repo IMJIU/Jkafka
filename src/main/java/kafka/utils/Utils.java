@@ -379,23 +379,19 @@ public class Utils {
     /**
      * Compute the hash code for the given items
      */
-//    def hashcode(Any as*);
-//
-//    :Int=
-//
-//    {
-//        if (as == null);
-//            return 0;
-//        var h = 1;
-//        var i = 0;
-//        while (i < as.length) {
-//            if (as(i) != null) {
-//                h = 31 * h + as(i).hashCode;
-//                i += 1;
-//            }
-//        }
-//        return h;
-//    }
+    public static Integer hashcode(Object... as) {
+        if (as == null)
+            return 0;
+        int h = 1;
+        int i = 0;
+        while (i < as.length) {
+            if (as[i] != null) {
+                h = 31 * h + as[i].hashCode();
+                i += 1;
+            }
+        }
+        return h;
+    }
 //
 //    /**
 //     * Group the given values by keys extracted with the given function
@@ -832,11 +828,10 @@ public class Utils {
     }
 
 
-
     public static <K, V> Map<K, V> toMap(List<Tuple<K, V>> list) {
         Map<K, V> map = Maps.newHashMap();
-        for (Tuple<K, V> kv: list) {
-            map.put(kv.v1,kv.v2);
+        for (Tuple<K, V> kv : list) {
+            map.put(kv.v1, kv.v2);
         }
         return map;
     }
