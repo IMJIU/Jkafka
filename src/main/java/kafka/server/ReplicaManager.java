@@ -1,31 +1,52 @@
-package kafka.server;/**
+package kafka.server;
+
+import kafka.cluster.Partition;
+import kafka.func.Tuple;
+import kafka.log.LogManager;
+import kafka.metrics.KafkaMetricsGroup;
+import kafka.utils.Pool;
+import kafka.utils.Scheduler;
+import kafka.utils.Time;
+
+import java.util.concurrent.atomic.AtomicBoolean;
+
+/**
  * Created by zhoulf on 2017/4/1.
  */
 
 
-public class ReplicaManager {
+public class ReplicaManager  extends KafkaMetricsGroup {
         public static final String HighWatermarkFilename = "replication-offset-checkpoint";
 //
-//    class ReplicaManager(val KafkaConfig config,
-//    Time time,
-//    val ZkClient zkClient,
-//    Scheduler scheduler,
-//    val LogManager logManager,
-//    val AtomicBoolean isShuttingDown ) extends Logging with KafkaMetricsGroup {
-//  /* epoch of the controller that last changed the leader */
-//  @volatile var Integer controllerEpoch = KafkaController.InitialControllerEpoch - 1
-//        private val localBrokerId = config.brokerId;
-//        private val allPartitions = new Pool[(String, Int), Partition];
-//        private val replicaStateChangeLock = new Object;
-//        val replicaFetcherManager = new ReplicaFetcherManager(config, this);
-//        private val highWatermarkCheckPointThreadStarted = new AtomicBoolean(false);
-//        val highWatermarkCheckpoints = config.logDirs.map(dir => (new File(dir).getAbsolutePath, new OffsetCheckpoint(new File(dir, ReplicaManager.HighWatermarkFilename)))).toMap;
-//        private var hwThreadInitialized = false;
-//        this.logIdent = "[Replica Manager on Broker " + localBrokerId + "]: ";
-//        val stateChangeLogger = KafkaController.stateChangeLogger;
-//
-//        var ProducerRequestPurgatory producerRequestPurgatory = null;
-//        var FetchRequestPurgatory fetchRequestPurgatory = null;
+    KafkaConfig config;
+    Time time;
+        ZkClient zkClient;
+    Scheduler scheduler;
+     LogManager logManager;
+     AtomicBoolean isShuttingDown;
+
+        public ReplicaManager(KafkaConfig config, Time time, ZkClient zkClient, Scheduler scheduler, LogManager logManager, AtomicBoolean isShuttingDown) {
+                this.config = config;
+                this.time = time;
+                this.zkClient = zkClient;
+                this.scheduler = scheduler;
+                this.logManager = logManager;
+                this.isShuttingDown = isShuttingDown;
+        }
+        //  /* epoch of the controller that last changed the leader */
+   public volatile Integer controllerEpoch = KafkaController.InitialControllerEpoch - 1;
+        private Integer localBrokerId = config.brokerId;
+        private Pool<Tuple<String,Integer>,Partition> allPartitions = new Pool<>();
+        private Object replicaStateChangeLock = new Object();
+        public ReplicaFetcherManager replicaFetcherManager = new ReplicaFetcherManager(config, this);
+        private AtomicBoolean highWatermarkCheckPointThreadStarted = new AtomicBoolean(false);
+        val highWatermarkCheckpoints = config.logDirs.map(dir => (new File(dir).getAbsolutePath, new OffsetCheckpoint(new File(dir, ReplicaManager.HighWatermarkFilename)))).toMap;
+        private boolean hwThreadInitialized = false;
+        this.logIdent = "[Replica Manager on Broker " + localBrokerId + "]: ";
+        val stateChangeLogger = KafkaController.stateChangeLogger;
+
+        var ProducerRequestPurgatory producerRequestPurgatory = null;
+        var FetchRequestPurgatory fetchRequestPurgatory = null;
 //
 //        newGauge(
 //                "LeaderCount",

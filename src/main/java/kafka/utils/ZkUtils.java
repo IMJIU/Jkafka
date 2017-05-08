@@ -3,12 +3,14 @@ package kafka.utils;
 import kafka.api.LeaderAndIsr;
 import kafka.cluster.Broker;
 import kafka.func.Tuple;
+import kafka.log.TopicAndPartition;
 import org.I0Itec.zkclient.ZkClient;
 import org.I0Itec.zkclient.exception.ZkNoNodeException;
 import org.apache.zookeeper.data.Stat;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public class ZkUtils extends Logging {
 
@@ -23,9 +25,10 @@ public class ZkUtils extends Logging {
     String DeleteTopicsPath = "/admin/delete_topics";
     String PreferredReplicaLeaderElectionPath = "/admin/preferred_replica_election";
 
-    public String getTopicPath(String topic) {
+    public static String getTopicPath(String topic) {
         return BrokerTopicsPath + "/" + topic;
     }
+
 
     public String getTopicPartitionsPath(String topic) {
         return getTopicPath(topic) + "/partitions";
@@ -112,7 +115,7 @@ public class ZkUtils extends Logging {
     /**
      * Gets the in-sync replicas (ISR) for a specific topic and partition
      */
-    public void getInSyncReplicasForPartition(ZkClient zkClient, String topic, Integer partition):Seq<Integer> =
+    public void getInSyncReplicasForPartition(ZkClient zkClient, String topic, Integer partition):List<Integer> =
 
     {
         val leaderAndIsrOpt = readDataMaybeNull(zkClient, getTopicPartitionLeaderAndIsrPath(topic, partition))._1;
@@ -129,15 +132,14 @@ public class ZkUtils extends Logging {
     /**
      * Gets the assigned replicas (AR) for a specific topic and partition
      */
-    public void getReplicasForPartition(ZkClient zkClient, String topic, Integer partition):Seq<Integer> =
-
+    public  static List<Integer> getReplicasForPartition(ZkClient zkClient, String topic, Integer partition)
     {
         val jsonPartitionMapOpt = readDataMaybeNull(zkClient, getTopicPath(topic))._1;
         jsonPartitionMapOpt match {
         case Some(jsonPartitionMap) =>
             Json.parseFull(jsonPartitionMap) match {
             case Some(m) =>m.asInstanceOf<Map<String, Any>>.get ("partitions") match {
-                case Some(replicaMap) =>replicaMap.asInstanceOf<Map<String, Seq<Integer>>>.get (partition.toString) match {
+                case Some(replicaMap) =>replicaMap.asInstanceOf<Map<String, List<Integer>>>.get (partition.toString) match {
                     case Some(seq) =>seq;
                     case None =>Seq.empty<Integer>
                 }
@@ -172,17 +174,13 @@ public class ZkUtils extends Logging {
         info(String.format("Registered broker %d at path %s with address %s:%d.", id, brokerIdPath, host, port))
     }
 
-    public String
-
-    void getConsumerPartitionOwnerPath(String group, String topic, Integer partition) {
+    public  static  String getConsumerPartitionOwnerPath(String group, String topic, Integer partition) {
         val topicDirs = new ZKGroupTopicDirs(group, topic);
         topicDirs.consumerOwnerDir + "/" + partition;
     }
 
 
-    public String
-
-    void leaderAndIsrZkData(LeaderAndIsr leaderAndIsr, Integer controllerEpoch) {
+    public  static String leaderAndIsrZkData(LeaderAndIsr leaderAndIsr, Integer controllerEpoch) {
         Json.encode(Map("version" ->1, "leader" ->leaderAndIsr.leader, "leader_epoch" ->leaderAndIsr.leaderEpoch,
                 "controller_epoch" ->controllerEpoch, "isr" ->leaderAndIsr.isr));
     }
@@ -190,16 +188,14 @@ public class ZkUtils extends Logging {
     /**
      * Get JSON partition to replica map from zookeeper.
      */
-    public String
-
-    void replicaAssignmentZkData(Map map<String, Seq<Integer>>) {
+    public static  String  replicaAssignmentZkData(Map map<String, List<Integer>>) {
         Json.encode(Map("version" ->1, "partitions" ->map));
     }
 
     /**
      * make sure a persistent path exists in ZK. Create the path if not exist.
      */
-    public void makeSurePersistentPathExists(ZkClient client, String path) {
+    public static  void makeSurePersistentPathExists(ZkClient client, String path) {
         if (!client.exists(path))
             client.createPersistent(path, true) // won't throw NoNodeException or NodeExistsException;
     }
@@ -218,9 +214,7 @@ public class ZkUtils extends Logging {
     /**
      * Create an ephemeral node with the given path and data. Create parents if necessary.
      */
-    privatepublic Unit
-
-    void createEphemeralPath(ZkClient client, String path, String data) {
+    private  static void createEphemeralPath(ZkClient client, String path, String data) {
         try {
             client.createEphemeral(path, data);
         } catch {
@@ -274,9 +268,7 @@ public class ZkUtils extends Logging {
      * If the checker function returns true then the above bug might be encountered, back off and retry;
      * otherwise re-throw the exception
      */
-    public Unit
-
-    void createEphemeralPathExpectConflictHandleZKBug(ZkClient zkClient, String path, String data, Any expectedCallerData, checker:(String, Any) =>Boolean,
+    public  static void createEphemeralPathExpectConflictHandleZKBug(ZkClient zkClient, String path, String data, Any expectedCallerData, checker:(String, Any) =>Boolean,
     Integer backoffTime)
 
     {
@@ -311,7 +303,7 @@ public class ZkUtils extends Logging {
     /**
      * Create an persistent node with the given path and data. Create parents if necessary.
      */
-    public void createPersistentPath(ZkClient client, String path, String data ="") {
+    public  static void createPersistentPath(ZkClient client, String path, String data ="") {
         try {
             client.createPersistent(path, data);
         } catch {
@@ -322,9 +314,7 @@ public class ZkUtils extends Logging {
         }
     }
 
-    public String
-
-    void createSequentialPersistentPath(ZkClient client, String path, String data ="") {
+    public  static String createSequentialPersistentPath(ZkClient client, String path, String data ="") {
         client.createPersistentSequential(path, data);
     }
 
@@ -333,7 +323,7 @@ public class ZkUtils extends Logging {
      * create parrent directory if necessary. Never throw NodeExistException.
      * Return the updated path zkVersion
      */
-    public void updatePersistentPath(ZkClient client, String path, String data) =
+    public  static void updatePersistentPath(ZkClient client, String path, String data) =
 
     {
         try {
@@ -361,7 +351,7 @@ public class ZkUtils extends Logging {
      * since the previous update may have succeeded (but the stored zkVersion no longer matches the expected one).
      * In this case, we will run the optionalChecker to further check if the previous write did indeed succeeded.
      */
-    public void conditionalUpdatePersistentPath(ZkClient client, String path, String data, Integer expectVersion,
+    public  static void conditionalUpdatePersistentPath(ZkClient client, String path, String data, Integer expectVersion,
                                                 Option optionalChecker<(ZkClient, String, String) =>(Boolean,Int)>=None):(Boolean,Int)=
 
     {
@@ -390,7 +380,7 @@ public class ZkUtils extends Logging {
      * Conditional update the persistent path data, return (true, newVersion) if it succeeds, otherwise (the current
      * version is not the expected version, etc.) return (false, -1). If path doesn't exist, throws ZkNoNodeException
      */
-    public void conditionalUpdatePersistentPathIfExists(ZkClient client, String path, String data, Integer expectVersion):(Boolean,Int)=
+    public  static void conditionalUpdatePersistentPathIfExists(ZkClient client, String path, String data, Integer expectVersion):(Boolean,Int)=
 
     {
         try {
@@ -411,9 +401,7 @@ public class ZkUtils extends Logging {
      * Update the value of a persistent node with the given path and data.
      * create parrent directory if necessary. Never throw NodeExistException.
      */
-    public Unit
-
-    void updateEphemeralPath(ZkClient client, String path, String data) {
+    public  static  void updateEphemeralPath(ZkClient client, String path, String data) {
         try {
             client.writeData(path, data);
         } catch {
@@ -427,7 +415,7 @@ public class ZkUtils extends Logging {
 
     public Boolean
 
-    void deletePath(ZkClient client, String path) {
+    static void deletePath(ZkClient client, String path) {
         try {
             client.delete(path);
         } catch {
@@ -439,7 +427,7 @@ public class ZkUtils extends Logging {
         }
     }
 
-    public void deletePathRecursive(ZkClient client, String path) {
+    public  static void deletePathRecursive(ZkClient client, String path) {
         try {
             client.deleteRecursive(path);
         } catch {
@@ -450,7 +438,7 @@ public class ZkUtils extends Logging {
         }
     }
 
-    public void maybeDeletePath(String zkUrl, String dir) {
+    public static  void maybeDeletePath(String zkUrl, String dir) {
         try {
             val zk = new ZkClient(zkUrl, 30 * 1000, 30 * 1000, ZKStringSerializer);
             zk.deleteRecursive(dir);
@@ -460,7 +448,7 @@ public class ZkUtils extends Logging {
         }
     }
 
-    public void readData(ZkClient client, String path):(String,Stat)=
+    public  static void readData(ZkClient client, String path):(String,Stat)=
 
     {
         val Stat stat = new Stat();
@@ -468,7 +456,7 @@ public class ZkUtils extends Logging {
         (dataStr, stat);
     }
 
-    public Tuple<Optional<String>, Stat> readDataMaybeNull(ZkClient client, String path) throws Throwable {
+    public  static Tuple<Optional<String>, Stat> readDataMaybeNull(ZkClient client, String path) throws Throwable {
         Stat stat = new Stat();
         try {
             return Tuple.of(Optional.of(client.readData(path, stat).toString()), stat);
@@ -480,12 +468,12 @@ public class ZkUtils extends Logging {
         return null;
     }
 
-    public List<String> getChildren(ZkClient client, String path) {
+    public static  List<String> getChildren(ZkClient client, String path) {
         // triggers implicit conversion from java list to scala Seq;
         return client.getChildren(path);
     }
 
-    public List<String> getChildrenParentMayNotExist(ZkClient client, String path) throws Throwable {
+    public static List<String> getChildrenParentMayNotExist(ZkClient client, String path) throws Throwable {
         // triggers implicit conversion from java list to scala Seq;
         try {
             client.getChildren(path);
@@ -529,10 +517,10 @@ public class ZkUtils extends Logging {
         ret;
     }
 
-    public void getReplicaAssignmentForTopics(ZkClient zkClient, Seq topics<String>):mutable.Map<TopicAndPartition, Seq<Integer>> =
+    public void getReplicaAssignmentForTopics(ZkClient zkClient, Seq topics<String>):mutable.Map<TopicAndPartition, List<Integer>> =
 
     {
-        val ret = new mutable.HashMap<TopicAndPartition, Seq<Integer>>
+        val ret = new mutable.HashMap<TopicAndPartition, List<Integer>>
         topics.foreach {
         topic =>
         val jsonPartitionMapOpt = readDataMaybeNull(zkClient, getTopicPath(topic))._1;
@@ -541,7 +529,7 @@ public class ZkUtils extends Logging {
                 Json.parseFull(jsonPartitionMap) match {
                 case Some(m) =>m.asInstanceOf<Map<String, Any>>.get ("partitions") match {
                     case Some(repl) =>
-                        val replicaMap = repl.asInstanceOf < Map < String, Seq<Integer >>>
+                        val replicaMap = repl.asInstanceOf < Map < String, List<Integer >>>
                         for ((partition, replicas) <-replicaMap){
                         ret.put(TopicAndPartition(topic, partition.toInt), replicas);
                         debug(String.format("Replicas assigned to topic <%s>, partition <%s> are <%s>", topic, partition, replicas))
@@ -557,10 +545,10 @@ public class ZkUtils extends Logging {
     }
 
     public void getPartitionAssignmentForTopics(ZkClient zkClient, Seq topics<String>):
-    mutable.Map<String, collection.Map<Integer,> Seq<Integer>>>=
+    mutable.Map<String, collection.Map<Integer,> List<Integer>>>=
 
     {
-        val ret = new mutable.HashMap<String, Map<Integer,> Seq<Integer>>>();
+        val ret = new mutable.HashMap<String, Map<Integer,> List<Integer>>>();
         topics.foreach {
         topic =>
         val jsonPartitionMapOpt = readDataMaybeNull(zkClient, getTopicPath(topic))._1;
@@ -569,13 +557,13 @@ public class ZkUtils extends Logging {
                 Json.parseFull(jsonPartitionMap) match {
                 case Some(m) =>m.asInstanceOf<Map<String, Any>>.get ("partitions") match {
                     case Some(replicaMap) =>
-                        val m1 = replicaMap.asInstanceOf < Map < String, Seq<Integer >>>
+                        val m1 = replicaMap.asInstanceOf < Map < String, List<Integer >>>
                             m1.map(p = > (p._1.toInt, p._2));
-                    case None =>Map<Integer,> Seq<Integer >> ();
+                    case None =>Map<Integer,> List<Integer >> ();
                 }
-                case None =>Map<Integer,> Seq<Integer >> ();
+                case None =>Map<Integer,> List<Integer >> ();
             }
-            case None =>Map<Integer,> Seq<Integer >> ();
+            case None =>Map<Integer,> List<Integer >> ();
         }
         debug(String.format("Partition map for /brokers/topics/%s is %s", topic, partitionMap))
         ret += (topic -> partitionMap);
@@ -583,7 +571,7 @@ public class ZkUtils extends Logging {
         ret;
     }
 
-    public void getPartitionsForTopics(ZkClient zkClient, Seq topics<String>):mutable.Map<String, Seq<Integer>> =
+    public void getPartitionsForTopics(ZkClient zkClient, Seq topics<String>):mutable.Map<String, List<Integer>> =
 
     {
         getPartitionAssignmentForTopics(zkClient, topics).map {
@@ -609,14 +597,14 @@ public class ZkUtils extends Logging {
     }
 
     // Parses without deduplicating keys so the the data can be checked before allowing reassignment to proceed;
-    public void parsePartitionReassignmentDataWithoutDedup(String jsonData):Seq<(TopicAndPartition,Seq<Integer>)>=
+    public void parsePartitionReassignmentDataWithoutDedup(String jsonData):List<(TopicAndPartition,List<Integer>)>=
 
     {
         Json.parseFull(jsonData) match {
         case Some(m) =>
             m.asInstanceOf<Map<String, Any>>.get ("partitions") match {
             case Some(partitionsSeq) =>
-                partitionsSeq.asInstanceOf<Seq<Map<String, Any>>>.map (p = > {
+                partitionsSeq.asInstanceOf<List<Map<String, Any>>>.map (p = > {
                     val topic = p.get("topic").get.asInstanceOf < String >
                     val partition = p.get("partition").get.asInstanceOf < Integer >
                     val newReplicas = p.get("replicas").get.asInstanceOf < Seq < Integer >>
@@ -630,13 +618,13 @@ public class ZkUtils extends Logging {
     }
     }
 
-    public void parsePartitionReassignmentData(String jsonData):Map<TopicAndPartition, Seq<Integer>> =
+    public void parsePartitionReassignmentData(String jsonData):Map<TopicAndPartition, List<Integer>> =
 
     {
         parsePartitionReassignmentDataWithoutDedup(jsonData).toMap;
     }
 
-    public void parseTopicsData(String jsonData):Seq<String> =
+    public void parseTopicsData(String jsonData):List<String> =
 
     {
         var topics = List.empty < String >
@@ -658,13 +646,13 @@ public class ZkUtils extends Logging {
 
     public String
 
-    void getPartitionReassignmentZkData(Map partitionsToBeReassigned<TopicAndPartition, Seq<Integer>>) {
+    void getPartitionReassignmentZkData(Map partitionsToBeReassigned<TopicAndPartition, List<Integer>>) {
         Json.encode(Map("version" ->1, "partitions" ->partitionsToBeReassigned.map(e = > Map("topic" ->
         e._1.topic, "partition" ->e._1.partition,
                 "replicas" ->e._2))));
     }
 
-    public void updatePartitionReassignmentData(ZkClient zkClient, Map partitionsToBeReassigned<TopicAndPartition, Seq<Integer>>) {
+    public void updatePartitionReassignmentData(ZkClient zkClient, Map partitionsToBeReassigned<TopicAndPartition, List<Integer>>) {
         val zkPath = ZkUtils.ReassignPartitionsPath;
         partitionsToBeReassigned.size match {
             case 0 => // need to delete the /admin/reassign_partitions path;
@@ -702,7 +690,7 @@ public class ZkUtils extends Logging {
         zkClient.delete(brokerPartTopicPath);
     }
 
-    public void getConsumersInGroup(ZkClient zkClient, String group):Seq<String> =
+    public void getConsumersInGroup(ZkClient zkClient, String group):List<String> =
 
     {
         val dirs = new ZKGroupDirs(group);
@@ -747,7 +735,7 @@ public class ZkUtils extends Logging {
     }
     }
 
-    public void getAllTopics(ZkClient zkClient):Seq<String> =
+    public void getAllTopics(ZkClient zkClient):List<String> =
 
     {
         val topics = ZkUtils.getChildrenParentMayNotExist(zkClient, BrokerTopicsPath);
@@ -757,10 +745,9 @@ public class ZkUtils extends Logging {
         topics;
     }
 
-    public void getAllPartitions(ZkClient zkClient):Set<TopicAndPartition> =
-
+    public Set<TopicAndPartition> getAllPartitions(ZkClient zkClient)
     {
-        val topics = ZkUtils.getChildrenParentMayNotExist(zkClient, BrokerTopicsPath);
+        List<String> topics = ZkUtils.getChildrenParentMayNotExist(zkClient, BrokerTopicsPath);
         if (topics == null) Set.empty<TopicAndPartition>
         else {
             topics.map {
