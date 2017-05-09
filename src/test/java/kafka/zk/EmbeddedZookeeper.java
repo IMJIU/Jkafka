@@ -36,8 +36,8 @@ public class EmbeddedZookeeper {
 
 
     public void shutdown() {
-        Utils.swallow(()->zookeeper.shutdown());
-        Utils.swallow(()->factory.shutdown());
+        Utils.swallow(() -> zookeeper.shutdown());
+        Utils.swallow(() -> factory.shutdown());
         Utils.rm(logDir);
         Utils.rm(snapshotDir);
     }
