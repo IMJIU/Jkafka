@@ -15,6 +15,7 @@
  */
 package kafka.cache;
 
+import kafka.common.KafkaException;
 import sun.nio.ch.DirectBuffer;
 
 import java.io.File;
@@ -246,46 +247,79 @@ final class SocketSendBufferPool {
         }
 
     }
-    static class FileSendBuffer implements SendBuffer {
-
-        final ByteBuffer buffer;
-        final int initialPos;
-        final File file ;
-        final RandomAccessFile rf ;
-
-        FileSendBuffer(byte[] buffer) throws FileNotFoundException {
-            file = new File("d:/temp");
-            rf = new RandomAccessFile(file,"rw");
-            this.buffer = ByteBuffer.allocate(buffer.length);
-            this.buffer.put(buffer);
-            initialPos = 0;
-        }
-
-        public final boolean finished() {
-            return !buffer.hasRemaining();
-        }
-
-        public final long writtenBytes() {
-            return buffer.position() - initialPos;
-        }
-
-        public final long totalBytes() {
-            return buffer.limit() - initialPos;
-        }
-
-        public final long transferTo(WritableByteChannel ch) throws IOException {
-            return ch.write(buffer);
-        }
-
-        public final long transferTo(DatagramChannel ch, SocketAddress raddr) throws IOException {
-            return ch.send(buffer, raddr);
-        }
-
-        public void release() {
-            // Unpooled.
-        }
-
-    }
+//    static class FileSendBuffer implements SendBuffer {
+//        public volatile File file;
+//        public FileChannel channel;
+//        public Integer start;
+//        public Integer end;
+//        public Boolean isSlice;
+//        /* the size of the message set in bytes */
+//        private AtomicInteger _size;
+//
+//        FileSendBuffer(byte[] buffer) throws FileNotFoundException {
+////            file = new File("d:/temp");
+////            channel = new RandomAccessFile(file,"rw").getChannel();
+////            // Ignore offset and size from input. We just want to write the whole buffer to the channel.
+////            buffer.mark();
+////            int written = 0;
+////            try {
+////                while (written < sizeInBytes()) {
+////                    written += channel.write(buffer);
+////                }
+////                buffer.reset();
+////            } catch (IOException e) {
+////                logger.error(e.getMessage(),e);
+////            }
+////            return written;
+//        }
+//
+//        public final boolean finished() {
+//            return !buffer.hasRemaining();
+//        }
+//
+//        public final long writtenBytes() {
+//            return buffer.position() - initialPos;
+//        }
+//
+//        public final long totalBytes() {
+//            return buffer.limit() - initialPos;
+//        }
+//
+//        public final long transferTo(WritableByteChannel ch) throws IOException {
+//            // Ignore offset and size from input. We just want to write the whole buffer to the channel.
+//            buffer.mark();
+//            int written = 0;
+//            try {
+//                while (written < sizeInBytes()) {
+//                    written += channel.write(buffer);
+//                }
+//                buffer.reset();
+//            } catch (IOException e) {
+//                logger.error(e.getMessage(),e);
+//            }
+//            return written;
+//        }
+//
+//        public final long transferTo(DatagramChannel ch, SocketAddress raddr) throws IOException {
+//            // Ignore offset and size from input. We just want to write the whole buffer to the channel.
+//            buffer.mark();
+//            int written = 0;
+//            try {
+//                while (written < sizeInBytes()) {
+//                    written += channel.write(buffer);
+//                }
+//                buffer.reset();
+//            } catch (IOException e) {
+//                logger.error(e.getMessage(),e);
+//            }
+//            return written;
+//        }
+//
+//        public void release() {
+//            // Unpooled.
+//        }
+//
+//    }
     static final class EmptySendBuffer implements SendBuffer {
 
         public boolean finished() {

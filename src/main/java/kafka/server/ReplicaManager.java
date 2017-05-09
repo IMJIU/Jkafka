@@ -7,6 +7,7 @@ import kafka.metrics.KafkaMetricsGroup;
 import kafka.utils.Pool;
 import kafka.utils.Scheduler;
 import kafka.utils.Time;
+import org.I0Itec.zkclient.ZkClient;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -34,19 +35,19 @@ public class ReplicaManager  extends KafkaMetricsGroup {
                 this.isShuttingDown = isShuttingDown;
         }
         //  /* epoch of the controller that last changed the leader */
-   public volatile Integer controllerEpoch = KafkaController.InitialControllerEpoch - 1;
-        private Integer localBrokerId = config.brokerId;
-        private Pool<Tuple<String,Integer>,Partition> allPartitions = new Pool<>();
-        private Object replicaStateChangeLock = new Object();
-        public ReplicaFetcherManager replicaFetcherManager = new ReplicaFetcherManager(config, this);
-        private AtomicBoolean highWatermarkCheckPointThreadStarted = new AtomicBoolean(false);
-        val highWatermarkCheckpoints = config.logDirs.map(dir => (new File(dir).getAbsolutePath, new OffsetCheckpoint(new File(dir, ReplicaManager.HighWatermarkFilename)))).toMap;
-        private boolean hwThreadInitialized = false;
-        this.logIdent = "[Replica Manager on Broker " + localBrokerId + "]: ";
-        val stateChangeLogger = KafkaController.stateChangeLogger;
-
-        var ProducerRequestPurgatory producerRequestPurgatory = null;
-        var FetchRequestPurgatory fetchRequestPurgatory = null;
+//   public volatile Integer controllerEpoch = KafkaController.InitialControllerEpoch - 1;
+//        private Integer localBrokerId = config.brokerId;
+//        private Pool<Tuple<String,Integer>,Partition> allPartitions = new Pool<>();
+//        private Object replicaStateChangeLock = new Object();
+//        public ReplicaFetcherManager replicaFetcherManager = new ReplicaFetcherManager(config, this);
+//        private AtomicBoolean highWatermarkCheckPointThreadStarted = new AtomicBoolean(false);
+//        val highWatermarkCheckpoints = config.logDirs.map(dir => (new File(dir).getAbsolutePath, new OffsetCheckpoint(new File(dir, ReplicaManager.HighWatermarkFilename)))).toMap;
+//        private boolean hwThreadInitialized = false;
+//        this.logIdent = "[Replica Manager on Broker " + localBrokerId + "]: ";
+//        val stateChangeLogger = KafkaController.stateChangeLogger;
+//
+//        var ProducerRequestPurgatory producerRequestPurgatory = null;
+//        var FetchRequestPurgatory fetchRequestPurgatory = null;
 //
 //        newGauge(
 //                "LeaderCount",
