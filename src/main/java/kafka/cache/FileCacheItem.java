@@ -1,4 +1,5 @@
-package kafka.cache;/**
+package kafka.cache;
+/**
  * Created by zhoulf on 2017/5/9.
  */
 
@@ -7,14 +8,11 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-/**
- * @author
- * @create 2017-05-09 16:41
- **/
+
 public class FileCacheItem implements Comparable<FileCacheItem> {
-    public static final ReentrantLock lock = new ReentrantLock();
+    public static final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     public volatile File file;
     public FileChannel channel;
     public Integer start;
@@ -51,7 +49,7 @@ public class FileCacheItem implements Comparable<FileCacheItem> {
     }
 
     public int write(ByteBuffer buffer) {
-        lock.lock();
+        lock.writeLock().lock();
         // Ignore offset and size from input. We just want to write the whole buffer to the channel.
         buffer.mark();
         int written = 0;
@@ -63,14 +61,14 @@ public class FileCacheItem implements Comparable<FileCacheItem> {
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
-            lock.unlock();
+            lock.writeLock().unlock();
         }
         _size.getAndAdd(written);
         return written;
     }
 
     public ByteBuffer read() throws IOException {
-        lock.lock();
+        lock.readLock().lock();
         try{
             long pos = channel.position();
             channel.position(start);
@@ -80,7 +78,7 @@ public class FileCacheItem implements Comparable<FileCacheItem> {
             channel.position(pos);
             return byteBuffer;
         }finally {
-            lock.unlock();
+            lock.readLock().unlock();
         }
     }
 
