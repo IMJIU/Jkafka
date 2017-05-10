@@ -24,10 +24,10 @@ import java.util.concurrent.locks.ReentrantLock;
  * @create 2017-05-09 16:39
  **/
 public class FileCacheMgr extends Logging {
-    private Object lock = new Object();
-    private ReentrantLock lock2 = new ReentrantLock();
+    private ReentrantLock lock = new ReentrantLock();
     public TreeSet<FileCacheItem> fileList = Sets.newTreeSet();
     public static final String dir = "d:/file_cache/";
+    public static final String FileSuffix = ".cache";
     public static final int MAX_FILE_LENGTH = 1024 * 1024 * 50;
     public FileCacheItem current;
 
@@ -40,7 +40,7 @@ public class FileCacheMgr extends Logging {
         TreeSet<FileCacheItem> fileList = Sets.newTreeSet();
         for (int i = 0; i < 1000; i++) {
             Long num = (long) (new Random().nextInt(100));
-            File file = new File(dir + Log.filenamePrefixFromOffset(num) + ".cache");
+            File file = new File(dir + Log.filenamePrefixFromOffset(num) + FileSuffix);
             fileList.add(new FileCacheItem(file, Utils.openChannel(file, true), num.intValue(), Integer.MAX_VALUE, false));
         }
         for (FileCacheItem i : fileList) {
@@ -49,7 +49,6 @@ public class FileCacheMgr extends Logging {
     }
 
     private static void test_read_write_thread() throws IOException, InterruptedException {
-//        FileOutputStream fileOutputStream = new FileInputStream(new File)
         final FileCacheMgr mgr = new FileCacheMgr();
         SocketSendBufferPool pool = new SocketSendBufferPool();
         List<FileCacheItem> items = Lists.newArrayList();
@@ -58,7 +57,11 @@ public class FileCacheMgr extends Logging {
         long begin = System.currentTimeMillis();
         for (int t = 0; t < 10; t++) {
             executors.execute(() -> {
-                doTest(mgr);
+                try {
+                    doTest(mgr,pool);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
                 latch.countDown();
             });
         }
@@ -72,15 +75,15 @@ public class FileCacheMgr extends Logging {
         SocketSendBufferPool pool = new SocketSendBufferPool();
         List<FileCacheItem> items = Lists.newArrayList();
         long begin = System.currentTimeMillis();
-        doTest(mgr);
+        doTest(mgr, pool);
         System.out.println(System.currentTimeMillis() - begin);
         for (FileCacheItem i : items) {
             System.out.println(new String(i.read().array()));
         }
     }
 
-    private static void doTest(FileCacheMgr mgr) {
-        for (int i = 0; i < 10; i++) {
+    private static void doTest(FileCacheMgr mgr, SocketSendBufferPool pool) throws IOException {
+        for (int i = 0; i < 10000; i++) {
             byte[] bs = ("a============================================" +
                     "================================================================b" +
                     "================================================================b" +
@@ -114,48 +117,43 @@ public class FileCacheMgr extends Logging {
                     "================================================================b" +
                     "================================================================b" + i).getBytes();
             ByteBuffer b = ByteBuffer.wrap(bs);
-            try {
-                mgr.append(b);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-//            pool.acquire(bs);
-//            items.add(mgr.append(b));
+//            mgr.append(b);
+            pool.acquire(bs);
         }
     }
 
-    public FileCacheMgr() throws FileNotFoundException {
+    public FileCacheMgr() throws IOException {
         File d = new File(dir);
         d.mkdirs();
         for (File f : d.listFiles()) {
-            Long relPos = Long.parseLong(f.getName().substring(0, f.getName().length() - 6));
+            Long relPos = Long.parseLong(f.getName().substring(0, f.getName().length() - FileSuffix.length()));
             fileList.add(new FileCacheItem(f, Utils.openChannel(f, true), relPos.intValue(), Integer.MAX_VALUE, false));
         }
-    }
-
-    public FileCacheItem append(ByteBuffer buffer) throws IOException {
-        lock2.lock();
         if (current == null) {
             if (CollectionUtils.isNotEmpty(fileList)) {
                 current = fileList.last();
             } else {
-                current = addNew(new File(dir + Log.filenamePrefixFromOffset(0L) + ".cache"), 0);
+                current = addNewFile(new File(dir + Log.filenamePrefixFromOffset(0L) + FileSuffix), 0);
             }
         }
+    }
+
+    public FileCacheItem append(ByteBuffer buffer) throws IOException {
+        lock.lock();
         if (current.size() + buffer.limit() > MAX_FILE_LENGTH) {
             Long relPos = Long.parseLong(current.file.getName().substring(0, current.file.getName().length() - 6));
 //                System.out.println(String.format("size:%d-buf:%d-relpos%d",current.size(),buffer.limit(),relPos));
             String start = Log.filenamePrefixFromOffset(relPos + current.size());
-            current = addNew(new File(dir + start + ".cache"), Integer.parseInt(start));
+            current = addNewFile(new File(dir + start + ".cache"), Integer.parseInt(start));
         }
         Integer start = current.size();
         current.write(buffer);
         Integer end = current.size();
-        lock2.unlock();
+        lock.unlock();
         return new FileCacheItem(current.file, Utils.openChannel(current.file, false), start, end, true);
     }
 
-    private FileCacheItem addNew(File file, Integer start) throws IOException {
+    private FileCacheItem addNewFile(File file, Integer start) throws IOException {
         if (!file.exists()) {
             file.createNewFile();
         }
