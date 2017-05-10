@@ -2,19 +2,19 @@ package kafka.cache;/**
  * Created by zhoulf on 2017/5/9.
  */
 
-import kafka.common.KafkaException;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * @author
  * @create 2017-05-09 16:41
  **/
 public class FileCacheItem implements Comparable<FileCacheItem> {
+    public static final ReentrantLock lock = new ReentrantLock();
     public volatile File file;
     public FileChannel channel;
     public Integer start;
@@ -33,7 +33,7 @@ public class FileCacheItem implements Comparable<FileCacheItem> {
             if (isSlice) {
                 _size = new AtomicInteger(end - start); // don't check the file size if this is just a slice view
             } else {
-                _size = new AtomicInteger((int) Math.min(channel.size(), end) - start);
+                _size = new AtomicInteger((int) channel.size());
             }
             /* if this is not a slice, update the file pointer to the end of the file */
             if (!isSlice) {
@@ -51,6 +51,7 @@ public class FileCacheItem implements Comparable<FileCacheItem> {
     }
 
     public int write(ByteBuffer buffer) {
+        lock.lock();
         // Ignore offset and size from input. We just want to write the whole buffer to the channel.
         buffer.mark();
         int written = 0;
@@ -61,16 +62,26 @@ public class FileCacheItem implements Comparable<FileCacheItem> {
             buffer.reset();
         } catch (IOException e) {
             e.printStackTrace();
+        } finally {
+            lock.unlock();
         }
-        _size.getAndAdd(buffer.limit());
+        _size.getAndAdd(written);
         return written;
     }
 
     public ByteBuffer read() throws IOException {
-        Integer newSize = end - start;
-        ByteBuffer byteBuffer = ByteBuffer.allocate(newSize);
-        channel.read(byteBuffer);
-        return byteBuffer;
+        lock.lock();
+        try{
+            long pos = channel.position();
+            channel.position(start);
+            Integer newSize = end - start;
+            ByteBuffer byteBuffer = ByteBuffer.allocate(newSize);
+            channel.read(byteBuffer);
+            channel.position(pos);
+            return byteBuffer;
+        }finally {
+            lock.unlock();
+        }
     }
 
     public int size() {

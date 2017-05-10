@@ -83,7 +83,7 @@ final class SocketSendBufferPool {
     }
 
 
-    private SendBuffer acquire(byte[] src) {
+    public SendBuffer acquire(byte[] src) {
         final int size = src.length;
         if (size == 0) {
             return EMPTY_BUFFER;
