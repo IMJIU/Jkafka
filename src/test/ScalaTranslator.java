@@ -5,6 +5,7 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.net.*;
+import java.nio.ByteBuffer;
 import java.util.*;
 
 /**
@@ -12,16 +13,7 @@ import java.util.*;
  * @create 2017-03-30 10:04
  **/
 public class ScalaTranslator {
-    public static String main = "g:/github/JKafka/src/main/java/kafka/";
-    public static String test = "g:/github/JKafka/src/test/kafka/";
 
-    static {
-        String ip = getMyIp();
-        if (ip.equals("10.8.72.109")) {
-            main = "e:/github/JKafka/src/main/java/kafka/";
-            test = "e:/github/JKafka/src/test/kafka/";
-        }
-    }
 
     public static void main(String[] args) throws IOException {
 //        System.out.println("ksdjfkasdf<Int> threadId)".replaceAll("([\\s\\(<])Int([\\s>])", "$1Integer$2"));
@@ -30,10 +22,10 @@ public class ScalaTranslator {
 //                main + "cluster/Partition.java",
 //                main + "utils/Pool.java",
 //                main + "log/LogConfig.java",
-                main + "network/BoundedByteBufferSend.java");
+                main + "api/LeaderAndIsr.java");
 //        List<String> filePaths = Arrays.asList(main + "log/Log.java");
         for (String p : filePaths) {
-//            convertToJava(p, true);
+            convertToJava(p, true);
         }
     }
 
@@ -41,7 +33,9 @@ public class ScalaTranslator {
     public static void convertToJava(String filePath, boolean write) throws IOException {
         List<Character> lastList = Lists.newArrayList('[', '(', '}', '{', ';', '*', '/', ',', '>', '=', '+');
         String[] ps = new String[]{
-                "Int ", "Integer ",
+                " Int ", " Integer ",
+                "\\[(\\D+)\\]","<$1>",
+                "\\sInt\\s", " Integer ",
                 "Int>", "Integer>",
                 "<Int,", "<Integer,>",
                 " def ", "public void ",
@@ -136,6 +130,16 @@ public class ScalaTranslator {
             return netip;
         } else {
             return localip;
+        }
+    }
+    public static String main = "g:/github/JKafka/src/main/java/kafka/";
+    public static String test = "g:/github/JKafka/src/test/kafka/";
+
+    static {
+        String ip = getMyIp();
+        if (ip.equals("10.8.72.109")) {
+            main = "e:/github/JKafka/src/main/java/kafka/";
+            test = "e:/github/JKafka/src/test/kafka/";
         }
     }
 }

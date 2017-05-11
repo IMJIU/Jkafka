@@ -36,7 +36,8 @@ public class RequestChannel extends KafkaMetricsGroup {
     private List<ActionWithParam<Integer>> responseListeners = Lists.newArrayList();
     private ArrayBlockingQueue<Request> requestQueue ;
     private BlockingQueue<Response>[] responseQueues;
-    public Request AllDone;
+    public static Request AllDone = new Request(1, 2, getShutdownReceive(), 0L);
+
 
     public RequestChannel(Integer numProcessors, Integer queueSize) {
         this.numProcessors = numProcessors;
@@ -47,8 +48,7 @@ public class RequestChannel extends KafkaMetricsGroup {
     public void init() {
         requestQueue = new ArrayBlockingQueue<>(queueSize);
         responseQueues = new BlockingQueue[numProcessors];
-        AllDone = new Request(1, 2, getShutdownReceive(), 0L);
-        for (int i = 0; i < numProcessors; i++)
+         for (int i = 0; i < numProcessors; i++)
             responseQueues[i] = new LinkedBlockingQueue<>();
 
         newGauge("RequestQueueSize",
@@ -72,7 +72,7 @@ public class RequestChannel extends KafkaMetricsGroup {
     }
 
 
-    public ByteBuffer getShutdownReceive() {
+    public static ByteBuffer getShutdownReceive() {
         ProducerRequest emptyProducerRequest = new ProducerRequest((short)0, 0, "", (short)0, 0, Maps.newHashMap());
         ByteBuffer byteBuffer = ByteBuffer.allocate(emptyProducerRequest.sizeInBytes() + 2);
         byteBuffer.putShort(RequestKeys.ProduceKey);
