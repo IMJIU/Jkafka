@@ -3,28 +3,38 @@ package kafka.server;/**
  */
 
 import kafka.network.RequestChannel;
+import kafka.utils.Logging;
+import org.I0Itec.zkclient.ZkClient;
 
 /**
  * Logic to handle the various Kafka requests
  */
-public class KafkaApis {
+public class KafkaApis extends Logging {
 
 
-//    class KafkaApis(val RequestChannel requestChannel,
-//    val ReplicaManager replicaManager,
-//    val OffsetManager offsetManager,
-//    val ZkClient zkClient,
-//    val Int brokerId,
-//    val KafkaConfig config,
-//    val KafkaController controller) extends Logging {
+//     RequestChannel requestChannel;
+//     ReplicaManager replicaManager;
+//     OffsetManager offsetManager;
+//     ZkClient zkClient;
+//     Integer brokerId;
+//     KafkaConfig config;
+//     KafkaController controller;
 //
-//        val producerRequestPurgatory = new ProducerRequestPurgatory(replicaManager, offsetManager, requestChannel);
-//        val fetchRequestPurgatory = new FetchRequestPurgatory(replicaManager, requestChannel);
-//        // the TODO following line will be removed in 0.9;
-//        replicaManager.initWithRequestPurgatory(producerRequestPurgatory, fetchRequestPurgatory);
-//        var metadataCache = new MetadataCache;
-//        this.logIdent = String.format("<KafkaApi-%d> ",brokerId)
-//
+//    public KafkaApis(RequestChannel requestChannel, ReplicaManager replicaManager, OffsetManager offsetManager, ZkClient zkClient, Integer brokerId, KafkaConfig config, KafkaController controller) {
+//        this.requestChannel = requestChannel;
+//        this.replicaManager = replicaManager;
+//        this.offsetManager = offsetManager;
+//        this.zkClient = zkClient;
+//        this.brokerId = brokerId;
+//        this.config = config;
+//        this.controller = controller;
+//        //        val producerRequestPurgatory = new ProducerRequestPurgatory(replicaManager, offsetManager, requestChannel);
+////        val fetchRequestPurgatory = new FetchRequestPurgatory(replicaManager, requestChannel);
+////        // the TODO following line will be removed in 0.9;
+////        replicaManager.initWithRequestPurgatory(producerRequestPurgatory, fetchRequestPurgatory);
+////        var metadataCache = new MetadataCache;
+//        loggerName(String.format("<KafkaApi-%d> ",brokerId));
+//    }
         /**
          * Top-level method that handles all requests and multiplexes to the right api
          */
@@ -82,7 +92,7 @@ public class KafkaApis {
 //            }
 //        }
 //
-//    privatepublic void ensureTopicExists(String topic) = {
+//    private void ensureTopicExists(String topic) = {
 //        if (metadataCache.getTopicMetadata(Set(topic)).size <= 0)
 //            throw new UnknownTopicOrPartitionException("Topic " + topic + " either doesn't exist or is in the process of being deleted");
 //    }
