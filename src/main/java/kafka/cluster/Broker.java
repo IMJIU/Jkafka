@@ -23,7 +23,7 @@ public class Broker {
         this.port = port;
     }
 
-    public Broker createBroker(Integer id, String brokerInfoString) {
+    public static Broker createBroker(Integer id, String brokerInfoString) {
         if (brokerInfoString == null)
             throw new BrokerNotAvailableException(String.format("Broker id %s does not exist", id));
         try {

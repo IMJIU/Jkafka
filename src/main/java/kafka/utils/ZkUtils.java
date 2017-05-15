@@ -6,9 +6,11 @@ import com.google.common.collect.Lists;
 import kafka.api.LeaderAndIsr;
 import kafka.cluster.Broker;
 import kafka.common.KafkaException;
+import kafka.common.NoEpochForPartitionException;
 import kafka.func.Checker;
 import kafka.func.Tuple;
 import kafka.log.TopicAndPartition;
+import kafka.server.KafkaController;
 import org.I0Itec.zkclient.ZkClient;
 import org.I0Itec.zkclient.exception.ZkNoNodeException;
 import org.I0Itec.zkclient.exception.ZkNodeExistsException;
@@ -134,7 +136,7 @@ public class ZkUtils {
     /**
      * Gets the assigned replicas (AR) for a specific topic and partition
      */
-    public static List<Integer> getReplicasForPartition(ZkClient zkClient, String topic, Integer partition) {
+    public static List<Integer> getReplicasForPartition(ZkClient zkClient, String topic, Integer partition) throws Throwable {
         Optional<String> jsonPartitionMapOpt = readDataMaybeNull(zkClient, getTopicPath(topic)).v1;
         if (jsonPartitionMapOpt.isPresent()) {
             String leaderAndIsr = jsonPartitionMapOpt.get();
@@ -152,7 +154,7 @@ public class ZkUtils {
         return Collections.emptyList();
     }
 
-    public void registerBrokerInZk(ZkClient zkClient, Integer id, String host, Integer port, Integer timeout, Integer jmxPort) {
+    public void registerBrokerInZk(ZkClient zkClient, Integer id, String host, Integer port, Integer timeout, Integer jmxPort) throws Throwable {
         String brokerIdPath = ZkUtils.BrokerIdsPath + "/" + id;
         String timestamp = Time.get().milliseconds().toString();
         String brokerInfo = JSON.toJSONString(ImmutableMap.of("version", 1, "host", host, "port", port, "jmx_port", jmxPort, "timestamp", timestamp));
@@ -160,8 +162,7 @@ public class ZkUtils {
 
         try {
             createEphemeralPathExpectConflictHandleZKBug(zkClient, brokerIdPath, brokerInfo, expectedBroker,
-                    (String brokerString, Any broker) =>Broker.createBroker(broker.asInstanceOf < Broker].
-            id, brokerString).equals(broker.asInstanceOf[Broker >),
+                    ( brokerString, broker) ->Broker.createBroker(((Broker)broker).id, brokerString).equals((Broker)broker),
                     timeout);
 
         } catch (ZkNodeExistsException e) {
@@ -232,7 +233,7 @@ public class ZkUtils {
             // this can happen when there is connection loss; make sure the data is what we intend to write;
             String storedData = null;
             try {
-                storedData = readData(client, path)._1;
+                storedData = readData(client, path).v1;
             } catch (ZkNoNodeException e1) {
                 // the node disappeared; treat as if node existed and let caller handles this;
             } catch (Throwable e2) {
@@ -272,25 +273,29 @@ public class ZkUtils {
                 // An ephemeral node may still exist even after its corresponding session has expired;
                 // due to a Zookeeper bug, in this case we need to retry writing until the previous node is deleted;
                 // and hence the write succeeds without ZkNodeExistsException;
-                ZkUtils.readDataMaybeNull(zkClient, path).v1 match {
-                    case Some(writtenData) =>{
-                        if (checker.check(writtenData, expectedCallerData)) {
-                            info(String.format("I wrote this conflicted ephemeral node <%s> at %s a while back in a different session, ", data, path)
-                                    + "hence I will backoff for this node to be deleted by Zookeeper and retry")
-
-                            Thread.sleep(backoffTime);
-                        } else {
-                            throw e;
-                        }
+                Optional<String> opt = ZkUtils.readDataMaybeNull(zkClient, path).v1;
+                if(opt.isPresent()){
+                    String writtenData = opt.get();
+                    if (checker.check(writtenData, expectedCallerData)) {
+                        log.info(String.format("I wrote this conflicted ephemeral node <%s> at %s a while back in a different session, ", data, path)
+                                + "hence I will backoff for this node to be deleted by Zookeeper and retry");
+                        Thread.sleep(backoffTime);
+                    } else {
+                        throw e;
                     }
-                    case None => // the node disappeared; retry creating the ephemeral node immediately;
                 }
+                // the node disappeared; retry creating the ephemeral node immediately
             } catch (Throwable e2) {
                 throw e2;
             }
         }
     }
-
+    /**
+     * Create an persistent node with the given path and data. Create parents if necessary.
+     */
+    public static void createPersistentPath(ZkClient client, String path) {
+        createPersistentPath(client,path,"");
+    }
     /**
      * Create an persistent node with the given path and data. Create parents if necessary.
      */
@@ -302,9 +307,11 @@ public class ZkUtils {
             client.createPersistent(path, data);
         }
     }
-
-    public static String createSequentialPersistentPath(ZkClient client, String path, String data="") {
-        client.createPersistentSequential(path, data);
+    public static String createSequentialPersistentPath(ZkClient client, String path) {
+       return client.createPersistentSequential(path, "");
+    }
+    public static String createSequentialPersistentPath(ZkClient client, String path, String data) {
+        return client.createPersistentSequential(path, data);
     }
 
     /**
@@ -338,7 +345,7 @@ public class ZkUtils {
      * In this case, we will run the optionalChecker to further check if the previous write did indeed succeeded.
      */
     public static void conditionalUpdatePersistentPath(ZkClient client, String path, String data, Integer expectVersion,
-                                                       Option optionalChecker<(ZkClient, String, String)=>(Boolean,Int)>=None):(Boolean,Int)=
+                                                       Optional optionalChecker<(ZkClient, String, String)=>(Boolean,Int)>=None):(Boolean,Int)=
 
     {
         try {

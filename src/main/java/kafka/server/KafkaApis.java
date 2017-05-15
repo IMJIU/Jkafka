@@ -12,13 +12,13 @@ import org.I0Itec.zkclient.ZkClient;
 public class KafkaApis extends Logging {
 
 
-//     RequestChannel requestChannel;
-//     ReplicaManager replicaManager;
-//     OffsetManager offsetManager;
-//     ZkClient zkClient;
-//     Integer brokerId;
-//     KafkaConfig config;
-//     KafkaController controller;
+     RequestChannel requestChannel;
+     ReplicaManager replicaManager;
+     OffsetManager offsetManager;
+     ZkClient zkClient;
+     Integer brokerId;
+     KafkaConfig config;
+     KafkaController controller;
 //
 //    public KafkaApis(RequestChannel requestChannel, ReplicaManager replicaManager, OffsetManager offsetManager, ZkClient zkClient, Integer brokerId, KafkaConfig config, KafkaController controller) {
 //        this.requestChannel = requestChannel;
