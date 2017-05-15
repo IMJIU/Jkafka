@@ -13,6 +13,11 @@ public class Prediction {
             throw new IllegalArgumentException(msg);
         }
     }
+    public static void Assert(Boolean check, String msg) {
+        if (!check) {
+            throw new IllegalArgumentException(msg);
+        }
+    }
     public static void require(Boolean check) {
         if (!check) {
             throw new IllegalArgumentException();
