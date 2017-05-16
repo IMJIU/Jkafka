@@ -4,44 +4,28 @@ package kafka.common;/**
 
 /**
  * @author
- * @create 2017-05-15 18:11
+ * @create 2017-05-15 11 18
  **/
 public class OffsetAndMetadata {
+    public static Long InvalidOffset = -1L;
+    public static String NoMetadata = "";
+    public static Long InvalidTime = -1L;
+    public Long offset;
+    public String metadata ;
+    public Long timestamp = -1L;
 
-case class OffsetAndMetadata(offset: Long,
-    metadata: String = OffsetAndMetadata.NoMetadata,
-    var timestamp: Long = -1L) {
-        override def toString = "OffsetAndMetadata[%d,%s%s]"
-                .format(offset,
-        if (metadata != null && metadata.length > 0) metadata else "NO_METADATA",
-        if (timestamp == -1) "" else "," + timestamp.toString)
+    public OffsetAndMetadata(java.lang.Long offset, String metadata, java.lang.Long timestamp) {
+        this.offset = offset;
+        this.metadata = metadata;
+        this.timestamp = timestamp;
+        if(metadata==null) this.metadata = NoMetadata;
+        if(timestamp==null) this.timestamp = -1L;
     }
 
-    object OffsetAndMetadata {
-        val InvalidOffset: Long = -1L
-        val NoMetadata: String = ""
-        val InvalidTime: Long = -1L
-    }
-
-case class OffsetMetadataAndError(offset: Long,
-    metadata: String = OffsetAndMetadata.NoMetadata,
-    error: Short = ErrorMapping.NoError) {
-
-        def this(offsetMetadata: OffsetAndMetadata, error: Short) =
-        this(offsetMetadata.offset, offsetMetadata.metadata, error)
-
-        def this(error: Short) =
-        this(OffsetAndMetadata.InvalidOffset, OffsetAndMetadata.NoMetadata, error)
-
-        def asTuple = (offset, metadata, error)
-
-        override def toString = "OffsetMetadataAndError[%d,%s,%d]".format(offset, metadata, error)
-    }
-
-    object OffsetMetadataAndError {
-        val NoOffset = OffsetMetadataAndError(OffsetAndMetadata.InvalidOffset, OffsetAndMetadata.NoMetadata, ErrorMapping.NoError)
-        val OffsetsLoading = OffsetMetadataAndError(OffsetAndMetadata.InvalidOffset, OffsetAndMetadata.NoMetadata, ErrorMapping.OffsetsLoadInProgressCode)
-        val NotOffsetManagerForGroup = OffsetMetadataAndError(OffsetAndMetadata.InvalidOffset, OffsetAndMetadata.NoMetadata, ErrorMapping.NotCoordinatorForConsumerCode)
-        val UnknownTopicOrPartition = OffsetMetadataAndError(OffsetAndMetadata.InvalidOffset, OffsetAndMetadata.NoMetadata, ErrorMapping.UnknownTopicOrPartitionCode)
+    @Override
+    public String toString() {
+        return String.format("OffsetAndMetadata<%d,%s%s>",offset,
+        metadata != null && metadata.length() > 0?metadata : "NO_METADATA",
+        timestamp == -1?"" : "," + timestamp.toString());
     }
 }

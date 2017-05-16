@@ -2,23 +2,42 @@ package kafka.api;/**
  * Created by zhoulf on 2017/5/15.
  */
 
+import kafka.common.OffsetAndMetadata;
 import kafka.func.Tuple;
 import kafka.log.TopicAndPartition;
 import kafka.utils.Prediction;
 import kafka.utils.Time;
 
 import java.nio.ByteBuffer;
+import java.util.Map;
 import java.util.stream.Stream;
 
 /**
  * @author
  * @create 2017-05-15 00 18
  **/
-public class OffsetCommitRequest {
+public class OffsetCommitRequest extends RequestOrResponse{
     public static Short CurrentVersion = 1;
     public static String DefaultClientId = "";
+    public String groupId;
+    public Map<TopicAndPartition, OffsetAndMetadata> requestInfo;
+    public Short versionId ;
+    public Integer correlationId ;
+    public String clientId ;
+    public Integer groupGenerationId = org.apache.kafka.common.requests.OffsetCommitRequest.DEFAULT_GENERATION_ID;
+    public String consumerId =  org.apache.kafka.common.requests.OffsetCommitRequest.DEFAULT_CONSUMER_ID;
 
-   public static OffsetCommitRequest   readFrom(ByteBuffer buffer) {
+    public OffsetCommitRequest(java.lang.String groupId, Map<TopicAndPartition, OffsetAndMetadata> requestInfo, Short versionId, Integer correlationId, java.lang.String clientId, Integer groupGenerationId, java.lang.String consumerId) {
+        this.groupId = groupId;
+        this.requestInfo = requestInfo;
+        this.versionId = versionId;
+        this.correlationId = correlationId;
+        this.clientId = clientId;
+        this.groupGenerationId = groupGenerationId;
+        this.consumerId = consumerId;
+    }
+
+    public static OffsetCommitRequest   readFrom(ByteBuffer buffer) {
         // Read values from the envelope;
        Short versionId = buffer.getShort();
        Prediction.Assert(versionId == 0 || versionId == 1,
@@ -50,12 +69,12 @@ public class OffsetCommitRequest {
                    Long given = buffer.getLong();
                    timestamp=given;
                } else{
-                       timestamp=OffsetAndMetadata.InvalidTime;
+                       timestamp= OffsetAndMetadata.InvalidTime;
                  }
                String metadata = ApiUtils.readShortString(buffer);
               return Tuple.of(new TopicAndPartition(topic, partitionId), new OffsetAndMetadata(offset, metadata, timestamp));
             });
-        OffsetCommitRequest(consumerGroupId, immutable.Map(_ pairs*), versionId, correlationId, clientId, groupGenerationId, consumerId);
+        return new OffsetCommitRequest(consumerGroupId, immutable.Map(_ pairs*), versionId, correlationId, clientId, groupGenerationId, consumerId);
     }
 
    public static void changeInvalidTimeToCurrentTime(OffsetCommitRequest offsetCommitRequest) {
