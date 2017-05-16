@@ -172,84 +172,84 @@ public class KafkaApis extends Logging {
     /**
      * Handle a produce request or offset commit request (which is really a specialized producer request)
      */
-   public void handleProducerOrOffsetCommitRequest(RequestChannel.Request request) {
-        val (produceRequest, offsetCommitRequestOpt) =
-        if (request.requestId == RequestKeys.OffsetCommitKey) {
-            OffsetCommitRequest offsetCommitRequest = (OffsetCommitRequest)request.requestObj;
-            OffsetCommitRequest.changeInvalidTimeToCurrentTime(offsetCommitRequest);
-            (producerRequestFromOffsetCommit(offsetCommitRequest), Some(offsetCommitRequest));
-        } else {
-            (request.requestObj.asInstanceOf<ProducerRequest>, None);
-        }
-
-        if (produceRequest.requiredAcks > 1 || produceRequest.requiredAcks < -1) {
-            warn(("Client %s from %s sent a produce request with request.required.acks of %d, which is now deprecated and will " +
-                    "be removed in next release. Valid values are -1, 0 or 1. Please consult Kafka documentation for supported " +
-                    "and recommended configuration.").format(produceRequest.clientId, request.remoteAddress, produceRequest.requiredAcks))
-        }
-
-        val sTime = SystemTime.milliseconds;
-        val localProduceResults = appendToLocalLog(produceRequest, offsetCommitRequestOpt.nonEmpty);
-        debug(String.format("Produce to local log in %d ms",SystemTime.milliseconds - sTime))
-
-        val firstErrorCode = localProduceResults.find(_.errorCode != ErrorMapping.NoError).map(_.errorCode).getOrElse(ErrorMapping.NoError);
-
-        val numPartitionsInError = localProduceResults.count(_.error.isDefined);
-        if(produceRequest.requiredAcks == 0) {
-            // no operation needed if producer request.required.acks = 0; however, if there is any exception in handling the request, since;
-            // no response is expected by the producer the handler will send a close connection response to the socket server;
-            // to close the socket so that the producer client will know that some exception has happened and will refresh its metadata;
-            if (numPartitionsInError != 0) {
-                info(("Send the close connection response due to error handling produce request " +
-                        "<clientId = %s, correlationId = %s, topicAndPartition = %s> with Ack=0");
-                        .format(produceRequest.clientId, produceRequest.correlationId, produceRequest.topicPartitionMessageSizeMap.keySet.mkString(",")))
-                requestChannel.closeConnection(request.processor, request);
-            } else {
-
-                if (firstErrorCode == ErrorMapping.NoError)
-                    offsetCommitRequestOpt.foreach(ocr => offsetManager.putOffsets(ocr.groupId, ocr.requestInfo))
-
-                if (offsetCommitRequestOpt.isDefined) {
-                    val response = offsetCommitRequestOpt.get.responseFor(firstErrorCode, config.offsetMetadataMaxSize);
-                    requestChannel.sendResponse(new RequestChannel.Response(request, new BoundedByteBufferSend(response)));
-                } else;
-                    requestChannel.noOperation(request.processor, request);
-            }
-        } else if (produceRequest.requiredAcks == 1 ||;
-                produceRequest.numPartitions <= 0 ||;
-                numPartitionsInError == produceRequest.numPartitions) {
-
-            if (firstErrorCode == ErrorMapping.NoError) {
-                offsetCommitRequestOpt.foreach(ocr => offsetManager.putOffsets(ocr.groupId, ocr.requestInfo) )
-            }
-
-            val statuses = localProduceResults.map(r => r.key -> ProducerResponseStatus(r.errorCode, r.start)).toMap;
-            val response = offsetCommitRequestOpt.map(_.responseFor(firstErrorCode, config.offsetMetadataMaxSize));
-                    .getOrElse(ProducerResponse(produceRequest.correlationId, statuses));
-
-            requestChannel.sendResponse(new RequestChannel.Response(request, new BoundedByteBufferSend(response)));
-        } else {
-            // create a list of (topic, partition) pairs to use as keys for this delayed request;
-            val producerRequestKeys = produceRequest.data.keys.toSeq;
-            val statuses = localProduceResults.map(r =>
-                    r.key -> DelayedProduceResponseStatus(r.end + 1, ProducerResponseStatus(r.errorCode, r.start))).toMap;
-            val delayedRequest =  new DelayedProduce(
-                    producerRequestKeys,
-                    request,
-                    produceRequest.ackTimeoutMs.toLong,
-                    produceRequest,
-                    statuses,
-                    offsetCommitRequestOpt);
-
-            // add the produce request for watch if it's not satisfied, otherwise send the response back;
-            val satisfiedByMe = producerRequestPurgatory.checkAndMaybeWatch(delayedRequest);
-            if (satisfiedByMe)
-                producerRequestPurgatory.respond(delayedRequest);
-        }
-
-        // we do not need the data anymore;
-        produceRequest.emptyData();
-    }
+//   public void handleProducerOrOffsetCommitRequest(RequestChannel.Request request) {
+//        val (produceRequest, offsetCommitRequestOpt) =
+//        if (request.requestId == RequestKeys.OffsetCommitKey) {
+//            OffsetCommitRequest offsetCommitRequest = (OffsetCommitRequest)request.requestObj;
+//            OffsetCommitRequest.changeInvalidTimeToCurrentTime(offsetCommitRequest);
+//            (producerRequestFromOffsetCommit(offsetCommitRequest), Some(offsetCommitRequest));
+//        } else {
+//            (request.requestObj.asInstanceOf<ProducerRequest>, None);
+//        }
+//
+//        if (produceRequest.requiredAcks > 1 || produceRequest.requiredAcks < -1) {
+//            warn(("Client %s from %s sent a produce request with request.required.acks of %d, which is now deprecated and will " +
+//                    "be removed in next release. Valid values are -1, 0 or 1. Please consult Kafka documentation for supported " +
+//                    "and recommended configuration.").format(produceRequest.clientId, request.remoteAddress, produceRequest.requiredAcks))
+//        }
+//
+//        val sTime = SystemTime.milliseconds;
+//        val localProduceResults = appendToLocalLog(produceRequest, offsetCommitRequestOpt.nonEmpty);
+//        debug(String.format("Produce to local log in %d ms",SystemTime.milliseconds - sTime))
+//
+//        val firstErrorCode = localProduceResults.find(_.errorCode != ErrorMapping.NoError).map(_.errorCode).getOrElse(ErrorMapping.NoError);
+//
+//        val numPartitionsInError = localProduceResults.count(_.error.isDefined);
+//        if(produceRequest.requiredAcks == 0) {
+//            // no operation needed if producer request.required.acks = 0; however, if there is any exception in handling the request, since;
+//            // no response is expected by the producer the handler will send a close connection response to the socket server;
+//            // to close the socket so that the producer client will know that some exception has happened and will refresh its metadata;
+//            if (numPartitionsInError != 0) {
+//                info(("Send the close connection response due to error handling produce request " +
+//                        "<clientId = %s, correlationId = %s, topicAndPartition = %s> with Ack=0");
+//                        .format(produceRequest.clientId, produceRequest.correlationId, produceRequest.topicPartitionMessageSizeMap.keySet.mkString(",")))
+//                requestChannel.closeConnection(request.processor, request);
+//            } else {
+//
+//                if (firstErrorCode == ErrorMapping.NoError)
+//                    offsetCommitRequestOpt.foreach(ocr => offsetManager.putOffsets(ocr.groupId, ocr.requestInfo))
+//
+//                if (offsetCommitRequestOpt.isDefined) {
+//                    val response = offsetCommitRequestOpt.get.responseFor(firstErrorCode, config.offsetMetadataMaxSize);
+//                    requestChannel.sendResponse(new RequestChannel.Response(request, new BoundedByteBufferSend(response)));
+//                } else;
+//                    requestChannel.noOperation(request.processor, request);
+//            }
+//        } else if (produceRequest.requiredAcks == 1 ||;
+//                produceRequest.numPartitions <= 0 ||;
+//                numPartitionsInError == produceRequest.numPartitions) {
+//
+//            if (firstErrorCode == ErrorMapping.NoError) {
+//                offsetCommitRequestOpt.foreach(ocr => offsetManager.putOffsets(ocr.groupId, ocr.requestInfo) )
+//            }
+//
+//            val statuses = localProduceResults.map(r => r.key -> ProducerResponseStatus(r.errorCode, r.start)).toMap;
+//            val response = offsetCommitRequestOpt.map(_.responseFor(firstErrorCode, config.offsetMetadataMaxSize));
+//                    .getOrElse(ProducerResponse(produceRequest.correlationId, statuses));
+//
+//            requestChannel.sendResponse(new RequestChannel.Response(request, new BoundedByteBufferSend(response)));
+//        } else {
+//            // create a list of (topic, partition) pairs to use as keys for this delayed request;
+//            val producerRequestKeys = produceRequest.data.keys.toSeq;
+//            val statuses = localProduceResults.map(r =>
+//                    r.key -> DelayedProduceResponseStatus(r.end + 1, ProducerResponseStatus(r.errorCode, r.start))).toMap;
+//            val delayedRequest =  new DelayedProduce(
+//                    producerRequestKeys,
+//                    request,
+//                    produceRequest.ackTimeoutMs.toLong,
+//                    produceRequest,
+//                    statuses,
+//                    offsetCommitRequestOpt);
+//
+//            // add the produce request for watch if it's not satisfied, otherwise send the response back;
+//            val satisfiedByMe = producerRequestPurgatory.checkAndMaybeWatch(delayedRequest);
+//            if (satisfiedByMe)
+//                producerRequestPurgatory.respond(delayedRequest);
+//        }
+//
+//        // we do not need the data anymore;
+//        produceRequest.emptyData();
+//    }
 //
 //  case class ProduceResult(TopicAndPartition key, Long start, Long end, Option error<Throwable> = None) {
 //       public void this(TopicAndPartition key, Throwable throwable) =
