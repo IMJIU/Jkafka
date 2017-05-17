@@ -3,6 +3,7 @@ package es;
 import java.io.IOException;
 
 import es.entity.Blog;
+import es.entity.Video;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 
@@ -25,5 +26,23 @@ public class JsonUtil {
 
         return jsonData;
     }
+    // Java实体对象转json对象
+    public static String model2Json(Video video) {
+        String jsonData = null;
+        try {
+            XContentBuilder jsonBuild = XContentFactory.jsonBuilder();
+            jsonBuild.startObject().field("id", video.getId())
+                    .field("name", video.getName())
+                    .field("nameInitial", video.getNameInitial())
+                    .endObject();
 
+            jsonData = jsonBuild.string();
+            //System.out.println(jsonData);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return jsonData;
+    }
 }

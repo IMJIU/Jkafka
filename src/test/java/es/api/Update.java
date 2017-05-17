@@ -1,4 +1,4 @@
-package es;
+package es.api;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -17,7 +17,7 @@ import org.junit.Test;
 
 import static org.elasticsearch.common.xcontent.XContentFactory.*;
 
-public class ElasticSearchUpdate {
+public class Update {
 
     private Client client;
 
@@ -39,9 +39,11 @@ public class ElasticSearchUpdate {
             UpdateRequest uRequest = new UpdateRequest();
             uRequest.index("blog");
             uRequest.type("article");
-//            uRequest.id("AVwQvRMXUi5co6m3a2YA");
-            uRequest.doc("id",1);
-            uRequest.doc(jsonBuilder().startObject().field("content", "学习目标222 掌握java泛型的产生意义ssss").endObject());
+            uRequest.id("10");
+            uRequest.doc(jsonBuilder().startObject()
+                    .field("content", "学习目标222 掌握java泛型的产生意义ssss")
+                    .field("id",10)
+                    .endObject());
             client.update(uRequest).get();
         } catch (IOException e) {
             e.printStackTrace();
@@ -56,8 +58,9 @@ public class ElasticSearchUpdate {
     @Test
     public void upMethod2() {
         // 方法二:prepareUpdate() 使用脚本更新索引
-        client.prepareUpdate("blog", "article", "1")
-                .setScript(new Script("ctx._source.title = \"git入门\"", ScriptService.ScriptType.INLINE, null, null))
+        client.prepareUpdate("blog", "article", "10")
+                .setScript(new Script("ctx._source.title = \"git入门\"",
+                        ScriptService.ScriptType.INLINE, null, null))
                 .get();
     }
 
@@ -65,8 +68,9 @@ public class ElasticSearchUpdate {
     public void upMethod3() {
         // 方法三:prepareUpdate() 使用doc更新索引
         try {
-            client.prepareUpdate("blog", "article", "1")
-                    .setDoc(jsonBuilder().startObject().field("content", "SVN与Git对比。。。").endObject()).get();
+            client.prepareUpdate("blog", "article", "10")
+                    .setDoc(jsonBuilder().startObject().field("content", "SVN与Git对比。。。")
+                            .endObject()).get();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -77,8 +81,8 @@ public class ElasticSearchUpdate {
     public void upMethod4() {
         // 方法四: 增加新的字段
         try {
-            UpdateRequest updateRequest = new UpdateRequest("blog", "article", "1")
-                    .doc(jsonBuilder().startObject().field("commet", "0").endObject());
+            UpdateRequest updateRequest = new UpdateRequest("blog", "article", "10")
+                    .doc(jsonBuilder().startObject().field("comment", "0").endObject());
             client.update(updateRequest).get();
         } catch (IOException e) {
             e.printStackTrace();
@@ -93,10 +97,10 @@ public class ElasticSearchUpdate {
     public void upMethod5() {
         // 方法五：upsert 如果文档不存在则创建新的索引
         try {
-            IndexRequest indexRequest = new IndexRequest("blog", "article", "10").source(jsonBuilder().startObject()
+            IndexRequest indexRequest = new IndexRequest("blog", "article", "11").source(jsonBuilder().startObject()
                     .field("title", "Git安装10").field("content", "学习目标 git。。。10").endObject());
 
-            UpdateRequest uRequest2 = new UpdateRequest("blog", "article", "10").doc(
+            UpdateRequest uRequest2 = new UpdateRequest("blog", "article", "12").doc(
                     jsonBuilder().startObject().field("title", "Git安装").field("content", "学习目标 git。。。").endObject())
                     .upsert(indexRequest);
             client.update(uRequest2).get();

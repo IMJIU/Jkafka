@@ -1,4 +1,4 @@
-package es;
+package es.api;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -16,7 +16,7 @@ import org.elasticsearch.common.transport.InetSocketTransportAddress;
 import org.junit.Before;
 import org.junit.Test;
 
-public class ElasticSearchBulkIn {
+public class BulkIn {
     private Client client;
 
     @Before

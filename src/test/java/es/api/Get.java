@@ -1,4 +1,4 @@
-package es;
+package es.api;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -7,6 +7,7 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.transport.InetSocketTransportAddress;
+import org.elasticsearch.index.query.HasParentQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
@@ -16,7 +17,7 @@ import org.junit.Test;
 
 //import static org.elasticsearch.index.query.QueryBuilders.*;
 
-public class ElasticSearchGet {
+public class Get {
 
 
     private Client client;
@@ -48,6 +49,12 @@ public class ElasticSearchGet {
         } else {
             System.out.println("搜到0条结果");
         }
+    }
+
+
+    @Test
+    public void t02() {
+        HasParentQueryBuilder hpqb = QueryBuilders.hasParentQuery("branch", QueryBuilders.idsQuery().ids("london"));
     }
 
 }

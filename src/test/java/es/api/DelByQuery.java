@@ -1,4 +1,4 @@
-package es;/**
+package es.api;/**
  * Created by zhoulf on 2017/5/17.
  */
 
@@ -48,10 +48,23 @@ public class DelByQuery {
 //                .actionGet();
     }
 
+    /**
+     * 删除field  清空
+     */
     @Test
-    public void del1(){
+    public void del_field(){
         client.prepareUpdate("blog", "article", "10")
-                .setScript(new Script(     "ctx._source.remove(\"bianhao\")", ScriptService.ScriptType.INLINE, null, null))
+                .setScript(new Script(     "ctx._source.remove(\"content\")", ScriptService.ScriptType.INLINE, null, null))
                 .get();
     }
+    /**
+     * 删除field  清空
+     */
+    @Test
+    public void del_field2(){
+        client.prepareUpdate("blog", "article", "10")
+                .setScript(new Script(     "ctx._source.processInstance.remove(\"id\")",ScriptService.ScriptType.INLINE, null, null))
+                .get();
+    }
+
 }

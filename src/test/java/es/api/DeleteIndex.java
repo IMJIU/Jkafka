@@ -1,4 +1,4 @@
-package es;
+package es.api;
 
 import static org.elasticsearch.index.query.QueryBuilders.termQuery;
 
@@ -18,7 +18,7 @@ import org.elasticsearch.index.query.QueryBuilder;
 import org.junit.Before;
 import org.junit.Test;
 
-public class ElasticSearchCreate {
+public class DeleteIndex {
 
     private static String ServerIP = "127.0.0.1";// ElasticSearch server ip
     private static int ServerPort = 9300;// port
@@ -81,8 +81,7 @@ public class ElasticSearchCreate {
                 System.out.println("Index  " + indexName + " already exits!");
             } else {
                 CreateIndexRequest cIndexRequest = new CreateIndexRequest("indexName");
-                CreateIndexResponse cIndexResponse = client.admin().indices().create(cIndexRequest)
-                        .actionGet();
+                CreateIndexResponse cIndexResponse = client.admin().indices().create(cIndexRequest).actionGet();
                 if (cIndexResponse.isAcknowledged()) {
                     System.out.println("create index successfully！");
                 } else {
