@@ -14,7 +14,6 @@
             <artifactId>elasticsearch</artifactId>
             <version>2.4.5</version>
         </dependency>
-
         <!-- https://mvnrepository.com/artifact/com.google.guava/guava -->
         <dependency>
             <groupId>com.google.guava</groupId>

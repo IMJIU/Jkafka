@@ -57,4 +57,6 @@ public class Get {
         HasParentQueryBuilder hpqb = QueryBuilders.hasParentQuery("branch", QueryBuilders.idsQuery().ids("london"));
     }
 
+
+
 }
