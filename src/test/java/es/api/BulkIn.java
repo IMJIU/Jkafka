@@ -7,6 +7,8 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.List;
+import java.util.Random;
 
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.client.Client;
@@ -23,17 +25,18 @@ public class BulkIn {
     public void setup() {
         try {
             Settings settings = Settings.settingsBuilder()
-                    .put("cluster.name", "bropen").build();// cluster.name在elasticsearch.yml中配置
+                    .put("cluster.name", "myapplication").build();// cluster.name在elasticsearch.yml中配置
             // client startup
-            Client client = TransportClient.builder().settings(settings).build()
+             client = TransportClient.builder().settings(settings).build()
                     .addTransportAddress(new InetSocketTransportAddress(
-                            InetAddress.getByName("127.0.0.1"), 9300));} catch (UnknownHostException e) {
+                            InetAddress.getByName("127.0.0.1"), 9300));
+        } catch (UnknownHostException e) {
             e.printStackTrace();
         }
     }
 
     @Test
-    public  void bulk() {
+    public void bulk_file() {
         try {
             File article = new File("files/bulk.txt");
             FileReader fr = new FileReader(article);
@@ -59,6 +62,21 @@ public class BulkIn {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    @Test
+    public void bulk_add() {
+        BulkRequestBuilder bulkRequest = client.prepareBulk();
+        List<String> jsonData = DataFactory.getInitJsonData();
+        Random random = new Random();
+        for (int i = 0; i < jsonData.size(); i++) {
+            bulkRequest.add(client.prepareIndex("blog", "article", random.nextInt(1000) + "")
+                    .setSource(jsonData.get(i)));
+            if (i % 10 == 0) {
+                bulkRequest.execute().actionGet();
+            }
+        }
+        bulkRequest.execute().actionGet();
     }
 
 }
