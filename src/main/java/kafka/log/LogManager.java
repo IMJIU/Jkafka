@@ -557,7 +557,7 @@ public class LogManager extends Logging {
      * Map of log dir to logs by topic and partitions in that dir
      */
     private Map<String, Map<TopicAndPartition, Log>> logsByDir() {
-        return Utils.groupBy(logsByTopicPartition, v -> v.dir.getParent());
+        return Utils.groupByValue(logsByTopicPartition, v -> v.dir.getParent());
     }
 
     /**

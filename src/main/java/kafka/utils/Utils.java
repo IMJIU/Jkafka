@@ -775,7 +775,7 @@ public class Utils {
         return result;
     }
 
-    public static <K, V, V2> Map<V2, Map<K, V>> groupBy(Map<K, V> map, Handler<V, V2> handler) {
+    public static <K, V, V2> Map<V2, Map<K, V>> groupByValue(Map<K, V> map, Handler<V, V2> handler) {
         Map<V2, Map<K, V>> maps = Maps.newHashMap();
         for (Map.Entry<K, V> entry : map.entrySet()) {
             V2 tag = handler.handle(entry.getValue());

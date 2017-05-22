@@ -22,7 +22,7 @@ public abstract class RequestOrResponse extends Logging {
 
     public abstract void writeTo(ByteBuffer buffer);
 
-    public void handleError(Exception e, RequestChannel requestChannel, RequestChannel.Request request) {
+    public void handleError(Throwable e, RequestChannel requestChannel, RequestChannel.Request request) {
     }
 
     /* The purpose of this API is to return a string description of the Request mainly for the purpose of request logging.
