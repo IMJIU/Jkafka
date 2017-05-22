@@ -2,11 +2,23 @@ package kafka.server;/**
  * Created by zhoulf on 2017/5/11.
  */
 
+import kafka.api.OffsetCommitRequest;
+import kafka.api.ProducerRequest;
 import kafka.api.RequestKeys;
+import kafka.common.OffsetAndMetadata;
+import kafka.log.TopicAndPartition;
+import kafka.message.Message;
 import kafka.network.RequestChannel;
 import kafka.utils.Logging;
+import kafka.utils.SystemTime;
+import kafka.utils.Time;
 import org.I0Itec.zkclient.ZkClient;
-import org.apache.kafka.common.requests.OffsetCommitRequest;
+import org.apache.kafka.clients.consumer.OffsetMetadata;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
 
 /**
  * Logic to handle the various Kafka requests
@@ -14,13 +26,13 @@ import org.apache.kafka.common.requests.OffsetCommitRequest;
 public class KafkaApis extends Logging {
 
 
-     RequestChannel requestChannel;
-     ReplicaManager replicaManager;
-     OffsetManager offsetManager;
-     ZkClient zkClient;
-     Integer brokerId;
-     KafkaConfig config;
-     KafkaController controller;
+    RequestChannel requestChannel;
+    ReplicaManager replicaManager;
+    OffsetManager offsetManager;
+    ZkClient zkClient;
+    Integer brokerId;
+    KafkaConfig config;
+    KafkaController controller;
 //
 //    public KafkaApis(RequestChannel requestChannel, ReplicaManager replicaManager, OffsetManager offsetManager, ZkClient zkClient, Integer brokerId, KafkaConfig config, KafkaController controller) {
 //        this.requestChannel = requestChannel;
@@ -37,10 +49,11 @@ public class KafkaApis extends Logging {
 ////        var metadataCache = new MetadataCache;
 //        loggerName(String.format("<KafkaApi-%d> ",brokerId));
 //    }
-        /**
-         * Top-level method that handles all requests and multiplexes to the right api
-         */
-       public void handle(RequestChannel.Request request) {
+
+    /**
+     * Top-level method that handles all requests and multiplexes to the right api
+     */
+    public void handle(RequestChannel.Request request) {
 //            try{
 //                trace("Handling request: " + request.requestObj + " from client: " + request.remoteAddress);
 //                request.requestId match {
@@ -63,8 +76,9 @@ public class KafkaApis extends Logging {
 //                    error(String.format("error when handling request %s",request.requestObj), e)
 //            } finally;
 //            request.apiLocalCompleteTimeMs = SystemTime.milliseconds;
-        }
-//
+    }
+
+    //
 //       public void handleOffsetCommitRequest(RequestChannel request.Request) {
 //            val offsetCommitRequest = request.requestObj.asInstanceOf<OffsetCommitRequest>
 //            if (offsetCommitRequest.versionId == 0) {
@@ -145,19 +159,18 @@ public class KafkaApis extends Logging {
 //        requestChannel.sendResponse(new Response(request, new BoundedByteBufferSend(controlledShutdownResponse)));
 //    }
 //
-//    privatepublic void producerRequestFromOffsetCommit(OffsetCommitRequest offsetCommitRequest) = {
-//        val msgs = offsetCommitRequest.filterLargeMetadata(config.offsetMetadataMaxSize).map {
-//            case (topicAndPartition, offset) =>
-//                new Message(
-//                        bytes = OffsetManager.offsetCommitValue(offset),
-//                        key = OffsetManager.offsetCommitKey(offsetCommitRequest.groupId, topicAndPartition.topic, topicAndPartition.partition);
-//                );
-//        }.toSeq;
-//
-//        val producerData = mutable.Map(
-//                TopicAndPartition(OffsetManager.OffsetsTopicName, offsetManager.partitionFor(offsetCommitRequest.groupId)) ->
-//        new ByteBufferMessageSet(config.offsetsTopicCompressionCodec, _ msgs*);
-//    );
+    private ProducerRequest producerRequestFromOffsetCommit(OffsetCommitRequest offsetCommitRequest) {
+        List<Message> msgs = offsetCommitRequest.filterLargeMetadata(config.offsetMetadataMaxSize).map(entry -> {
+            TopicAndPartition topicAndPartition = entry.getKey();
+            OffsetAndMetadata offset = entry.getValue();
+            new Message(OffsetManager.offsetCommitValue(offset),
+                    OffsetManager.offsetCommitKey(offsetCommitRequest.groupId, topicAndPartition.topic, topicAndPartition.partition));
+        }).collect(Collectors.toList());
+
+        val producerData = mutable.Map(
+                TopicAndPartition(OffsetManager.OffsetsTopicName, offsetManager.partitionFor(offsetCommitRequest.groupId)) ->
+        new ByteBufferMessageSet(config.offsetsTopicCompressionCodec, _ msgs *);
+    );
 //
 //        val request = ProducerRequest(
 //                correlationId = offsetCommitRequest.correlationId,
@@ -169,17 +182,21 @@ public class KafkaApis extends Logging {
 //        request;
 //    }
 //
-    /**
-     * Handle a produce request or offset commit request (which is really a specialized producer request)
-     */
-   public void handleProducerOrOffsetCommitRequest(RequestChannel.Request request) {
-        val (produceRequest, offsetCommitRequestOpt) =
+        /**
+         * Handle a produce request or offset commit request (which is really a specialized producer request)
+         */
+
+    public void handleProducerOrOffsetCommitRequest(RequestChannel.Request request) {
+        ProducerRequest produceRequest;
+        Optional<OffsetCommitRequest> offsetCommitRequestOpt;
         if (request.requestId == RequestKeys.OffsetCommitKey) {
-            OffsetCommitRequest offsetCommitRequest = (OffsetCommitRequest)request.requestObj;
+            OffsetCommitRequest offsetCommitRequest = (OffsetCommitRequest) request.requestObj;
             OffsetCommitRequest.changeInvalidTimeToCurrentTime(offsetCommitRequest);
-            (producerRequestFromOffsetCommit(offsetCommitRequest), Some(offsetCommitRequest));
+            produceRequest = producerRequestFromOffsetCommit(offsetCommitRequest);
+            offsetCommitRequestOpt = Optional.of(offsetCommitRequest);
         } else {
-            (request.requestObj.asInstanceOf<ProducerRequest>, None);
+            produceRequest = (ProducerRequest) request.requestObj;
+            offsetCommitRequestOpt = Optional.empty();
         }
 
         if (produceRequest.requiredAcks > 1 || produceRequest.requiredAcks < -1) {
@@ -188,52 +205,54 @@ public class KafkaApis extends Logging {
                     "and recommended configuration.").format(produceRequest.clientId, request.remoteAddress, produceRequest.requiredAcks))
         }
 
-        val sTime = SystemTime.milliseconds;
+        Long sTime = Time.get().milliseconds();
         val localProduceResults = appendToLocalLog(produceRequest, offsetCommitRequestOpt.nonEmpty);
-        debug(String.format("Produce to local log in %d ms",SystemTime.milliseconds - sTime))
+        debug(String.format("Produce to local log in %d ms", SystemTime.milliseconds - sTime))
 
         val firstErrorCode = localProduceResults.find(_.errorCode != ErrorMapping.NoError).map(_.errorCode).getOrElse(ErrorMapping.NoError);
 
         val numPartitionsInError = localProduceResults.count(_.error.isDefined);
-        if(produceRequest.requiredAcks == 0) {
+        if (produceRequest.requiredAcks == 0) {
             // no operation needed if producer request.required.acks = 0; however, if there is any exception in handling the request, since;
             // no response is expected by the producer the handler will send a close connection response to the socket server;
             // to close the socket so that the producer client will know that some exception has happened and will refresh its metadata;
             if (numPartitionsInError != 0) {
                 info(("Send the close connection response due to error handling produce request " +
                         "<clientId = %s, correlationId = %s, topicAndPartition = %s> with Ack=0");
-                        .format(produceRequest.clientId, produceRequest.correlationId, produceRequest.topicPartitionMessageSizeMap.keySet.mkString(",")))
+                        .
+                format(produceRequest.clientId, produceRequest.correlationId, produceRequest.topicPartitionMessageSizeMap.keySet.mkString(",")))
                 requestChannel.closeConnection(request.processor, request);
             } else {
 
                 if (firstErrorCode == ErrorMapping.NoError)
-                    offsetCommitRequestOpt.foreach(ocr => offsetManager.putOffsets(ocr.groupId, ocr.requestInfo))
+                    offsetCommitRequestOpt.foreach(ocr = > offsetManager.putOffsets(ocr.groupId, ocr.requestInfo))
 
                 if (offsetCommitRequestOpt.isDefined) {
                     val response = offsetCommitRequestOpt.get.responseFor(firstErrorCode, config.offsetMetadataMaxSize);
                     requestChannel.sendResponse(new RequestChannel.Response(request, new BoundedByteBufferSend(response)));
-                } else;
-                    requestChannel.noOperation(request.processor, request);
+                } else ;
+                requestChannel.noOperation(request.processor, request);
             }
-        } else if (produceRequest.requiredAcks == 1 ||;
-                produceRequest.numPartitions <= 0 ||;
-                numPartitionsInError == produceRequest.numPartitions) {
+        } else if ( produceRequest.requiredAcks == 1 ||;
+        produceRequest.numPartitions <= 0 ||;
+        numPartitionsInError == produceRequest.numPartitions){
 
             if (firstErrorCode == ErrorMapping.NoError) {
-                offsetCommitRequestOpt.foreach(ocr => offsetManager.putOffsets(ocr.groupId, ocr.requestInfo) )
+                offsetCommitRequestOpt.foreach(ocr = > offsetManager.putOffsets(ocr.groupId, ocr.requestInfo) )
             }
 
-            val statuses = localProduceResults.map(r => r.key -> ProducerResponseStatus(r.errorCode, r.start)).toMap;
+            val statuses = localProduceResults.map(r = > r.key ->ProducerResponseStatus(r.errorCode, r.start)).toMap;
             val response = offsetCommitRequestOpt.map(_.responseFor(firstErrorCode, config.offsetMetadataMaxSize));
                     .getOrElse(ProducerResponse(produceRequest.correlationId, statuses));
 
             requestChannel.sendResponse(new RequestChannel.Response(request, new BoundedByteBufferSend(response)));
-        } else {
+        } else{
             // create a list of (topic, partition) pairs to use as keys for this delayed request;
             val producerRequestKeys = produceRequest.data.keys.toSeq;
-            val statuses = localProduceResults.map(r =>
-                    r.key -> DelayedProduceResponseStatus(r.end + 1, ProducerResponseStatus(r.errorCode, r.start))).toMap;
-            val delayedRequest =  new DelayedProduce(
+            val statuses = localProduceResults.map(r = >
+                    r.key ->DelayedProduceResponseStatus(r.end + 1, ProducerResponseStatus(r.errorCode, r.start))).
+            toMap;
+            val delayedRequest = new DelayedProduce(
                     producerRequestKeys,
                     request,
                     produceRequest.ackTimeoutMs.toLong,

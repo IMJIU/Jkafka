@@ -23,12 +23,12 @@ import java.util.stream.Stream;
 public class ProducerRequest extends RequestOrResponse {
     public final static Short CurrentVersion = 0;
 
-    Short versionId = ProducerRequest.CurrentVersion;
-    Integer correlationId;
-    String clientId;
-    Short requiredAcks;
-    Integer ackTimeoutMs;
-    Map<TopicAndPartition, ByteBufferMessageSet> data;
+    public Short versionId = ProducerRequest.CurrentVersion;
+    public Integer correlationId;
+    public  String clientId;
+    public Short requiredAcks;
+    public Integer ackTimeoutMs;
+    public Map<TopicAndPartition, ByteBufferMessageSet> data;
     /**
      * Partitions the data into a map of maps (one for each topic).
      */
