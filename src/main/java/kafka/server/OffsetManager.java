@@ -2,88 +2,110 @@ package kafka.server;/**
  * Created by zhoulf on 2017/5/15.
  */
 
+import com.yammer.metrics.core.Gauge;
+import kafka.common.OffsetAndMetadata;
+import kafka.func.Action;
+import kafka.func.Tuple;
+import kafka.metrics.KafkaMetricsGroup;
+import kafka.utils.*;
+import org.I0Itec.zkclient.ZkClient;
+
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 /**
  * @author
  * @create 2017-05-15 33 16
  **/
-public class OffsetManager {
+public class OffsetManager extends KafkaMetricsGroup {
+    //
+    OffsetManagerConfig config;
+    ReplicaManager replicaManager;
+    ZkClient zkClient;
+    Scheduler scheduler;
+
+    public OffsetManager(OffsetManagerConfig config, ReplicaManager replicaManager, ZkClient zkClient, Scheduler scheduler) {
+        this.config = config;
+        this.replicaManager = replicaManager;
+        this.zkClient = zkClient;
+        this.scheduler = scheduler;
+    }
+
+    /* offsets and metadata cache */
+    private Pool<GroupTopicPartition, OffsetAndMetadata> offsetsCache = new Pool<>();
+    private Object followerTransitionLock = new Object();
+
+    private Set<Integer> loadingPartitions = new HashSet();
+
+    private AtomicBoolean shuttingDown = new AtomicBoolean(false);
+
+    public void init() {
+        scheduler.schedule("offsets-cache-compactor",
+                compact,
+                config.DefaultOffsetsRetentionCheckIntervalMs,
+                TimeUnit.MILLISECONDS);
+
+        newGauge("NumOffsets", new Gauge<Object>() {
+            public Object value() {
+                return offsetsCache.getSize();
+            }
+        });
+        newGauge("NumGroups", new Gauge<Integer>() {
+            public Integer value() {
+                return offsetsCache.keys().map(_.group).toSet.size;
+            }
+        });
+    }
+
 //
-//    class OffsetManager(val OffsetManagerConfig config,
-//    ReplicaManager replicaManager,
-//    ZkClient zkClient,
-//    Scheduler scheduler) extends Logging with KafkaMetricsGroup {
-//
-//  /* offsets and metadata cache */
-//        private val offsetsCache = new Pool<GroupTopicPartition, OffsetAndMetadata>
-//        private val followerTransitionLock = new Object;
-//
-//        private val mutable loadingPartitions.Set<Integer> = mutable.Set();
-//
-//        private val shuttingDown = new AtomicBoolean(false);
-//
-//        scheduler.schedule(name = "offsets-cache-compactor",
-//                fun = compact,
-//                period = config.offsetsRetentionCheckIntervalMs,
-//                unit = TimeUnit.MILLISECONDS);
-//
-//        newGauge("NumOffsets",
-//                new Gauge<Integer> {
-//           public void value = offsetsCache.size;
-//        }
-//  );
-//
-//        newGauge("NumGroups",
-//                new Gauge<Integer> {
-//           public void value = offsetsCache.keys.map(_.group).toSet.size;
-//        }
-//  );
-//
-//        privatepublic void compact() {
-//            debug("Compacting offsets cache.");
-//            val startMs = SystemTime.milliseconds;
-//
-//            val staleOffsets = offsetsCache.filter(startMs - _._2.timestamp > config.offsetsRetentionMs);
-//
-//            debug(String.format("Found %d stale offsets (older than %d ms).",staleOffsets.size, config.offsetsRetentionMs))
-//
-//            // delete the stale offsets from the table and generate tombstone messages to remove them from the log;
-//            val tombstonesForPartition = staleOffsets.map { case(groupTopicAndPartition, offsetAndMetadata) =>
-//                val offsetsPartition = partitionFor(groupTopicAndPartition.group);
-//                trace(String.format("Removing stale offset and metadata for %s: %s",groupTopicAndPartition, offsetAndMetadata))
-//
-//                offsetsCache.remove(groupTopicAndPartition);
-//
-//                val commitKey = OffsetManager.offsetCommitKey(groupTopicAndPartition.group,
-//                        groupTopicAndPartition.topicPartition.topic, groupTopicAndPartition.topicPartition.partition);
-//
-//                (offsetsPartition, new Message(bytes = null, key = commitKey));
-//            }.groupBy{ case (partition, tombstone) => partition }
-//
-//            // Append the tombstone messages to the offset partitions. It is okay if the replicas don't receive these (say,
-//            // if we crash or leaders move) since the new leaders will get rid of stale offsets during their own purge cycles.;
-//            val numRemoved = tombstonesForPartition.flatMap { case(offsetsPartition, tombstones) =>
-//                val partitionOpt = replicaManager.getPartition(OffsetManager.OffsetsTopicName, offsetsPartition);
-//                partitionOpt.map { partition =>
-//                val appendPartition = TopicAndPartition(OffsetManager.OffsetsTopicName, offsetsPartition);
-//                val messages = tombstones.map(_._2).toSeq;
-//
-//                trace(String.format("Marked %d offsets in %s for deletion.",messages.size, appendPartition))
-//
-//                try {
-//                    partition.appendMessagesToLeader(new ByteBufferMessageSet(config.offsetsTopicCompressionCodec, _ messages*));
-//                    tombstones.size;
-//                }
-//                catch {
-//                    case Throwable t =>
-//                        error(String.format("Failed to mark %d stale offsets for deletion in %s.",messages.size, appendPartition), t)
-//                        // ignore and continue;
-//                        0;
-//                }
-//            }
-//            }.sum;
-//
-//        debug(String.format("Removed %d stale offsets in %d milliseconds.",numRemoved, SystemTime.milliseconds - startMs))
-//  }
+        private Action compact=()-> {
+            debug("Compacting offsets cache.");
+            long startMs = Time.get().milliseconds();
+            List<Tuple> staleOffsets = Itor.filter(offsetsCache, c->(startMs - c.timestamp > config.offsetsRetentionMs));
+
+            debug(String.format("Found %d stale offsets (older than %d ms).",staleOffsets.size, config.offsetsRetentionMs))
+
+            // delete the stale offsets from the table and generate tombstone messages to remove them from the log;
+            val tombstonesForPartition = staleOffsets.map { case(groupTopicAndPartition, offsetAndMetadata) =>
+                val offsetsPartition = partitionFor(groupTopicAndPartition.group);
+                trace(String.format("Removing stale offset and metadata for %s: %s",groupTopicAndPartition, offsetAndMetadata))
+
+                offsetsCache.remove(groupTopicAndPartition);
+
+                val commitKey = OffsetManager.offsetCommitKey(groupTopicAndPartition.group,
+                        groupTopicAndPartition.topicPartition.topic, groupTopicAndPartition.topicPartition.partition);
+
+                (offsetsPartition, new Message(bytes = null, key = commitKey));
+            }.groupBy{ case (partition, tombstone) => partition }
+
+            // Append the tombstone messages to the offset partitions. It is okay if the replicas don't receive these (say,
+            // if we crash or leaders move) since the new leaders will get rid of stale offsets during their own purge cycles.;
+            val numRemoved = tombstonesForPartition.flatMap { case(offsetsPartition, tombstones) =>
+                val partitionOpt = replicaManager.getPartition(OffsetManager.OffsetsTopicName, offsetsPartition);
+                partitionOpt.map { partition =>
+                val appendPartition = TopicAndPartition(OffsetManager.OffsetsTopicName, offsetsPartition);
+                val messages = tombstones.map(_._2).toSeq;
+
+                trace(String.format("Marked %d offsets in %s for deletion.",messages.size, appendPartition))
+
+                try {
+                    partition.appendMessagesToLeader(new ByteBufferMessageSet(config.offsetsTopicCompressionCodec, _ messages*));
+                    tombstones.size;
+                }
+                catch {
+                    case Throwable t =>
+                        error(String.format("Failed to mark %d stale offsets for deletion in %s.",messages.size, appendPartition), t)
+                        // ignore and continue;
+                        0;
+                }
+            }
+            }.sum;
+
+        debug(String.format("Removed %d stale offsets in %d milliseconds.",numRemoved, SystemTime.milliseconds - startMs))
+  }
 //
 //       public void Properties offsetsTopicConfig = {
 //                val props = new Properties;

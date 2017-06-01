@@ -1,4 +1,3 @@
-import com.google.common.collect.Lists;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -22,7 +21,7 @@ public class ScalaTranslator {
 //                main + "cluster/Partition.java",
 //                main + "utils/Pool.java",
 //                main + "log/LogConfig.java",
-                main + "api/LeaderAndIsr.java");
+                main + "server/OffsetManagerConfig.java");
 //        List<String> filePaths = Arrays.asList(main + "log/Log.java");
         for (String p : filePaths) {
             convertToJava(p, true);
@@ -31,7 +30,7 @@ public class ScalaTranslator {
 
 
     public static void convertToJava(String filePath, boolean write) throws IOException {
-        List<Character> lastList = Lists.newArrayList('[', '(', '}', '{', ';', '*', '/', ',', '>', '=', '+');
+        List<Character> lastList = Arrays.asList('[', '(', '}', '{', ';', '*', '/', ',', '>', '=', '+');
         String[] ps = new String[]{
                 " Int ", " Integer ",
                 "\\[(\\D+)\\]","<$1>",
