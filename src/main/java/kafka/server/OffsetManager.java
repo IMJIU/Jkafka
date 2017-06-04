@@ -2,23 +2,32 @@ package kafka.server;/**
  * Created by zhoulf on 2017/5/15.
  */
 
+import com.google.common.collect.ImmutableMap;
 import com.yammer.metrics.core.Gauge;
+import kafka.common.ErrorMapping;
+import kafka.common.KafkaException;
 import kafka.common.OffsetAndMetadata;
+import kafka.common.OffsetMetadataAndError;
 import kafka.func.Action;
 import kafka.func.Tuple;
+import kafka.log.LogConfig;
+import kafka.log.TopicAndPartition;
+import kafka.message.Message;
 import kafka.metrics.KafkaMetricsGroup;
 import kafka.utils.*;
 import org.I0Itec.zkclient.ZkClient;
+import org.apache.kafka.common.protocol.types.Field;
+import org.apache.kafka.common.protocol.types.Schema;
+import org.apache.kafka.common.protocol.types.Struct;
 import org.slf4j.helpers.MessageFormatter;
 
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.ByteBuffer;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 /**
  * @author
@@ -68,29 +77,27 @@ public class OffsetManager extends KafkaMetricsGroup {
     private Action compact = () -> {
         debug("Compacting offsets cache.");
         long startMs = Time.get().milliseconds();
-        List<Tuple> staleOffsets = Itor.filter(offsetsCache, c -> (startMs - c.timestamp > config.offsetsRetentionMs));
 
-        debug(String.format("Found %d stale offsets (older than %d ms).", staleOffsets.size, config.offsetsRetentionMs))
+        List<Tuple<GroupTopicPartition, OffsetAndMetadata>> staleOffsets = Itor.filter(offsetsCache.iterator(), c -> (startMs - c.v2.timestamp > config.offsetsRetentionMs));
+
+        debug(String.format("Found %d stale offsets (older than %d ms).", staleOffsets.size(), config.offsetsRetentionMs));
+
 
         // delete the stale offsets from the table and generate tombstone messages to remove them from the log;
-        val tombstonesForPartition = staleOffsets.map {
-            case (groupTopicAndPartition,offsetAndMetadata)=>
-                val offsetsPartition = partitionFor(groupTopicAndPartition.group);
-                trace(String.format("Removing stale offset and metadata for %s: %s", groupTopicAndPartition, offsetAndMetadata))
-
-                offsetsCache.remove(groupTopicAndPartition);
-
-                val commitKey = OffsetManager.offsetCommitKey(groupTopicAndPartition.group,
-                        groupTopicAndPartition.topicPartition.topic, groupTopicAndPartition.topicPartition.partition);
-
-                (offsetsPartition, new Message(bytes = null, key = commitKey));
-        }.groupBy {
-            case (partition,tombstone)=>partition
-        }
-
+        List<Tuple<Integer, Message>> list = staleOffsets.stream().map(t -> {
+            GroupTopicPartition groupTopicAndPartition = t.v1;
+            OffsetAndMetadata offsetAndMetadata = t.v2;
+            Integer offsetsPartition = partitionFor(groupTopicAndPartition.group);
+            trace(String.format("Removing stale offset and metadata for %s: %s", groupTopicAndPartition, offsetAndMetadata));
+            offsetsCache.remove(groupTopicAndPartition);
+            byte[] commitKey = OffsetManager.offsetCommitKey(groupTopicAndPartition.group,
+                    groupTopicAndPartition.topicPartition.topic, groupTopicAndPartition.topicPartition.partition);
+            return Tuple.of(offsetsPartition, new Message(null, commitKey));
+        }).collect(Collectors.toList());
+        Map<Integer, List<Tuple<Integer, Message>>> tombstonesForPartition = Utils.groupBy(list, t -> t.v1);
         // Append the tombstone messages to the offset partitions. It is okay if the replicas don't receive these (say,
         // if we crash or leaders move) since the new leaders will get rid of stale offsets during their own purge cycles.;
-        val numRemoved = tombstonesForPartition.flatMap {
+        List<Integer> numRemoved = tombstonesForPartition.flatMap {
             case (offsetsPartition,tombstones)=>
                 val partitionOpt = replicaManager.getPartition(OffsetManager.OffsetsTopicName, offsetsPartition);
                 partitionOpt.map {
@@ -110,30 +117,21 @@ public class OffsetManager extends KafkaMetricsGroup {
                         0;
                 }
             }
-        }.sum;
+        }.sum();
 
         debug(String.format("Removed %d stale offsets in %d milliseconds.", numRemoved, Time.get().milliseconds() - startMs));
     }
-    //
-    public void Properties
-    offsetsTopicConfig=
 
-    {
-        val props = new Properties;
-        props.put(LogConfig.SegmentBytesProp, config.offsetsTopicSegmentBytes.toString);
+    public Properties offsetsTopicConfig() {
+        Properties props = new Properties();
+        props.put(LogConfig.SegmentBytesProp, config.offsetsTopicSegmentBytes.toString());
         props.put(LogConfig.CleanupPolicyProp, "compact");
-        props;
+        return props;
     }
 
-    public Integer
-
-    void partitionFor(String group)Utils
-
-    .
-
-    abs(group.hashCode)
-
-    %config.offsetsTopicNumPartitions;
+    public Integer partitionFor(String group) {
+        return Utils.abs(group.hashCode()) % config.offsetsTopicNumPartitions;
+    }
 
     /**
      * Fetch the current offset for the given group/topic/partition from the underlying offsets storage.
@@ -141,115 +139,100 @@ public class OffsetManager extends KafkaMetricsGroup {
      * @param key The requested group-topic-partition
      * @return If the key is present, return the offset and metadata; otherwise return None
      */
-    private
-
-    void getOffset(GroupTopicPartition key)
-
-    =
-
-    {
-        val offsetAndMetadata = offsetsCache.get(key);
+    private OffsetMetadataAndError getOffset(GroupTopicPartition key) {
+        OffsetAndMetadata offsetAndMetadata = offsetsCache.get(key);
         if (offsetAndMetadata == null)
-            OffsetMetadataAndError.NoOffset;
-        else ;
-        OffsetMetadataAndError(offsetAndMetadata.offset, offsetAndMetadata.metadata, ErrorMapping.NoError);
+            return OffsetMetadataAndError.NoOffset;
+        else
+            return new OffsetMetadataAndError(offsetAndMetadata.offset, offsetAndMetadata.metadata, ErrorMapping.NoError);
     }
 
     /**
      * Put the (already committed) offset for the given group/topic/partition into the cache.
      *
-     * @param key The group-topic-partition
+     * @param key               The group-topic-partition
      * @param offsetAndMetadata The offset/metadata to be stored
      */
-    privatepublic
-
-    void putOffset(GroupTopicPartition key, OffsetAndMetadata offsetAndMetadata) {
+    private void putOffset(GroupTopicPartition key, OffsetAndMetadata offsetAndMetadata) {
         offsetsCache.put(key, offsetAndMetadata);
     }
 
-    public void putOffsets(String group, Map offsets<TopicAndPartition, OffsetAndMetadata>) {
+    public void putOffsets(String group, Map<TopicAndPartition, OffsetAndMetadata> offsets) {
         // this method is called _after_ the offsets have been durably appended to the commit log, so there is no need to;
         // check for current leadership as we do for the offset fetch;
-        trace(String.format("Putting offsets %s for group %s in offsets partition %d.", offsets, group, partitionFor(group)))
-        offsets.foreach {
-            case (topicAndPartition,offsetAndMetadata)=>
-                putOffset(GroupTopicPartition(group, topicAndPartition), offsetAndMetadata);
-        }
+        trace(String.format("Putting offsets %s for group %s in offsets partition %d.", offsets, group, partitionFor(group)));
+        offsets.forEach((topicAndPartition, offsetAndMetadata) -> putOffset(new GroupTopicPartition(group, topicAndPartition), offsetAndMetadata));
     }
 
     /**
      * The most important guarantee that this API provides is that it should never return a stale offset. i.e., it either
      * returns the current offset or it begins to sync the cache from the log (and returns an error code).
      */
-    public void getOffsets(String group, Seq topicPartitions<TopicAndPartition])
+    public Map<TopicAndPartition, OffsetMetadataAndError> getOffsets(String group, List<TopicAndPartition> topicPartitions) {
+        trace(String.format("Getting offsets %s for group %s.", topicPartitions, group));
 
-    :Map[TopicAndPartition,OffsetMetadataAndError>=
-
-    {
-        trace(String.format("Getting offsets %s for group %s.", topicPartitions, group))
-
-        val offsetsPartition = partitionFor(group);
+        Integer offsetsPartition = partitionFor(group);
 
         /**
          * followerTransitionLock protects against fetching from an empty/cleared offset cache (i.e., cleared due to a
          * leader->follower transition). i.e., even if leader-is-local is true a follower transition can occur right after
          * the check and clear the cache. i.e., we would read from the empty cache and incorrectly return NoOffset.
          */
-        followerTransitionLock synchronized {
-        if (leaderIsLocal(offsetsPartition)) {
-            if (loadingPartitions synchronized loadingPartitions.contains(offsetsPartition)){
-                debug(String.format("Cannot fetch offsets for group %s due to ongoing offset load.", group))
-                topicPartitions.map {
-                    topicAndPartition =>
-                    val groupTopicPartition = GroupTopicPartition(group, topicAndPartition);
-                    (groupTopicPartition.topicPartition, OffsetMetadataAndError.OffsetsLoading);
-                }.toMap;
-            }else{
-                if (topicPartitions.size == 0) {
-                    // Return offsets for all partitions owned by this consumer group. (this only applies to consumers that commit offsets to Kafka.)
-                    offsetsCache.filter(_._1.group == group).map {
-                        case (groupTopicPartition,offsetAndMetadata)=>
-                            (groupTopicPartition.topicPartition, OffsetMetadataAndError(offsetAndMetadata.offset, offsetAndMetadata.metadata, ErrorMapping.NoError));
-                    }.toMap;
-                } else {
+        synchronized (followerTransitionLock) {
+            if (leaderIsLocal(offsetsPartition)) {
+                if (loadingPartitions synchronized loadingPartitions.contains(offsetsPartition)){
+                    debug(String.format("Cannot fetch offsets for group %s due to ongoing offset load.", group))
                     topicPartitions.map {
                         topicAndPartition =>
                         val groupTopicPartition = GroupTopicPartition(group, topicAndPartition);
-                        (groupTopicPartition.topicPartition, getOffset(groupTopicPartition));
+                        (groupTopicPartition.topicPartition, OffsetMetadataAndError.OffsetsLoading);
                     }.toMap;
+                }else{
+                    if (topicPartitions.size == 0) {
+                        // Return offsets for all partitions owned by this consumer group. (this only applies to consumers that commit offsets to Kafka.)
+                        offsetsCache.filter(_._1.group == group).map {
+                            case (groupTopicPartition,offsetAndMetadata)=>
+                                (groupTopicPartition.topicPartition, OffsetMetadataAndError(offsetAndMetadata.offset, offsetAndMetadata.metadata, ErrorMapping.NoError));
+                        }.toMap;
+                    } else {
+                        topicPartitions.map {
+                            topicAndPartition =>
+                            val groupTopicPartition = GroupTopicPartition(group, topicAndPartition);
+                            (groupTopicPartition.topicPartition, getOffset(groupTopicPartition));
+                        }.toMap;
+                    }
                 }
+            } else {
+                debug(String.format("Could not fetch offsets for group %s (not offset coordinator).", group))
+                topicPartitions.map {
+                    topicAndPartition =>
+                    val groupTopicPartition = GroupTopicPartition(group, topicAndPartition);
+                    (groupTopicPartition.topicPartition, OffsetMetadataAndError.NotOffsetManagerForGroup);
+                }.toMap;
             }
-        } else {
-            debug(String.format("Could not fetch offsets for group %s (not offset coordinator).", group))
-            topicPartitions.map {
-                topicAndPartition =>
-                val groupTopicPartition = GroupTopicPartition(group, topicAndPartition);
-                (groupTopicPartition.topicPartition, OffsetMetadataAndError.NotOffsetManagerForGroup);
-            }.toMap;
         }
-    }
     }
 
     /**
      * Asynchronously read the partition from the offsets topic and populate the cache
      */
-    public void loadOffsetsFromLog(Int offsetsPartition) {
+    public void loadOffsetsFromLog(Integer offsetsPartition) {
 
-        val topicPartition = TopicAndPartition(OffsetManager.OffsetsTopicName, offsetsPartition);
+        TopicAndPartition topicPartition = new TopicAndPartition(OffsetManager.OffsetsTopicName, offsetsPartition);
 
-        loadingPartitions synchronized {
+        synchronized (loadingPartitions) {
             if (loadingPartitions.contains(offsetsPartition)) {
-                info(String.format("Offset load from %s already in progress.", topicPartition))
+                info(String.format("Offset load from %s already in progress.", topicPartition));
             } else {
                 loadingPartitions.add(offsetsPartition);
-                scheduler.schedule(topicPartition.toString, loadOffsets);
+                scheduler.schedule(topicPartition.toString(), loadOffsets());
             }
         }
 
     public void loadOffsets() {
         info("Loading offsets from " + topicPartition);
 
-        val startMs = SystemTime.milliseconds;
+        Long startMs = Time.get().milliseconds();
         try {
             replicaManager.logManager.getLog(topicPartition) match {
                 case Some(log) =>
@@ -293,118 +276,127 @@ public class OffsetManager extends KafkaMetricsGroup {
             loadingPartitions synchronized loadingPartitions.remove(offsetsPartition);
         }
     }
+
 }
 
-    privatepublic Long
-
-    void getHighWatermark(Int partitionId) {
+    private Long getHighWatermark(Integer partitionId) {
         val partitionOpt = replicaManager.getPartition(OffsetManager.OffsetsTopicName, partitionId);
 
-        val hw = partitionOpt.map {
+        Long hw = partitionOpt.map {
             partition =>
             partition.leaderReplicaIfLocal().map(_.highWatermark.messageOffset).getOrElse(-1L);
         }.getOrElse(-1L);
 
-        hw;
+        return hw;
     }
 
-privatepublic void leaderIsLocal(Int partition)={getHighWatermark(partition)!=-1L}
+    private boolean leaderIsLocal(Integer partition) {
+        return getHighWatermark(partition) != -1L;
+    }
 
-/**
- * When this broker becomes a follower for an offsets topic partition clear out the cache for groups that belong to
- * that partition.
- *
- * @param offsetsPartition Groups belonging to this partition of the offsets topic will be deleted from the cache.
- */
-public void clearOffsetsInPartition(Int offsetsPartition){
-        debug(String.format("Deleting offset entries belonging to <%s,%d>.",OffsetManager.OffsetsTopicName,offsetsPartition))
+    /**
+     * When this broker becomes a follower for an offsets topic partition clear out the cache for groups that belong to
+     * that partition.
+     *
+     * @param offsetsPartition Groups belonging to this partition of the offsets topic will be deleted from the cache.
+     */
+    public void clearOffsetsInPartition(Integer offsetsPartition) {
+        debug(String.format("Deleting offset entries belonging to <%s,%d>.", OffsetManager.OffsetsTopicName, offsetsPartition));
 
-        followerTransitionLock synchronized{
-        offsetsCache.keys.foreach{key=>
-        if(partitionFor(key.group)==offsetsPartition){
-        offsetsCache.remove(key);
+        synchronized (followerTransitionLock) {
+            offsetsCache.keys.foreach {
+                key =>
+                if (partitionFor(key.group) == offsetsPartition) {
+                    offsetsCache.remove(key);
+                }
+            }
         }
-        }
-        }
-        }
+    }
 
-public void shutdown(){
+    public void shutdown() {
         shuttingDown.set(true);
+    }
+
+
+    public static final String OffsetsTopicName = "__consumer_offsets";
+
+private static class KeyAndValueSchemas {
+    public Schema keySchema;
+    public Schema valueSchema;
+
+    public KeyAndValueSchemas(Schema keySchema, Schema valueSchema) {
+        this.keySchema = keySchema;
+        this.valueSchema = valueSchema;
+    }
+
+    private Short CURRENT_OFFSET_SCHEMA_VERSION = 0;
+
+    private static Schema OFFSET_COMMIT_KEY_SCHEMA_V0 = new Schema(new Field("group", STRING),
+            new Field("topic", STRING),
+            new Field("partition", INT32));
+    private Field KEY_GROUP_FIELD = OFFSET_COMMIT_KEY_SCHEMA_V0.get("group");
+    private Field KEY_TOPIC_FIELD = OFFSET_COMMIT_KEY_SCHEMA_V0.get("topic");
+    private Field KEY_PARTITION_FIELD = OFFSET_COMMIT_KEY_SCHEMA_V0.get("partition");
+
+    private static Schema OFFSET_COMMIT_VALUE_SCHEMA_V0 = new Schema(new Field("offset", INT64),
+            new Field("metadata", STRING, "Associated metadata.", ""),
+            new Field("timestamp", INT64));
+    private Field VALUE_OFFSET_FIELD = OFFSET_COMMIT_VALUE_SCHEMA_V0.get("offset");
+    private Field VALUE_METADATA_FIELD = OFFSET_COMMIT_VALUE_SCHEMA_V0.get("metadata");
+    private Field VALUE_TIMESTAMP_FIELD = OFFSET_COMMIT_VALUE_SCHEMA_V0.get("timestamp");
+
+    // map of versions to schemas;
+    private static Map<Integer,KeyAndValueSchemas> OFFSET_SCHEMAS = ImmutableMap.of(0,new KeyAndValueSchemas(OFFSET_COMMIT_KEY_SCHEMA_V0, OFFSET_COMMIT_VALUE_SCHEMA_V0));
+
+    private KeyAndValueSchemas CURRENT_SCHEMA = schemaFor(CURRENT_OFFSET_SCHEMA_VERSION.intValue());
+
+    private static KeyAndValueSchemas schemaFor(Integer version) {
+        KeyAndValueSchemas schemaOpt = OFFSET_SCHEMAS.get(version.intValue());
+        if(schemaOpt==null){
+            throw new KafkaException("Unknown offset schema version " + version);
         }
+        return schemaOpt;
+    }
+}
 
-        }
+    /**
+     * Generates the key for offset commit message for given (group, topic, partition)
+     *
+     * @return key for offset commit message
+     */
+    public static byte[] offsetCommitKey(String group, String topic, Integer partition) {
+        return offsetCommitKey(group, topic, partition, 0);
+    }
 
-        object OffsetManager{
+    public static byte[] offsetCommitKey(String group, String topic, Integer partition, Short versionId) {
+        Struct key = new Struct(CURRENT_SCHEMA.keySchema);
+        key.set(KEY_GROUP_FIELD, group);
+        key.set(KEY_TOPIC_FIELD, topic);
+        key.set(KEY_PARTITION_FIELD, partition);
 
-        val OffsetsTopicName="__consumer_offsets";
-
-private case
-
-class KeyAndValueSchemas(Schema keySchema,Schema valueSchema);
-
-private val CURRENT_OFFSET_SCHEMA_VERSION=0.toShort;
-
-private val OFFSET_COMMIT_KEY_SCHEMA_V0=new Schema(new Field("group",STRING),
-        new Field("topic",STRING),
-        new Field("partition",INT32));
-private val KEY_GROUP_FIELD=OFFSET_COMMIT_KEY_SCHEMA_V0.get("group");
-private val KEY_TOPIC_FIELD=OFFSET_COMMIT_KEY_SCHEMA_V0.get("topic");
-private val KEY_PARTITION_FIELD=OFFSET_COMMIT_KEY_SCHEMA_V0.get("partition");
-
-private val OFFSET_COMMIT_VALUE_SCHEMA_V0=new Schema(new Field("offset",INT64),
-        new Field("metadata",STRING,"Associated metadata.",""),
-        new Field("timestamp",INT64));
-private val VALUE_OFFSET_FIELD=OFFSET_COMMIT_VALUE_SCHEMA_V0.get("offset");
-private val VALUE_METADATA_FIELD=OFFSET_COMMIT_VALUE_SCHEMA_V0.get("metadata");
-private val VALUE_TIMESTAMP_FIELD=OFFSET_COMMIT_VALUE_SCHEMA_V0.get("timestamp");
-
-// map of versions to schemas;
-private val OFFSET_SCHEMAS=Map(0->KeyAndValueSchemas(OFFSET_COMMIT_KEY_SCHEMA_V0,OFFSET_COMMIT_VALUE_SCHEMA_V0));
-
-private val CURRENT_SCHEMA=schemaFor(CURRENT_OFFSET_SCHEMA_VERSION);
-
-        privatepublic void schemaFor(Int version)={
-        val schemaOpt=OFFSET_SCHEMAS.get(version);
-        schemaOpt match{
-        case Some(schema)=>schema;
-        case _=>throw new KafkaException("Unknown offset schema version "+version);
-        }
-        }
-
-/**
- * Generates the key for offset commit message for given (group, topic, partition)
- *
- * @return key for offset commit message
- */
-public void offsetCommitKey(String group,String topic,Int partition,Short versionId=0):Array<Byte>={
-        val key=new Struct(CURRENT_SCHEMA.keySchema);
-        key.set(KEY_GROUP_FIELD,group);
-        key.set(KEY_TOPIC_FIELD,topic);
-        key.set(KEY_PARTITION_FIELD,partition);
-
-        val byteBuffer=ByteBuffer.allocate(2 /* version */ +key.sizeOf);
+        ByteBuffer byteBuffer = ByteBuffer.allocate(2 /* version */ + key.sizeOf());
         byteBuffer.putShort(CURRENT_OFFSET_SCHEMA_VERSION);
         key.writeTo(byteBuffer);
-        byteBuffer.array();
-        }
+        return byteBuffer.array();
+    }
 
-/**
- * Generates the payload for offset commit message from given offset and metadata
- *
- * @param offsetAndMetadata consumer's current offset and metadata
- * @return payload for offset commit message
- */
-public void offsetCommitValue(OffsetAndMetadata offsetAndMetadata):Array<Byte>={
-        val value=new Struct(CURRENT_SCHEMA.valueSchema);
-        value.set(VALUE_OFFSET_FIELD,offsetAndMetadata.offset);
-        value.set(VALUE_METADATA_FIELD,offsetAndMetadata.metadata);
-        value.set(VALUE_TIMESTAMP_FIELD,offsetAndMetadata.timestamp);
+    /**
+     * Generates the payload for offset commit message from given offset and metadata
+     *
+     * @param offsetAndMetadata consumer's current offset and metadata
+     * @return payload for offset commit message
+     */
+    public static byte[] offsetCommitValue(OffsetAndMetadata offsetAndMetadata) {
+        Struct value = new Struct(CURRENT_SCHEMA.valueSchema);
+        value.set(VALUE_OFFSET_FIELD, offsetAndMetadata.offset);
+        value.set(VALUE_METADATA_FIELD, offsetAndMetadata.metadata);
+        value.set(VALUE_TIMESTAMP_FIELD, offsetAndMetadata.timestamp);
 
-        val byteBuffer=ByteBuffer.allocate(2 /* version */ +value.sizeOf);
+        ByteBuffer byteBuffer = ByteBuffer.allocate(2 /* version */ + value.sizeOf());
         byteBuffer.putShort(CURRENT_OFFSET_SCHEMA_VERSION);
         value.writeTo(byteBuffer);
-        byteBuffer.array();
-        }
+        return byteBuffer.array();
+    }
 
 /**
  * Decodes the offset messages' key
@@ -412,17 +404,16 @@ public void offsetCommitValue(OffsetAndMetadata offsetAndMetadata):Array<Byte>={
  * @param buffer input byte-buffer
  * @return an GroupTopicPartition object
  */
-public GroupTopicPartition void readMessageKey(ByteBuffer buffer){
-        val version=buffer.getShort();
-        val keySchema=schemaFor(version).keySchema;
-        val key=keySchema.read(buffer).asInstanceOf<Struct>
+public GroupTopicPartition readMessageKey(ByteBuffer buffer) {
+    Short version = buffer.getShort();
+    Schema keySchema = schemaFor(version.intValue()).keySchema;
+    Struct key = (Struct) keySchema.read(buffer);
+    String group = (String) key.get(KEY_GROUP_FIELD);
+    String topic = (String) key.get(KEY_TOPIC_FIELD);
+    Integer partition = (Integer) key.get(KEY_PARTITION_FIELD);
 
-val group=key.get(KEY_GROUP_FIELD).asInstanceOf<String>
-val topic=key.get(KEY_TOPIC_FIELD).asInstanceOf<String>
-val partition=key.get(KEY_PARTITION_FIELD).asInstanceOf<Integer>
-
-GroupTopicPartition(group,TopicAndPartition(topic,partition));
-        }
+    return new GroupTopicPartition(group, new TopicAndPartition(topic, partition));
+}
 
 /**
  * Decodes the offset messages' payload and retrieves offset and metadata from it
