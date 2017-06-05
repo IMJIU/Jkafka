@@ -533,14 +533,16 @@ public class Utils {
 //        }
 //    }
 //
-//    /**
-//     * Get the absolute value of the given number. If the number is Int.MinValue return 0.
-//     * This is different from java.lang.Math.abs or scala.math.abs in that they return Int.MinValue (!).
-//     */
-//    def abs(Int n);
-//
-//    =if(n==Integer.MIN_VALUE)0 else math.abs(n)
-//
+
+    /**
+     * Get the absolute value of the given number. If the number is Int.MinValue return 0.
+     * This is different from java.lang.Math.abs or scala.math.abs in that they return Int.MinValue (!).
+     */
+    public static int abs(Integer n) {
+        if (n == Integer.MIN_VALUE) return 0;
+        else return Math.abs(n);
+    }
+
 
     /**
      * Replace the given string suffix with the new suffix. If the string doesn't end with the given suffix throw an exception.
