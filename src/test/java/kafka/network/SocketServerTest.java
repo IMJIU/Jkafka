@@ -30,9 +30,7 @@ public class SocketServerTest {
 
     @Before
     public void setup() throws IOException, InterruptedException {
-        server = new SocketServer(0,
-                null,
-                kafka.utils.TestUtils.choosePort(),
+        server = new SocketServer(0,null, kafka.utils.TestUtils.choosePort(),
                 1,
                 50,
                 300000,

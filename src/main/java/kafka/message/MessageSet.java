@@ -116,7 +116,7 @@ public abstract class MessageSet extends Logging implements Iterable<MessageAndO
     }
 
     public List<Message> toMessageList() {
-        List<Message> result = Lists.newArrayList();
+        List<Message> result = Lists.newLinkedList();
         Itor.loop(iterator(), m -> result.add(m.message));
         return result;
     }

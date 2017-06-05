@@ -18,7 +18,7 @@ import java.util.zip.GZIPOutputStream;
  **/
 public class CompressionFactory {
     private static final Logging logger = Logging.getLogger(CompressionFactory.class.getName());
-    public static OutputStream apply(CompressionCodec compressionCodec, OutputStream stream) {
+    public static OutputStream outputStream(CompressionCodec compressionCodec, OutputStream stream) {
         try {
             switch (compressionCodec) {
                 case GZIPCompressionCodec:
@@ -36,7 +36,7 @@ public class CompressionFactory {
         return null;
     }
 
-    public static InputStream apply(CompressionCodec compressionCodec, InputStream stream) {
+    public static InputStream inputStream(CompressionCodec compressionCodec, InputStream stream) {
         try {
             switch (compressionCodec) {
                 case GZIPCompressionCodec:

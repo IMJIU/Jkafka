@@ -48,7 +48,7 @@ public class ByteBufferMessageSet extends MessageSet {
             return buffer;
         } else {
             ByteArrayOutputStream byteArrayStream = new ByteArrayOutputStream(MessageSet.messageSetSize(messages));
-            DataOutputStream output = new DataOutputStream(CompressionFactory.apply(compressionCodec, byteArrayStream));
+            DataOutputStream output = new DataOutputStream(CompressionFactory.outputStream(compressionCodec, byteArrayStream));
             long offset = -1L;
             try {
                 try {
@@ -85,7 +85,7 @@ public class ByteBufferMessageSet extends MessageSet {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         InputStream inputStream = new ByteBufferBackedInputStream(message.payload());
         byte[] intermediateBuffer = new byte[1024];
-        InputStream compressed = CompressionFactory.apply(message.compressionCodec(), inputStream);
+        InputStream compressed = CompressionFactory.inputStream(message.compressionCodec(), inputStream);
         try {
             int len;
             while ((len = compressed.read(intermediateBuffer)) > 0) {

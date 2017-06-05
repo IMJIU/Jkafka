@@ -35,6 +35,7 @@ public class FileMessageSetTest extends BaseMessageSetTest {
 
     /**
      * Test that the cached size variable matches the actual file size as we append messages
+     * 增加一条记录，channel实际长度与site是否相等
      */
     @Test
     public void testFileSize() throws IOException {
@@ -70,6 +71,7 @@ public class FileMessageSetTest extends BaseMessageSetTest {
 
     /**
      * Iterating over the file does file reads but shouldn't change the position of the underlying FileChannel.
+     * iterator遍历后，position是否有变化。（不变）
      */
     @Test
     public void testIterationDoesntChangePosition() throws IOException {
