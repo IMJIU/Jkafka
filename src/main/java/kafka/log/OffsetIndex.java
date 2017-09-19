@@ -49,17 +49,7 @@ public class OffsetIndex extends Logging {
     public Long baseOffset;
     public Integer maxIndexSize = -1;
 
-    public OffsetIndex(File file, Long baseOffset) throws IOException {
-        this(file, baseOffset, -1);
-    }
-
-    public OffsetIndex(File file, Long baseOffset, Integer maxIndexSize) throws IOException {
-        this.file = file;
-        this.baseOffset = baseOffset;
-        this.maxIndexSize = maxIndexSize;
-        init();
-    }
-
+    ////////////////////////////////////////////////////////////////
     private ReentrantLock lock = new ReentrantLock();
     private MappedByteBuffer mmap;
     /* the number of eight-byte entries currently in the index */
@@ -71,6 +61,19 @@ public class OffsetIndex extends Logging {
 
     /* the last offset in the index */
     public Long lastOffset;
+
+    public OffsetIndex(File file, Long baseOffset) throws IOException {
+        this(file, baseOffset, -1);
+    }
+
+    public OffsetIndex(File file, Long baseOffset, Integer maxIndexSize) throws IOException {
+        this.file = file;
+        this.baseOffset = baseOffset;
+        this.maxIndexSize = maxIndexSize;
+        init();
+    }
+
+
 
 
     public void init() throws IOException {

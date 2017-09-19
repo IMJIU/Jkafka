@@ -36,7 +36,6 @@ public class ByteBufferMessageSet extends MessageSet {
     }
 
     private static ByteBuffer _create0(AtomicLong offsetCounter, CompressionCodec compressionCodec, List<Message> messages) {
-
         if (CollectionUtils.isEmpty(messages)) {
             return MessageSet.Empty.buffer;
         } else if (compressionCodec == CompressionCodec.NoCompressionCodec) {

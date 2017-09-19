@@ -34,6 +34,7 @@ public class FileCacheMgr extends Logging {
     public static void main(String[] args) throws IOException, InterruptedException {
 //        test_fileName_sort();
         test_read_write_thread();
+
     }
 
     private static void test_fileName_sort() throws FileNotFoundException {
@@ -83,7 +84,7 @@ public class FileCacheMgr extends Logging {
     }
 
     private static void doTest(FileCacheMgr mgr, SocketSendBufferPool pool) throws IOException {
-        for (int i = 0; i < 10000; i++) {
+        for (int i = 0; i < 1000; i++) {
             byte[] bs = ("a============================================" +
                     "================================================================b" +
                     "================================================================b" +
@@ -117,8 +118,8 @@ public class FileCacheMgr extends Logging {
                     "================================================================b" +
                     "================================================================b" + i).getBytes();
             ByteBuffer b = ByteBuffer.wrap(bs);
-//            mgr.append(b);
-            pool.acquire(bs);
+            mgr.append(b);
+//            pool.acquire(bs);
         }
     }
 

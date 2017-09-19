@@ -32,16 +32,16 @@ public class OffsetManagerConfig {
  * @param offsetCommitRequiredAcks The required acks before the commit can be accepted. In general, the default (-1)
  *                                 should not be overridden.
  */
-    case class OffsetManagerConfig(Integer maxMetadataSize = OffsetManagerConfig.DefaultMaxMetadataSize,
-    Integer loadBufferSize = OffsetManagerConfig.DefaultLoadBufferSize,
-    Long offsetsRetentionMs = 24*60*60000L,
-    Long offsetsRetentionCheckIntervalMs = OffsetManagerConfig.DefaultOffsetsRetentionCheckIntervalMs,
-    Integer offsetsTopicNumPartitions = OffsetManagerConfig.DefaultOffsetsTopicNumPartitions,
-    Integer offsetsTopicSegmentBytes = OffsetManagerConfig.DefaultOffsetsTopicSegmentBytes,
-    Short offsetsTopicReplicationFactor = OffsetManagerConfig.DefaultOffsetsTopicReplicationFactor,
-    CompressionCodec offsetsTopicCompressionCodec = OffsetManagerConfig.DefaultOffsetsTopicCompressionCodec,
-    Integer offsetCommitTimeoutMs = OffsetManagerConfig.DefaultOffsetCommitTimeoutMs,
-    Short offsetCommitRequiredAcks = OffsetManagerConfig.DefaultOffsetCommitRequiredAcks);
+//    case class OffsetManagerConfig(Integer maxMetadataSize = OffsetManagerConfig.DefaultMaxMetadataSize,
+//    Integer loadBufferSize = OffsetManagerConfig.DefaultLoadBufferSize,
+//    Long offsetsRetentionMs = 24*60*60000L,
+//    Long offsetsRetentionCheckIntervalMs = OffsetManagerConfig.DefaultOffsetsRetentionCheckIntervalMs,
+//    Integer offsetsTopicNumPartitions = OffsetManagerConfig.DefaultOffsetsTopicNumPartitions,
+//    Integer offsetsTopicSegmentBytes = OffsetManagerConfig.DefaultOffsetsTopicSegmentBytes,
+//    Short offsetsTopicReplicationFactor = OffsetManagerConfig.DefaultOffsetsTopicReplicationFactor,
+//    CompressionCodec offsetsTopicCompressionCodec = OffsetManagerConfig.DefaultOffsetsTopicCompressionCodec,
+//    Integer offsetCommitTimeoutMs = OffsetManagerConfig.DefaultOffsetCommitTimeoutMs,
+//    Short offsetCommitRequiredAcks = OffsetManagerConfig.DefaultOffsetCommitRequiredAcks);
 //
 //    object OffsetManagerConfig {
 

@@ -82,6 +82,7 @@ public class FileMessageSetTest extends BaseMessageSetTest {
 
     /**
      * Test a simple append and read.
+     * fileMessage 读取测试
      */
     @Test
     public void testRead() {
@@ -97,6 +98,7 @@ public class FileMessageSetTest extends BaseMessageSetTest {
 
     /**
      * Test the MessageSet.searchFor API.
+     * 搜索
      */
     @Test
     public void testSearch() {

@@ -81,7 +81,7 @@ public class MessageTest {
     @Test
     public void testIsHashable() {
         // this is silly, but why not
-        Map<Message, Message> m = new HashMap<kafka.message.Message, kafka.message.Message>();
+        Map<Message, Message> m = new HashMap<>();
         for (MessageTestVal v : messages)
             m.put(v.message, v.message);
         for (MessageTestVal v : messages)

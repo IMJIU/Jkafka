@@ -151,7 +151,7 @@ public class ProducerRequest extends RequestOrResponse {
         return describe(true);
     }
 
-    @Override
+
     public void handleError(Exception e, RequestChannel requestChannel, RequestChannel.Request request) {
         if (((ProducerRequest) request.requestObj).requiredAcks == 0) {
             try {
