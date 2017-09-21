@@ -19,7 +19,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public class FileMessageSetTest extends BaseMessageSetTest {
 
     FileMessageSet messageSet = createMessageSet(messages);
-
+    //"abcd" "efgh" "ijkl"
     public FileMessageSet createMessageSet(List<Message> messages) {
         try {
             FileMessageSet set = new FileMessageSet(TestUtils.tempFile());
@@ -48,6 +48,7 @@ public class FileMessageSetTest extends BaseMessageSetTest {
 
     /**
      * Test that adding invalid bytes to the end of the log doesn't break iteration
+     * 增加无效字符  是否影响迭代器
      */
     @Test
     public void testIterationOverPartialAndTruncation() throws IOException  {
@@ -60,7 +61,6 @@ public class FileMessageSetTest extends BaseMessageSetTest {
 
     public void testPartialWrite(Integer size, FileMessageSet messageSet) throws IOException {
         ByteBuffer buffer = ByteBuffer.allocate(size);
-        Long originalPosition = messageSet.channel.position();
         for (int i = 0; i < size; i++)
             buffer.put((byte) 0);
         buffer.rewind();
@@ -90,8 +90,12 @@ public class FileMessageSetTest extends BaseMessageSetTest {
         TestUtils.checkEquals(messageSet.iterator(), read.iterator());
         List<MessageAndOffset> items = read.toMessageAndOffsetList();
         MessageAndOffset sec = read.tail().next();
+
+        //读取第二个和之后所有元素
         read = messageSet.read(MessageSet.entrySize(sec.message), messageSet.sizeInBytes());
         TestUtils.assertEquals("Try a read starting from the second message",items.subList(1,items.size()).iterator(), read.iterator());
+
+        //读取第二个
         read = messageSet.read(MessageSet.entrySize(sec.message), MessageSet.entrySize(sec.message));
         TestUtils.assertEquals("Try a read of a single message starting from the second message", items.subList(1,2).iterator(), read.iterator());
     }
@@ -106,25 +110,26 @@ public class FileMessageSetTest extends BaseMessageSetTest {
         Message lastMessage = new Message("test".getBytes());
         messageSet.append(new ByteBufferMessageSet(CompressionCodec.NoCompressionCodec, new AtomicLong(50), lastMessage));
         int position = 0;
+        //offset>=targetOffset 直接
         Assert.assertEquals("Should be able to find the first message by its offset",
-                new OffsetPosition(0L, position),
-                messageSet.searchFor(0L, 0));
+                new OffsetPosition(0L, position),messageSet.searchFor(0L, 0));
         position += MessageSet.entrySize(messageSet.head().message);
+
         Assert.assertEquals("Should be able to find second message when starting from 0",
-                new OffsetPosition(1L, position),
-                messageSet.searchFor(1L, 0));
+                new OffsetPosition(1L, position), messageSet.searchFor(1L, 0));
+
         Assert.assertEquals("Should be able to find second message starting from its offset",
-                new OffsetPosition(1L, position),
-                messageSet.searchFor(1L, position));
+                new OffsetPosition(1L, position), messageSet.searchFor(1L, position));
+
         Iterator<MessageAndOffset> tailIt = messageSet.tail();
         tailIt.next();
         position += MessageSet.entrySize(messageSet.tail().next().message) + MessageSet.entrySize(tailIt.next().message);
+
         Assert.assertEquals("Should be able to find fourth message from a non-existant offset",
-                new OffsetPosition(50L, position),
-                messageSet.searchFor(3L, position));
+                new OffsetPosition(50L, position), messageSet.searchFor(3L, position));
+
         Assert.assertEquals("Should be able to find fourth message by correct offset",
-                new OffsetPosition(50L, position),
-                messageSet.searchFor(50L, position));
+                new OffsetPosition(50L, position), messageSet.searchFor(50L, position));
     }
 
     /**
