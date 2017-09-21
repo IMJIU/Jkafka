@@ -73,9 +73,6 @@ public class OffsetIndex extends Logging {
         init();
     }
 
-
-
-
     public void init() throws IOException {
         /* initialize the memory mapping for this index */
         boolean newlyCreated = file.createNewFile();
@@ -163,7 +160,7 @@ public class OffsetIndex extends Logging {
         if (relativeOffset(idx, 0) > relOffset)
             return -1;
 
-        // binary search for the entry
+        // binary search for the entry  若比最大的大  也是返回最大的下标，不会找不到
         int lo = 0;
         int hi = entries() - 1;
         while (lo < hi) {
@@ -248,8 +245,8 @@ public class OffsetIndex extends Logging {
             int slot = indexSlotFor(idx, offset);
 
       /* There are 3 cases for choosing the new size
-       * 1) if there is no entry in the index <= the offset, delete everything
-       * 2) if there is an entry for this exact offset, delete it and everything larger than it
+       * 1) if there is no entry in the index <= the offset, delete everything 小于任何一个元素offset 删除所有
+       * 2) if there is an entry for this exact offset, delete it and everything larger than it 删除offset及大于offset的元素
        * 3) if there is no entry for this offset, delete everything larger than the next smallest
        */
             int newEntries;
@@ -308,16 +305,16 @@ public class OffsetIndex extends Logging {
                     this.maxEntries = this.mmap.limit() / 8;
                     this.mmap.position(position);
                 } catch (IOException e) {
-                    error(e.getMessage(),e);
+                    error(e.getMessage(), e);
                 } finally {
                     try {
                         raf.close();
                     } catch (IOException e) {
-                        error(e.getMessage(),e);
+                        error(e.getMessage(), e);
                     }
                 }
             } catch (FileNotFoundException e) {
-                error(e.getMessage(),e);
+                error(e.getMessage(), e);
             }
         });
     }

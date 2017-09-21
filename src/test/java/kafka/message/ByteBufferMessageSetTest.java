@@ -18,6 +18,10 @@ public class ByteBufferMessageSetTest extends BaseMessageSetTest {
         return new ByteBufferMessageSet(CompressionCodec.NoCompressionCodec, messages);
     }
 
+    /**
+     * 测试有效字节数 和 空时字节数是否为0  validBytes
+     * 增加几个无效字节测试有效字节数
+     */
     @Test
     public void testValidBytes() {
         {
@@ -40,6 +44,9 @@ public class ByteBufferMessageSetTest extends BaseMessageSetTest {
         }
     }
 
+    /**
+     * 测试压缩状态下的有效字节数
+     */
     @Test
     public void testValidBytesWithCompression() {
         ByteBufferMessageSet messages = new ByteBufferMessageSet(CompressionCodec.GZIPCompressionCodec, new Message("hello1111111".getBytes()), new Message("there1111111".getBytes()));
@@ -53,6 +60,9 @@ public class ByteBufferMessageSetTest extends BaseMessageSetTest {
         System.out.println(messages.validBytes());
     }
 
+    /**
+     * 测试message 是否相等 equals
+     */
     @Test
     public void testEquals() {
         ByteBufferMessageSet messages = new ByteBufferMessageSet(CompressionCodec.GZIPCompressionCodec, new Message("hello".getBytes()), new Message("there".getBytes()));
@@ -66,6 +76,9 @@ public class ByteBufferMessageSetTest extends BaseMessageSetTest {
         Assert.assertTrue(messages.equals(moreMessages));
     }
 
+    /**
+     * 测试迭代器
+     */
     @Test
     public void testIterator() {
         List<Message> messageList = Lists.newArrayList(
@@ -73,28 +86,29 @@ public class ByteBufferMessageSetTest extends BaseMessageSetTest {
                 new Message("msg2".getBytes()),
                 new Message("msg3".getBytes()));
 
-        // test for uncompressed regular messages
+        // test for uncompressed regular messages 测试无压缩
         {
             ByteBufferMessageSet messageSet = new ByteBufferMessageSet(CompressionCodec.NoCompressionCodec, messageList);
             TestUtils.checkEquals(messageList.iterator(), messageSet.toMessageList().iterator());
-            //make sure ByteBufferMessageSet is re-iterable.
+            //make sure ByteBufferMessageSet is re-iterable. 重复校验一次
             TestUtils.checkEquals(messageList.iterator(), messageSet.toMessageList().iterator());
 
-            //make sure shallow iterator is the same as deep iterator
+            //make sure shallow iterator is the same as deep iterator 确保浅迭代器也是一致
             TestUtils.checkEquals(TestUtils.getMessageIterator(messageSet.shallowIterator()),
                     messageSet.toMessageList().iterator());
         }
 
-        // test for compressed regular messages
+        // test for compressed regular messages 测试有压缩
         {
             ByteBufferMessageSet messageSet = new ByteBufferMessageSet(CompressionCodec.GZIPCompressionCodec, messageList);
             TestUtils.checkEquals(messageList.iterator(), messageSet.toMessageList().iterator());
-            //make sure ByteBufferMessageSet is re-iterable.
+            //make sure ByteBufferMessageSet is re-iterable. 重复校验一次
             TestUtils.checkEquals(messageList.iterator(), messageSet.toMessageList().iterator());
+            //校验浅迭代器和普通迭代器（默认为深度迭代（解压缩））
             verifyShallowIterator(messageSet);
         }
 
-        // test for mixed empty and non-empty messagesets uncompressed
+        // test for mixed empty and non-empty messagesets uncompressed 普通msg加入空msg测试
         {
             List<Message> emptyMessageList = null;
             ByteBufferMessageSet emptyMessageSet = new ByteBufferMessageSet(CompressionCodec.NoCompressionCodec, emptyMessageList);
@@ -104,15 +118,16 @@ public class ByteBufferMessageSetTest extends BaseMessageSetTest {
             buffer.put(regularMessgeSet.buffer);
             buffer.rewind();
             ByteBufferMessageSet mixedMessageSet = new ByteBufferMessageSet(buffer);
+            //迭代器是否一致
             TestUtils.checkEquals(messageList.iterator(), mixedMessageSet.toMessageList().iterator());
-            //make sure ByteBufferMessageSet is re-iterable.
+            //make sure ByteBufferMessageSet is re-iterable.重复校验
             TestUtils.checkEquals(messageList.iterator(), mixedMessageSet.toMessageList().iterator());
-            //make sure shallow iterator is the same as deep iterator
+            //make sure shallow iterator is the same as deep iterator 校验深迭代和浅迭代
             TestUtils.checkEquals(TestUtils.getMessageIterator(mixedMessageSet.shallowIterator()),
                     mixedMessageSet.toMessageList().iterator());
         }
 
-        // test for mixed empty and non-empty messagesets compressed
+        // test for mixed empty and non-empty messagesets compressed 普通msg加入空msg压缩测试
         {
             List<Message> emptyMessageList = null;
             ByteBufferMessageSet emptyMessageSet = new ByteBufferMessageSet(CompressionCodec.GZIPCompressionCodec, emptyMessageList);
@@ -122,13 +137,18 @@ public class ByteBufferMessageSetTest extends BaseMessageSetTest {
             buffer.put(regularMessgeSet.buffer);
             buffer.rewind();
             ByteBufferMessageSet mixedMessageSet = new ByteBufferMessageSet(buffer);
+            //迭代器是否一致
             TestUtils.checkEquals(messageList.iterator(), mixedMessageSet.toMessageList().iterator());
-            //make sure ByteBufferMessageSet is re-iterable.
+            //make sure ByteBufferMessageSet is re-iterable.重复校验
             TestUtils.checkEquals(messageList.iterator(), mixedMessageSet.toMessageList().iterator());
+            //校验深迭代和浅迭代
             verifyShallowIterator(mixedMessageSet);
         }
     }
 
+    /**
+     * 测试注定偏移ID
+     */
     @Test
     public void testOffsetAssignment() {
         ByteBufferMessageSet messages = new ByteBufferMessageSet(CompressionCodec.NoCompressionCodec,
@@ -137,13 +157,15 @@ public class ByteBufferMessageSetTest extends BaseMessageSetTest {
                 new Message("beautiful".getBytes()));
         ByteBufferMessageSet compressedMessages = new ByteBufferMessageSet(CompressionCodec.GZIPCompressionCodec,
                 messages.toMessageList());
-        // check uncompressed offsets
+        // check uncompressed offsets 检查偏移量 从0开始递增
         checkOffsets(messages, 0L);
         long offset = 1234567;
+        //检查偏移量 从1234567开始递增
         checkOffsets(messages.assignOffsets(new AtomicLong(offset), CompressionCodec.NoCompressionCodec), offset);
 
-        // check compressed messages
+        // check compressed messages  压缩 检查偏移量 从0开始递增
         checkOffsets(compressedMessages, 0L);
+        //压缩 检查偏移量 从1234567开始递增
         checkOffsets(compressedMessages.assignOffsets(new AtomicLong(offset), CompressionCodec.GZIPCompressionCodec), offset);
     }
 

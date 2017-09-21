@@ -38,6 +38,10 @@ public class MessageTest {
         }
     }
 
+    /**
+     * 测试  message.isNull()
+     * message.payload()相等 message.key()相等
+     */
     @Test
     public void testFieldValues() {
         for (MessageTestVal v : messages) {
@@ -56,6 +60,9 @@ public class MessageTest {
         }
     }
 
+    /**
+     * 测试校验值
+     */
     @Test
     public void testChecksum() {
         for (MessageTestVal v : messages) {
@@ -67,6 +74,9 @@ public class MessageTest {
         }
     }
 
+    /**
+     * 测试相等
+     */
     @Test
     public void testEquality() {
         for (MessageTestVal v : messages) {
