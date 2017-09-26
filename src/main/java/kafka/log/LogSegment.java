@@ -73,7 +73,7 @@ public class LogSegment extends Logging {
      * <p>
      * It is assumed this method is being called from within a lock.
      *
-     * @param offset   The first offset in the message set.
+     * @param offset   The first offset in the message set. ########## 只用来插入index ##########
      * @param messages The messages to append.
      */
     @nonthreadsafe
@@ -117,6 +117,7 @@ public class LogSegment extends Logging {
      * @param maxOffset   An optional maximum offset for the message set we read
      * @return The fetched data and the offset metadata of the first message whose offset is >= startOffset,
      * or null if the startOffset is larger than the largest offset in this log
+     * 优先用maxOffset作为最大长度
      */
 
     @threadsafe

@@ -110,7 +110,7 @@ public class FileMessageSetTest extends BaseMessageSetTest {
         Message lastMessage = new Message("test".getBytes());
         messageSet.append(new ByteBufferMessageSet(CompressionCodec.NoCompressionCodec, new AtomicLong(50), lastMessage));
         int position = 0;
-        //offset>=targetOffset 直接
+        //offset >= targetOffset 直接返回offset
         Assert.assertEquals("Should be able to find the first message by its offset",
                 new OffsetPosition(0L, position),messageSet.searchFor(0L, 0));
         position += MessageSet.entrySize(messageSet.head().message);
@@ -134,6 +134,7 @@ public class FileMessageSetTest extends BaseMessageSetTest {
 
     /**
      * Test that the message set iterator obeys start and end slicing
+     * 截取 与 遍历 是否一致
      */
     @Test
     public void testIteratorWithLimits() {
@@ -146,6 +147,7 @@ public class FileMessageSetTest extends BaseMessageSetTest {
 
     /**
      * Test the truncateTo method lops off messages and appropriately updates the size
+     * 测试截断（保留第一个）
      */
     @Test
     public void testTruncate() {

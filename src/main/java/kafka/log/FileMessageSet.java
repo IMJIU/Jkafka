@@ -201,7 +201,7 @@ public class FileMessageSet extends MessageSet {
                 if (location >= end)
                     return allDone();
                 try {
-                    // read the size of the item
+                    // read the size of the item 读取长度，为空直接返回
                     sizeOffsetBuffer.rewind();
                     channel.read(sizeOffsetBuffer, location);
 
@@ -212,14 +212,14 @@ public class FileMessageSet extends MessageSet {
                     sizeOffsetBuffer.rewind();
                     Long offset = sizeOffsetBuffer.getLong();
                     Integer size = sizeOffsetBuffer.getInt();
+                    //长度小于 最小message头部 直接返回
                     if (size < Message.MinHeaderSize)
                         return allDone();
                     if (size > maxMessageSize)
                         throw new InvalidMessageException("Message size exceeds the largest allowable message size (%d).".format(maxMessageSize.toString()));
 
-                    // read the item itself
+                    // read the item itself 读取message内容
                     ByteBuffer buffer = ByteBuffer.allocate(size);
-
                     channel.read(buffer, location + 12);
                     if (buffer.hasRemaining())
                         return allDone();

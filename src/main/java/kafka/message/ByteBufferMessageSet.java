@@ -159,7 +159,7 @@ public class ByteBufferMessageSet extends MessageSet {
 
     /**
      * Write the messages in this set to the given channel
-     * offset没用
+     * ！！！！！！BufferOffset  offset没有用！！！！！！！！！！！！！！！！
      */
     @Override
     public Integer writeTo(GatheringByteChannel channel, Long offset, Integer maxSize) throws IOException {

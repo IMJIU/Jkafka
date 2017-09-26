@@ -1,6 +1,4 @@
-package kafka.log;/**
- * Created by zhoulf on 2017/3/30.
- */
+package kafka.log;
 
 import com.google.common.collect.Lists;
 import kafka.message.*;
@@ -55,11 +53,12 @@ public class LogSegmentTest {
 
     /**
      * A read on an empty log segment should return null
-     * 读取空信息 应该返回NULL
+     * 无信息可读取，应该返回NULL
      */
     @Test
     public void testReadOnEmptySegment() throws Exception {
         LogSegment seg = createSegment(40L);
+        //优先用maxOffset作为最大长度
         FetchDataInfo read = seg.read(40L, Optional.empty(), 300);
         Assert.assertNull("Read beyond the last offset in the segment should be null", read);
     }
@@ -67,24 +66,27 @@ public class LogSegmentTest {
     /**
      * Reading from before the first offset in the segment should return messages
      * beginning with the first message in the segment
+     * 读取信息，参数offset传入在第一个message的offset之前，正常
      */
     @Test
     public void testReadBeforeFirstOffset() throws Exception {
         LogSegment seg = createSegment(40L);
         ByteBufferMessageSet ms = messages(50L, Lists.newArrayList("hello", "there", "little", "bee"));
         seg.append(50L, ms);
-        MessageSet read = seg.read(41L, Optional.empty(), 300).messageSet;
+        MessageSet read = seg.read(40L, Optional.empty(), 300).messageSet;//offset = 40-50都可以
         TestUtils.checkEquals(ms.iterator(), read.iterator());
     }
 
     /**
      * If we set the startOffset and maxOffset for the read to be the same value
      * we should get only the first message in the log
+     * 读取单个 一个个测试是否message是否一致
      */
     @Test
     public void testMaxOffset() throws Exception {
         Long baseOffset = 50L;
         LogSegment segment = createSegment(baseOffset);
+        //50、51、52 offset 插入3条
         ByteBufferMessageSet messageSet = messages(baseOffset, Lists.newArrayList("hello", "there", "beautiful"));
         segment.append(baseOffset, messageSet);
 
@@ -105,6 +107,7 @@ public class LogSegmentTest {
 
     /**
      * If we read from an offset beyond the last offset in the segment we should get null
+     * 读取超过最大的offset     FetchDataInfo返回null
      */
     @Test
     public void testReadAfterLast() throws Exception {
@@ -118,6 +121,7 @@ public class LogSegmentTest {
     /**
      * If we read from an offset which doesn't exist we should get a message set beginning
      * with the least offset greater than the given startOffset.
+     * 非连续offset 读取offset在区间内，返回大于offset最近的message
      */
     @Test
     public void testReadFromGap() throws Exception {
@@ -133,6 +137,7 @@ public class LogSegmentTest {
     /**
      * In a loop append two messages then truncate off the second of those messages and check that we can read
      * the first but not the second message.
+     * 截断测试，插入两条信息，截断到前一条  判断是否一致
      */
     @Test
     public void testTruncate() throws IOException {
@@ -157,6 +162,7 @@ public class LogSegmentTest {
 
     /**
      * Test truncating the whole segment, and check that we can reappend with the original offset.
+     * 截断所有
      */
     @Test
     public void testTruncateFull() throws Exception {
