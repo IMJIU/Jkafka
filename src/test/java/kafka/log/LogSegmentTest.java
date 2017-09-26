@@ -176,17 +176,19 @@ public class LogSegmentTest {
 
     /**
      * Test that offsets are assigned sequentially and that the nextOffset variable is incremented
+     * nextOffset是最后一条 offset + 1
      */
     @Test
     public void testNextOffsetCalculation() throws Exception {
         LogSegment seg = createSegment(40L);
         Assert.assertEquals(new Long(40L), seg.nextOffset());
-        seg.append(50L, messages(50L, Lists.newArrayList("hello", "there", "you")));
+        seg.append(50L, messages(50L, Lists.newArrayList("hello", "there", "you")));//第一条是50
         Assert.assertEquals(new Long(53L), seg.nextOffset());
     }
 
     /**
      * Test that we can change the file suffixes for the log and index files
+     * 修改文件后缀名，传空字符串直接增加后缀名
      */
     @Test
     public void testChangeFileSuffixes() throws Exception {
@@ -204,6 +206,7 @@ public class LogSegmentTest {
     /**
      * Create a segment with some data and an index. Then corrupt the index,
      * and recover the segment, the entries should all be readable.
+     * index文件写入错乱数据，然后调用recover()，重新遍历校验插入index
      */
     @Test
     public void testRecoveryFixesCorruptIndex() throws Exception {
@@ -219,6 +222,7 @@ public class LogSegmentTest {
 
     /**
      * Randomly corrupt a log a number of times and attempt recovery.
+     * log文件写入错乱数据，recover()会校验到错乱的position，报war异常。然后遍历到校验是否有问题
      */
     @Test
     public void testRecoveryWithCorruptMessage() throws Exception {
