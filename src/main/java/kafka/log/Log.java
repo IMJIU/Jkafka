@@ -263,7 +263,7 @@ public class Log extends KafkaMetricsGroup {
             synchronized (lock) {
                 appendInfo.firstOffset = nextOffsetMetadata.messageOffset;
 
-                if (assignOffsets) {
+                if (assignOffsets) {//默认offset自增
                     // assign offsets to the message set;
                     AtomicLong offset = new AtomicLong(nextOffsetMetadata.messageOffset);
                     try {
@@ -272,14 +272,14 @@ public class Log extends KafkaMetricsGroup {
                         throw new KafkaException(String.format("Error in validating messages while appending to log '%s'", name), e);
                     }
                     appendInfo.lastOffset = offset.get() - 1;
-                } else {
+                } else {//非自增，校验是否小于之前的offset
                     // we are taking the offsets we are given;
                     if (!appendInfo.offsetsMonotonic || appendInfo.firstOffset < nextOffsetMetadata.messageOffset)
                         throw new IllegalArgumentException("Out of order offsets found in " + messages);
                 }
 
                 // re-validate message sizes since after re-compression some may exceed the limit;
-                Itor.loop(validMessages.shallowIterator(), messageAndOffset -> {
+                Itor.loop(validMessages.shallowIterator(), messageAndOffset -> {//浅遍历 消息长度是否超过maxMessageSize
                     if (MessageSet.entrySize(messageAndOffset.message) > config.maxMessageSize) {
                         // we record the original message set size instead of trimmed size;
                         // to be consistent with pre-compression bytesRejectedRate recording;
@@ -290,7 +290,7 @@ public class Log extends KafkaMetricsGroup {
                     }
                 });
 
-                // check messages set size may be exceed config.segmentSize;
+                // check messages set size may be exceed config.segmentSize; 整条消息有效长度是否超过segmentSize
                 if (validMessages.sizeInBytes() > config.segmentSize) {
                     throw new MessageSetSizeTooLargeException(String.format("Message set size is %d bytes which exceeds the maximum configured segment size of %d.",
                             validMessages.sizeInBytes(), config.segmentSize));
@@ -531,7 +531,7 @@ public class Log extends KafkaMetricsGroup {
      */
     private LogSegment maybeRoll(Integer messagesSize) throws IOException {
         LogSegment segment = activeSegment();
-        if (segment.size() + messagesSize > config.segmentSize
+        if (segment.size() + messagesSize > config.segmentSize//长度、时间、是否已满
                 || (segment.size() > 0 && time.milliseconds() - segment.created > config.segmentMs - segment.rollJitterMs)
                 || segment.index.isFull()) {
             debug(String.format("Rolling new log segment in %s (log_size = %d/%d, index_size = %d/%d, age_ms = %d/%d).",
@@ -560,8 +560,8 @@ public class Log extends KafkaMetricsGroup {
             Long newOffset = logEndOffset();
             File logFile = logFilename(dir, newOffset);
             File indexFile = indexFilename(dir, newOffset);
-            Lists.newArrayList(logFile, indexFile).stream()
-                    .filter(f -> f.exists())
+            //删除已经存在的文件
+            Lists.newArrayList(logFile, indexFile).stream().filter(f -> f.exists())
                     .forEach(f -> {
                                 warn("Newly rolled segment file " + f.getName() + " already exists; deleting it first");
                                 f.delete();
@@ -577,7 +577,7 @@ public class Log extends KafkaMetricsGroup {
                 throw new KafkaException(String.format("Trying to roll a new log segment for topic partition %s with start offset %d while it already exists.", name, newOffset));
             }
 
-            // schedule an asynchronous flush of the old segment;
+            // schedule an asynchronous flush of the old segment; flush到磁盘
             scheduler.schedule("flush-log", () -> flush(newOffset), 0L);
 
             info(String.format("Rolled new log segment for '" + name + "' in %.0f ms.", (System.nanoTime() - start) / (1000.0 * 1000.0)));
