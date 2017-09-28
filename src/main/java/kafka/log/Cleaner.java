@@ -158,7 +158,7 @@ public class Cleaner extends Logging {
             cleaned.delete();
             throw e;
         } catch (InterruptedException e) {
-            error(e.getMessage(),e);
+            error(e.getMessage(), e);
         }
     }
 
@@ -193,10 +193,10 @@ public class Cleaner extends Logging {
                 ByteBuffer key = entry.message.key();
                 Prediction.require(key != null, String.format("Found null key in log segment %s which is marked as dedupe.", source.log.file.getAbsolutePath()));
                 Long foundOffset = map.get(key);
-        /* two cases in which we can get rid of a message:
-         *   1) if there exists a message with the same key but higher offset
-         *   2) if the message is a delete "tombstone" marker and enough time has passed
-         */
+                /* two cases in which we can get rid of a message:
+                 *   1) if there exists a message with the same key but higher offset
+                 *   2) if the message is a delete "tombstone" marker and enough time has passed
+                 */
                 boolean redundant = foundOffset >= 0 && entry.offset < foundOffset;
                 boolean obsoleteDelete = !retainDeletes && entry.message.isNull();
                 if (!redundant && !obsoleteDelete) {

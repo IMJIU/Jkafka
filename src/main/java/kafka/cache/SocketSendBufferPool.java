@@ -97,7 +97,6 @@ final class SocketSendBufferPool {
         ByteBuffer buffer = current.buffer;
         int remaining = buffer.remaining();
         PooledSendBuffer dst;
-
         if (size < remaining) {
             int nextPos = buffer.position() + size;
             ByteBuffer slice = buffer.duplicate();

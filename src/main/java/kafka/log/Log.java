@@ -247,6 +247,13 @@ public class Log extends KafkaMetricsGroup {
      * @param assignOffsets Should the log assign offsets to this message set or blindly apply what it is given
      * @return Information about the appended messages including the first and last offset.
      * @throws KafkaStorageException If the append fails due to an I/O error.
+     * 1.分析成LogAppendInfo
+     * 2.检查有效
+     * 3.自增offset
+     * 4.roll()校验
+     * 5.append()
+     * 6.更新logEndOffset
+     * 7.刷新间隔offset
      */
     public LogAppendInfo append(ByteBufferMessageSet messages, boolean assignOffsets) {
         LogAppendInfo appendInfo = analyzeAndValidateMessageSet(messages);//生成LogAppendInfo;
@@ -302,12 +309,12 @@ public class Log extends KafkaMetricsGroup {
                 // now append to the log;
                 segment.append(appendInfo.firstOffset, validMessages);
 
-                // increment the log end offset;
+                // increment the log end offset; 更新下个offset
                 updateLogEndOffset(appendInfo.lastOffset + 1);
 
                 trace(String.format("Appended message set to log %s with first offset: %d, next offset: %d, and messages: %s", this.name, appendInfo.firstOffset, nextOffsetMetadata.messageOffset, validMessages));
 
-                if (unflushedMessages() >= config.flushInterval) {
+                if (unflushedMessages() >= config.flushInterval) {//刷新间隔offset
                     flush();
                 }
                 return appendInfo;
@@ -531,7 +538,7 @@ public class Log extends KafkaMetricsGroup {
      */
     private LogSegment maybeRoll(Integer messagesSize) throws IOException {
         LogSegment segment = activeSegment();
-        if (segment.size() + messagesSize > config.segmentSize//长度、时间、是否已满
+        if (segment.size() + messagesSize > config.segmentSize//长度超过、时间超过、已满->roll()创建新年segment
                 || (segment.size() > 0 && time.milliseconds() - segment.created > config.segmentMs - segment.rollJitterMs)
                 || segment.index.isFull()) {
             debug(String.format("Rolling new log segment in %s (log_size = %d/%d, index_size = %d/%d, age_ms = %d/%d).",
@@ -551,7 +558,7 @@ public class Log extends KafkaMetricsGroup {
     /**
      * Roll the log over to a new active segment starting with the current logEndOffset.
      * This will trim the index to the exact size of the number of entries it currently contains.
-     *
+     *  获取最新的offset+1 作为新日志的baseOffset 创建新日志文件、索引文件
      * @return The newly rolled segment
      */
     public LogSegment roll() throws IOException {
