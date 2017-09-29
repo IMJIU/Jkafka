@@ -100,7 +100,7 @@ public class SocketServerTest {
         byte[] serializedBytes = new byte[byteBuffer.remaining()];
         byteBuffer.get(serializedBytes);
 
-        sendRequest(socket, (short) 0, serializedBytes);
+        sendRequest(socket, (short) 0, serializedBytes);//size|clientId|request
         processRequest(server.requestChannel);
         TestUtils.checkEquals(ByteBuffer.wrap(serializedBytes), ByteBuffer.wrap(receiveResponse(socket)));
     }
