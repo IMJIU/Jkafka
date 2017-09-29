@@ -43,7 +43,7 @@ public class KafkaRequestHandler extends Logging implements Runnable {
                     aggregateIdleMeter.mark(idleTime / totalHandlerThreads);
                 }
 
-                if (req.equals( RequestChannel.AllDone)){
+                if (req.equals(RequestChannel.AllDone)) {
                     debug(String.format("Kafka request handler %d on broker %d received shut down command", id, brokerId));
                     return;
                 }

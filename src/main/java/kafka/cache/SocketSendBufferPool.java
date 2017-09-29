@@ -15,18 +15,12 @@
  */
 package kafka.cache;
 
-import kafka.common.KafkaException;
 import sun.nio.ch.DirectBuffer;
-
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.RandomAccessFile;
 import java.lang.ref.SoftReference;
 import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.DatagramChannel;
-import java.nio.channels.FileChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.Random;
 import java.util.Vector;

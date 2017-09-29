@@ -33,7 +33,7 @@ public class Processor extends AbstractServerThread {
     public RequestChannel requestChannel;
     public Long connectionsMaxIdleMs;
 
-    private ConcurrentLinkedQueue<SocketChannel> newConnections = new ConcurrentLinkedQueue<SocketChannel>();
+    private ConcurrentLinkedQueue<SocketChannel> newConnections = new ConcurrentLinkedQueue<>();
     private Long connectionsMaxIdleNanos;
     private Long currentTimeNanos = System.nanoTime();
     private LinkedHashMap<SelectionKey, Long> lruConnections = new LinkedHashMap<>();
@@ -190,10 +190,12 @@ public class Processor extends AbstractServerThread {
         try {
             lruConnections.put(key, currentTimeNanos);
             SocketChannel socketChannel = channelFor(key);
-            Receive receive = (Receive) key.attachment();
+            Receive receive;
             if (key.attachment() == null) {
                 receive = new BoundedByteBufferReceive(maxRequestSize);
                 key.attach(receive);
+            } else {
+                receive = (Receive) key.attachment();
             }
             Integer read = receive.readFrom(socketChannel);
             SocketAddress address = socketChannel.socket().getRemoteSocketAddress();

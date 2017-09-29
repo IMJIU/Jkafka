@@ -13,6 +13,7 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
@@ -59,6 +60,7 @@ public class LogManagerTest {
 
     /**
      * Test that getOrCreateLog on a non-existent log creates a new log and that we can append to the new log.
+     * 创建topic日志
      */
     @Test
     public void testCreateLog() throws IOException {
@@ -71,6 +73,7 @@ public class LogManagerTest {
 
     /**
      * Test that get on a non-existent returns None and no log is created.
+     * 获取不存在的log 返回optional empty()
      */
     @Test
     public void testGetNonExistentLog() {
@@ -96,9 +99,9 @@ public class LogManagerTest {
 
         log.logSegments().forEach(s -> s.log.file.setLastModified(time.milliseconds()));
 
-        time.sleep(maxLogAgeMs + 1);
+        time.sleep(maxLogAgeMs + 1);//sleep过日志最大年龄
         Assert.assertEquals("Now there should only be only one segment in the index.", new Integer(1), log.numberOfSegments());
-        time.sleep(log.config.fileDeleteDelayMs + 1);
+        time.sleep(log.config.fileDeleteDelayMs + 1);//sleep过删除延迟时间
         Assert.assertEquals("Files should have been deleted", log.numberOfSegments() * 2, log.dir.list().length);
         Assert.assertEquals("Should get empty fetch off new log.", new Integer(0), log.read(offset + 1, 1024).messageSet.sizeInBytes());
 
@@ -229,18 +232,19 @@ public class LogManagerTest {
      * Test that recovery points directory checking works with trailing slash
      */
     @Test
-   public void testRecoveryDirectoryMappingWithTrailingSlash() throws Exception {
+    public void testRecoveryDirectoryMappingWithTrailingSlash() throws Exception {
         logManager.shutdown();
         logDir = TestUtils.tempDir();
         logManager = createLogManager(Lists.newArrayList(new File(logDir.getAbsolutePath() + File.separator)));
         logManager.startup();
         verifyCheckpointRecovery(Lists.newArrayList(new TopicAndPartition("test-a", 1)), logManager);
     }
+
     /**
      * Test that recovery points directory checking works with relative directory
      */
     @Test
-   public void testRecoveryDirectoryMappingWithRelativeDirectory() throws Exception {
+    public void testRecoveryDirectoryMappingWithRelativeDirectory() throws Exception {
         logManager.shutdown();
         logDir = new File("data" + File.separator + logDir.getName());
         logDir.mkdirs();
@@ -249,6 +253,7 @@ public class LogManagerTest {
         logManager.startup();
         verifyCheckpointRecovery(Lists.newArrayList(new TopicAndPartition("test-a", 1)), logManager);
     }
+
     private void verifyCheckpointRecovery(List<TopicAndPartition> topicAndPartitions,
                                           LogManager logManager) throws IOException {
         List<Log> logs = topicAndPartitions.stream().map(t -> {

@@ -25,7 +25,7 @@ public class ProducerRequest extends RequestOrResponse {
 
     public Short versionId = ProducerRequest.CurrentVersion;
     public Integer correlationId;
-    public  String clientId;
+    public String clientId;
     public Short requiredAcks;
     public Integer ackTimeoutMs;
     public Map<TopicAndPartition, ByteBufferMessageSet> data;
@@ -44,7 +44,7 @@ public class ProducerRequest extends RequestOrResponse {
         this.requiredAcks = requiredAcks;
         this.ackTimeoutMs = ackTimeoutMs;
         this.data = data;
-        dataGroupedByTopic =Utils.groupByKey(data, k -> k.topic);
+        dataGroupedByTopic = Utils.groupByKey(data, k -> k.topic);
         topicPartitionMessageSizeMap = Utils.map(data, r -> r.sizeInBytes());
     }
 
@@ -75,18 +75,13 @@ public class ProducerRequest extends RequestOrResponse {
                                 Integer messageSetSize = buffer.getInt();
                                 byte[] messageSetBuffer = new byte[messageSetSize];
                                 buffer.get(messageSetBuffer, 0, messageSetSize);
-                                return Tuple.of(new TopicAndPartition(topic, partition), new ByteBufferMessageSet
-                                        (ByteBuffer.wrap
-                                                (messageSetBuffer)));
+                                return Tuple.of(new TopicAndPartition(topic, partition),
+                                        new ByteBufferMessageSet(ByteBuffer.wrap(messageSetBuffer)));
                             }).collect(Collectors.toList());
                     return list.stream();
                 }).collect(Collectors.toList());
-        return new ProducerRequest(versionId, correlationId, clientId, requiredAcks, ackTimeoutMs, Utils.toMap
-                (partitionDataPairs));
+        return new ProducerRequest(versionId, correlationId, clientId, requiredAcks, ackTimeoutMs, Utils.toMap(partitionDataPairs));
     };
-
-
-
 
 
     @Override
@@ -142,7 +137,7 @@ public class ProducerRequest extends RequestOrResponse {
     }
 
 
-    public Integer numPartitions(){
+    public Integer numPartitions() {
         return data.size();
     }
 
@@ -171,20 +166,20 @@ public class ProducerRequest extends RequestOrResponse {
         }
     }
 
-        //
-        @Override
-        public String describe (Boolean details){
-            StringBuilder producerRequest = new StringBuilder();
-            producerRequest.append("Name: " + this.getClass().getSimpleName());
-            producerRequest.append("; Version: " + versionId);
-            producerRequest.append("; CorrelationId: " + correlationId);
-            producerRequest.append("; ClientId: " + clientId);
-            producerRequest.append("; RequiredAcks: " + requiredAcks);
-            producerRequest.append("; AckTimeoutMs: " + ackTimeoutMs + " ms");
-            if (details)
-                producerRequest.append("; TopicAndPartition: " + topicPartitionMessageSizeMap);
-            return producerRequest.toString();
-        }
+    //
+    @Override
+    public String describe(Boolean details) {
+        StringBuilder producerRequest = new StringBuilder();
+        producerRequest.append("Name: " + this.getClass().getSimpleName());
+        producerRequest.append("; Version: " + versionId);
+        producerRequest.append("; CorrelationId: " + correlationId);
+        producerRequest.append("; ClientId: " + clientId);
+        producerRequest.append("; RequiredAcks: " + requiredAcks);
+        producerRequest.append("; AckTimeoutMs: " + ackTimeoutMs + " ms");
+        if (details)
+            producerRequest.append("; TopicAndPartition: " + topicPartitionMessageSizeMap);
+        return producerRequest.toString();
+    }
 
     public void emptyData() {
         data.clear();

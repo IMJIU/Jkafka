@@ -248,10 +248,10 @@ public class Log extends KafkaMetricsGroup {
      * @return Information about the appended messages including the first and last offset.
      * @throws KafkaStorageException If the append fails due to an I/O error.
      * 1.分析成LogAppendInfo
-     * 2.检查有效
-     * 3.自增offset
+     * 2.检查有效bytes
+     * 3.自增offset(nextOffset)
      * 4.roll()校验
-     * 5.append()
+     * 5.segment.append()
      * 6.更新logEndOffset
      * 7.刷新间隔offset
      */
@@ -346,7 +346,7 @@ public class Log extends KafkaMetricsGroup {
         Integer validBytesCount = 0;
         Long firstOffset = 0L, lastOffset = -1L;
         CompressionCodec codec = CompressionCodec.NoCompressionCodec;
-        boolean monotonic = true;
+        boolean monotonic = true;//是否升序
 
         Iterator<MessageAndOffset> it = messages.shallowIterator();
         while (it.hasNext()) {
