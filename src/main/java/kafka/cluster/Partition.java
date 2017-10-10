@@ -100,17 +100,16 @@ public class Partition extends KafkaMetricsGroup{
                 else
                     return Optional.of(replica);
             }
-//
-//            public void  leaderReplicaIfLocal(): Option<Replica> = {
-//                leaderReplicaIdOpt match {
-//        case Some(leaderReplicaId) =>
-//            if (leaderReplicaId == localBrokerId)
-//                getReplica(localBrokerId);
-//            else;
-//                None;
-//        case None => None;
-//    }
-//  }
+
+            public Optional<Replica>  leaderReplicaIfLocal(){
+                if(leaderReplicaIdOpt.isPresent()) {
+                    Integer leaderReplicaId = leaderReplicaIdOpt.get();
+                    if (leaderReplicaId == localBrokerId) {
+                        return getReplica(localBrokerId);
+                    }
+                }
+                return Optional.empty();
+            }
 //
 //            public void  addReplicaIfNotExists(Replica replica) = {
 //            assignedReplicaMap.putIfNotExists(replica.brokerId, replica);

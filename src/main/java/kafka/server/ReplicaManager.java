@@ -16,6 +16,9 @@ import kafka.utils.Scheduler;
 import kafka.utils.Time;
 import kafka.utils.Utils;
 import org.I0Itec.zkclient.ZkClient;
+import org.apache.kafka.common.errors.NotLeaderForPartitionException;
+import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
+import org.apache.kafka.common.requests.FetchRequest;
 
 import java.io.File;
 import java.io.IOException;
@@ -204,7 +207,7 @@ public class ReplicaManager extends KafkaMetricsGroup {
         else
             return Optional.of(partition);
     }
-//
+
         public Replica    getReplicaOrException(String topic, Integer partition) {
                 Optional<Replica> replicaOpt = getReplica(topic, partition,null);
         if(replicaOpt.isPresent())
@@ -212,22 +215,21 @@ public class ReplicaManager extends KafkaMetricsGroup {
         else;
             throw new ReplicaNotAvailableException(String.format("Replica %d is not available for partition <%s,%d>",config.brokerId, topic, partition))
   }
-//
-//        public Replica  void  getLeaderReplicaIfLocal(String topic, Integer partitionId)  {
-//                val partitionOpt = getPartition(topic, partitionId);
-//                partitionOpt match {
-//        case None =>
-//            throw new UnknownTopicOrPartitionException(String.format("Partition <%s,%d> doesn't exist on %d",topic, partitionId, config.brokerId))
-//        case Some(partition) =>
-//            partition.leaderReplicaIfLocal match {
-//            case Some(leaderReplica) => leaderReplica;
-//            case None =>
-//                throw new NotLeaderForPartitionException("Leader not local for partition <%s,%d> on broker %d";
-//                        .format(topic, partitionId, config.brokerId))
-//        }
-//    }
-//  }
-//
+
+        public Replica getLeaderReplicaIfLocal(String topic, Integer partitionId)  {
+                Optional<Partition> partitionOpt = getPartition(topic, partitionId);
+                if(partitionOpt.isPresent()){
+                    Partition partition = partitionOpt.get();
+                    Optional<Replica> leaderReplicaIfLocalOpt = partition.leaderReplicaIfLocal();
+                    if (leaderReplicaIfLocalOpt.isPresent()){
+                        return leaderReplicaIfLocalOpt.get();
+                    }else{
+                        throw new NotLeaderForPartitionException(String.format("Leader not local for partition <%s,%d> on broker %d".format(topic, partitionId, config.brokerId));
+                    }
+                }
+             throw new UnknownTopicOrPartitionException(String.format("Partition <%s,%d> doesn't exist on %d",topic, partitionId, config.brokerId))
+          }
+
         public Optional<Replica>  getReplica(String topic, Integer partitionId, Integer replicaId ){
             if(replicaId==null){
                 replicaId = config.brokerId;
@@ -239,48 +241,48 @@ public class ReplicaManager extends KafkaMetricsGroup {
             return Optional.empty();
     }
   }
-//
-//            /**
-//             * Read from all the offset details given and return a map of
-//             * (topic, partition) -> PartitionData
-//             */
-//            public void  readMessageSets(FetchRequest fetchRequest) = {
-//            val isFetchFromFollower = fetchRequest.isFromFollower;
-//            fetchRequest.requestInfo.map;
-//            {
-//                case (TopicAndPartition(topic, partition), PartitionFetchInfo(offset, fetchSize)) =>
-//                    val partitionDataAndOffsetInfo =
-//                    try {
-//                        val (fetchInfo, highWatermark) = readMessageSet(topic, partition, offset, fetchSize, fetchRequest.replicaId);
-//                        BrokerTopicStats.getBrokerTopicStats(topic).bytesOutRate.mark(fetchInfo.messageSet.sizeInBytes);
-//                        BrokerTopicStats.getBrokerAllTopicsStats.bytesOutRate.mark(fetchInfo.messageSet.sizeInBytes);
-//                        if (isFetchFromFollower) {
-//                            debug("Partition <%s,%d> received fetch request from follower %d";
-//                                    .format(topic, partition, fetchRequest.replicaId))
-//                        }
-//                        new PartitionDataAndOffset(new FetchResponsePartitionData(ErrorMapping.NoError, highWatermark, fetchInfo.messageSet), fetchInfo.fetchOffset);
-//                    } catch {
-//                    // Failed NOTE fetch requests is not incremented for UnknownTopicOrPartitionException and NotLeaderForPartitionException;
-//                    // since failed fetch requests metric is supposed to indicate failure of a broker in handling a fetch request;
-//                    // for a partition it is the leader for;
-//                    case UnknownTopicOrPartitionException utpe =>
-//                        warn(String.format("Fetch request with correlation id %d from client %s on partition <%s,%d> failed due to %s",
-//                                fetchRequest.correlationId, fetchRequest.clientId, topic, partition, utpe.getMessage));
-//                        new PartitionDataAndOffset(new FetchResponsePartitionData(ErrorMapping.codeFor(utpe.getClass.asInstanceOf<Class<Throwable>>), -1L, MessageSet.Empty), LogOffsetMetadata.UnknownOffsetMetadata);
-//                    case NotLeaderForPartitionException nle =>
-//                        warn(String.format("Fetch request with correlation id %d from client %s on partition <%s,%d> failed due to %s",
-//                                fetchRequest.correlationId, fetchRequest.clientId, topic, partition, nle.getMessage));
-//                        new PartitionDataAndOffset(new FetchResponsePartitionData(ErrorMapping.codeFor(nle.getClass.asInstanceOf<Class<Throwable>>), -1L, MessageSet.Empty), LogOffsetMetadata.UnknownOffsetMetadata);
-//                    case Throwable t =>
-//                        BrokerTopicStats.getBrokerTopicStats(topic).failedFetchRequestRate.mark();
-//                        BrokerTopicStats.getBrokerAllTopicsStats.failedFetchRequestRate.mark();
-//                        error("Error when processing fetch request for partition <%s,%d> offset %d from %s with correlation id %d. Possible cause: %s";
-//                                .format(topic, partition, offset, if (isFetchFromFollower) "follower" else "consumer", fetchRequest.correlationId, t.getMessage))
-//                        new PartitionDataAndOffset(new FetchResponsePartitionData(ErrorMapping.codeFor(t.getClass.asInstanceOf<Class<Throwable>>), -1L, MessageSet.Empty), LogOffsetMetadata.UnknownOffsetMetadata);
-//                }
-//                (TopicAndPartition(topic, partition), partitionDataAndOffsetInfo);
-//            }
-//        }
+
+            /**
+             * Read from all the offset details given and return a map of
+             * (topic, partition) -> PartitionData
+             */
+            public void  readMessageSets(FetchRequest fetchRequest) {
+            val isFetchFromFollower = fetchRequest.isFromFollower;
+            fetchRequest.requestInfo.map;
+            {
+                case (TopicAndPartition(topic, partition), PartitionFetchInfo(offset, fetchSize)) =>
+                    val partitionDataAndOffsetInfo =
+                    try {
+                        val (fetchInfo, highWatermark) = readMessageSet(topic, partition, offset, fetchSize, fetchRequest.replicaId);
+                        BrokerTopicStats.getBrokerTopicStats(topic).bytesOutRate.mark(fetchInfo.messageSet.sizeInBytes);
+                        BrokerTopicStats.getBrokerAllTopicsStats.bytesOutRate.mark(fetchInfo.messageSet.sizeInBytes);
+                        if (isFetchFromFollower) {
+                            debug("Partition <%s,%d> received fetch request from follower %d";
+                                    .format(topic, partition, fetchRequest.replicaId))
+                        }
+                        new PartitionDataAndOffset(new FetchResponsePartitionData(ErrorMapping.NoError, highWatermark, fetchInfo.messageSet), fetchInfo.fetchOffset);
+                    } catch {
+                    // Failed NOTE fetch requests is not incremented for UnknownTopicOrPartitionException and NotLeaderForPartitionException;
+                    // since failed fetch requests metric is supposed to indicate failure of a broker in handling a fetch request;
+                    // for a partition it is the leader for;
+                    case UnknownTopicOrPartitionException utpe =>
+                        warn(String.format("Fetch request with correlation id %d from client %s on partition <%s,%d> failed due to %s",
+                                fetchRequest.correlationId, fetchRequest.clientId, topic, partition, utpe.getMessage));
+                        new PartitionDataAndOffset(new FetchResponsePartitionData(ErrorMapping.codeFor(utpe.getClass.asInstanceOf<Class<Throwable>>), -1L, MessageSet.Empty), LogOffsetMetadata.UnknownOffsetMetadata);
+                    case NotLeaderForPartitionException nle =>
+                        warn(String.format("Fetch request with correlation id %d from client %s on partition <%s,%d> failed due to %s",
+                                fetchRequest.correlationId, fetchRequest.clientId, topic, partition, nle.getMessage));
+                        new PartitionDataAndOffset(new FetchResponsePartitionData(ErrorMapping.codeFor(nle.getClass.asInstanceOf<Class<Throwable>>), -1L, MessageSet.Empty), LogOffsetMetadata.UnknownOffsetMetadata);
+                    case Throwable t =>
+                        BrokerTopicStats.getBrokerTopicStats(topic).failedFetchRequestRate.mark();
+                        BrokerTopicStats.getBrokerAllTopicsStats.failedFetchRequestRate.mark();
+                        error("Error when processing fetch request for partition <%s,%d> offset %d from %s with correlation id %d. Possible cause: %s";
+                                .format(topic, partition, offset, if (isFetchFromFollower) "follower" else "consumer", fetchRequest.correlationId, t.getMessage))
+                        new PartitionDataAndOffset(new FetchResponsePartitionData(ErrorMapping.codeFor(t.getClass.asInstanceOf<Class<Throwable>>), -1L, MessageSet.Empty), LogOffsetMetadata.UnknownOffsetMetadata);
+                }
+                (TopicAndPartition(topic, partition), partitionDataAndOffsetInfo);
+            }
+        }
 //
 //        /**
 //         * Read from a single topic/partition at the given offset upto maxSize bytes
