@@ -13,6 +13,7 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.charset.Charset;
 import java.util.*;
 import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
 import java.util.stream.Collectors;
 import java.util.zip.CRC32;
 
@@ -633,12 +634,14 @@ public class Utils {
         }
     }
 
-//
-//    def inReadLock[
-//    T](ReadWriteLock lock)(fun:=>T):T=inLock[T](lock.readLock)(fun);
-//
-//    def inWriteLock[
-//    T](ReadWriteLock lock)(fun:=>T):T=inLock[T](lock.writeLock)(fun);
+
+    public static void inReadLock(ReadWriteLock lock, Fun fun) {
+        inLock(lock.readLock(), fun);
+    }
+
+    public static void inWriteLock(ReadWriteLock lock, Fun fun) {
+        inLock(lock.writeLock(), fun);
+    }
 //
 //
 //    //JSON strings need to be escaped based on ECMA-404 standard http://json.org;

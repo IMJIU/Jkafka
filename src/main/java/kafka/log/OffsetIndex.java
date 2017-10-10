@@ -281,9 +281,9 @@ public class OffsetIndex extends Logging {
     }
 
     /**
-     * Reset the size of the memory map and the underneath file. This is used in two kinds of cases: (1) in
-     * trimToValidSize() which is called at closing the segment or new segment being rolled; (2) at
-     * loading segments from disk or truncating back to an old segment where a new log segment became active;
+     * Reset the size of the memory map and the underneath file. This is used in two kinds of cases:
+     * (1) in trimToValidSize() which is called at closing the segment or new segment being rolled;
+     * (2) at loading segments from disk or truncating back to an old segment where a new log segment became active;
      * we want to reset the index size to maximum index size to avoid rolling new segment.
      */
     public void resize(Integer newSize) {

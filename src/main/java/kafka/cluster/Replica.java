@@ -1,6 +1,4 @@
-package kafka.cluster;/**
- * Created by zhoulf on 2017/4/1.
- */
+package kafka.cluster;
 
 import kafka.log.Log;
 import kafka.utils.Time;

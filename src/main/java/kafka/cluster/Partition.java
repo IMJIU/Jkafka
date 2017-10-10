@@ -1,8 +1,18 @@
 package kafka.cluster;
 
+import com.google.common.collect.Sets;
+import kafka.api.LeaderAndIsr;
+import kafka.log.LogManager;
 import kafka.metrics.KafkaMetricsGroup;
 import kafka.server.ReplicaManager;
+import kafka.utils.Pool;
 import kafka.utils.Time;
+import kafka.utils.Utils;
+import org.I0Itec.zkclient.ZkClient;
+
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * Data structure that represents a topic partition. The leader maintains the AR, ISR, CUR, RAR
@@ -19,16 +29,16 @@ public class Partition extends KafkaMetricsGroup{
         this.time = time;
         this.replicaManager = replicaManager;
     }
-//        private val localBrokerId = replicaManager.config.brokerId;
-//        private val logManager = replicaManager.logManager;
-//        private val zkClient = replicaManager.zkClient;
-//        private val assignedReplicaMap = new Pool<Int, Replica>;
+        private Integer localBrokerId = replicaManager.config.brokerId;
+        private LogManager logManager = replicaManager.logManager;
+        private ZkClient zkClient = replicaManager.zkClient;
+        private Pool<Integer, Replica> assignedReplicaMap = new Pool<>();
 //        // The read lock is only required when multiple reads are executed and needs to be in a consistent manner;
-//        private val leaderIsrUpdateLock = new ReentrantReadWriteLock();
-//        private var Integer zkVersion = LeaderAndIsr.initialZKVersion;
-//  @volatile private var Integer leaderEpoch = LeaderAndIsr.initialLeaderEpoch - 1
-//  @volatile var Option leaderReplicaIdOpt<Int> = None
-//  @volatile var Set inSyncReplicas<Replica> = Set.empty<Replica>
+    private ReentrantReadWriteLock leaderIsrUpdateLock = new ReentrantReadWriteLock();
+    private Integer zkVersion = LeaderAndIsr.initialZKVersion;
+    private volatile Integer leaderEpoch = LeaderAndIsr.initialLeaderEpoch - 1;
+    volatile Optional<Integer> leaderReplicaIdOpt = Optional.empty();
+    volatile Set<Replica> inSyncReplicas = Sets.newHashSet();
 //  /* Epoch of the controller that last changed the leader. This needs to be initialized correctly upon broker startup.
 //   * One way of doing that is through the controller's start replica state change command. When a new broker starts up
 //   * the controller sends it a start replica command containing the leader for each partition that the broker hosts.
@@ -80,13 +90,16 @@ public class Partition extends KafkaMetricsGroup{
 //    }
 //  }
 //
-//            public void  getReplica Integer replicaId = localBrokerId): Option<Replica> = {
-//                val replica = assignedReplicaMap.get(replicaId);
-//            if (replica == null)
-//                None;
-//            else;
-//                Some(replica);
-//  }
+            public Optional<Replica> getReplica(Integer replicaId) {
+                if (replicaId == null) {
+                    replicaId = localBrokerId;
+                }
+                Replica replica = assignedReplicaMap.get(replicaId);
+                if (replica == null)
+                   return Optional.empty();
+                else
+                    return Optional.of(replica);
+            }
 //
 //            public void  leaderReplicaIfLocal(): Option<Replica> = {
 //                leaderReplicaIdOpt match {
@@ -111,9 +124,9 @@ public class Partition extends KafkaMetricsGroup{
 //            assignedReplicaMap.remove(replicaId);
 //        }
 //
-//        public void  delete() {
-//            // need to hold the lock to prevent appendMessagesToLeader() from hitting I/O exceptions due to log being deleted;
-//            inWriteLock(leaderIsrUpdateLock) {
+        public void  delete() {
+            // need to hold the lock to prevent appendMessagesToLeader() from hitting I/O exceptions due to log being deleted;
+            Utils.inWriteLock(leaderIsrUpdateLock,()-> {
 //                assignedReplicaMap.clear();
 //                inSyncReplicas = Set.empty<Replica>;
 //                leaderReplicaIdOpt = None;
@@ -124,8 +137,9 @@ public class Partition extends KafkaMetricsGroup{
 //                        fatal(String.format("Error deleting the log for partition <%s,%d>",topic, partitionId), e)
 //                        Runtime.getRuntime().halt(1);
 //                }
-//            }
-//        }
+                return null;
+            });
+        }
 //
 //        public Integer  void  getLeaderEpoch() {
 //        return this.leaderEpoch;

@@ -1,199 +1,217 @@
 package kafka.server;
 
+import com.yammer.metrics.core.Gauge;
+import com.yammer.metrics.core.Meter;
 import kafka.cluster.Partition;
+import kafka.cluster.Replica;
+import kafka.common.ErrorMapping;
+import kafka.common.ReplicaNotAvailableException;
 import kafka.func.Tuple;
 import kafka.log.LogManager;
+import kafka.log.OffsetCheckpoint;
+import kafka.log.TopicAndPartition;
 import kafka.metrics.KafkaMetricsGroup;
 import kafka.utils.Pool;
 import kafka.utils.Scheduler;
 import kafka.utils.Time;
+import kafka.utils.Utils;
 import org.I0Itec.zkclient.ZkClient;
 
+import java.io.File;
+import java.io.IOException;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 /**
  * Created by zhoulf on 2017/4/1.
  */
 
 
-public class ReplicaManager  extends KafkaMetricsGroup {
-        public static final String HighWatermarkFilename = "replication-offset-checkpoint";
-//
-    KafkaConfig config;
-    Time time;
-        ZkClient zkClient;
-    Scheduler scheduler;
-     LogManager logManager;
-     AtomicBoolean isShuttingDown;
+public class ReplicaManager extends KafkaMetricsGroup {
+    public static final String HighWatermarkFilename = "replication-offset-checkpoint";
 
-        public ReplicaManager(KafkaConfig config, Time time, ZkClient zkClient, Scheduler scheduler, LogManager logManager, AtomicBoolean isShuttingDown) {
-                this.config = config;
-                this.time = time;
-                this.zkClient = zkClient;
-                this.scheduler = scheduler;
-                this.logManager = logManager;
-                this.isShuttingDown = isShuttingDown;
+    public KafkaConfig config;
+    public Time time;
+    public ZkClient zkClient;
+    public  Scheduler scheduler;
+    public LogManager logManager;
+    public  AtomicBoolean isShuttingDown;
+
+    public ReplicaManager(KafkaConfig config, Time time, ZkClient zkClient, Scheduler scheduler, LogManager logManager, AtomicBoolean isShuttingDown) {
+        this.config = config;
+        this.time = time;
+        this.zkClient = zkClient;
+        this.scheduler = scheduler;
+        this.logManager = logManager;
+        this.isShuttingDown = isShuttingDown;
+    }
+
+    /* epoch of the controller that last changed the leader */
+    public volatile Integer controllerEpoch = KafkaController.InitialControllerEpoch - 1;
+    private Integer localBrokerId = config.brokerId;
+    private Pool<Tuple<String, Integer>, Partition> allPartitions = new Pool<>();
+    private Object replicaStateChangeLock = new Object();
+    //        public ReplicaFetcherManager replicaFetcherManager = new ReplicaFetcherManager(config, this);
+    private AtomicBoolean highWatermarkCheckPointThreadStarted = new AtomicBoolean(false);
+    Map<File, OffsetCheckpoint> highWatermarkCheckpoints = null;
+
+    public void init() {
+        highWatermarkCheckpoints = Utils.toMap(config.logDirs.stream().map(dir -> {
+            try {
+                return Tuple.of(new File(dir).getAbsolutePath(), new OffsetCheckpoint(new File(dir, ReplicaManager.HighWatermarkFilename)));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }).collect(Collectors.toList()));
+        this.logIdent = "[Replica Manager on Broker " + localBrokerId + "]: ";
+
+        newGauge("LeaderCount", new Gauge<Integer>() {
+                    public  Integer value() {
+                        return getLeaderPartitions().size;
+                    }
+                }
+        );
+        newGauge("PartitionCount", new Gauge<Integer>() {
+            public Integer value(){return allPartitions.getSize();}
+        });
+        newGauge("UnderReplicatedPartitions",
+                new Gauge<Integer>() {
+            public Integer value(){ return  underReplicatedPartitionCount();}
+        });
+    }
+
+    private boolean hwThreadInitialized = false;
+
+    StateChangeLogger stateChangeLogger = KafkaController.stateChangeLogger;
+//
+//         ProducerRequestPurgatory producerRequestPurgatory = null;
+//         FetchRequestPurgatory fetchRequestPurgatory = null;
+//
+//
+        Meter isrExpandRate = newMeter("IsrExpandsPerSec", "expands", TimeUnit.SECONDS);
+        Meter isrShrinkRate = newMeter("IsrShrinksPerSec",  "shrinks", TimeUnit.SECONDS);
+//
+        public Integer   underReplicatedPartitionCount() {
+                return getLeaderPartitions().count(_.isUnderReplicated);
         }
-        //  /* epoch of the controller that last changed the leader */
-//   public volatile Integer controllerEpoch = KafkaController.InitialControllerEpoch - 1;
-//        private Integer localBrokerId = config.brokerId;
-//        private Pool<Tuple<String,Integer>,Partition> allPartitions = new Pool<>();
-//        private Object replicaStateChangeLock = new Object();
-//        public ReplicaFetcherManager replicaFetcherManager = new ReplicaFetcherManager(config, this);
-//        private AtomicBoolean highWatermarkCheckPointThreadStarted = new AtomicBoolean(false);
-//        val highWatermarkCheckpoints = config.logDirs.map(dir => (new File(dir).getAbsolutePath, new OffsetCheckpoint(new File(dir, ReplicaManager.HighWatermarkFilename)))).toMap;
-//        private boolean hwThreadInitialized = false;
-//        this.logIdent = "[Replica Manager on Broker " + localBrokerId + "]: ";
-//        val stateChangeLogger = KafkaController.stateChangeLogger;
+
+    public void startHighWaterMarksCheckPointThread() {
+        if (highWatermarkCheckPointThreadStarted.compareAndSet(false, true))
+            scheduler.schedule("highwatermark-checkpoint", checkpointHighWatermarks, period = config.replicaHighWatermarkCheckpointIntervalMs, unit = TimeUnit.MILLISECONDS);
+    }
+
+        /**
+         * Initialize the replica manager with the request purgatory
+         *
+         * will TODO be removed in 0.9 where we refactor server structure
+         */
 //
-//        var ProducerRequestPurgatory producerRequestPurgatory = null;
-//        var FetchRequestPurgatory fetchRequestPurgatory = null;
+        public void  initWithRequestPurgatory(ProducerRequestPurgatory producerRequestPurgatory, FetchRequestPurgatory fetchRequestPurgatory) {
+            this.producerRequestPurgatory = producerRequestPurgatory;
+            this.fetchRequestPurgatory = fetchRequestPurgatory;
+        }
+
+        /**
+         * Unblock some delayed produce requests with the request key
+         */
+        public void  unblockDelayedProduceRequests(TopicAndPartition key) {
+            val satisfied = producerRequestPurgatory.update(key);
+            debug(String.format("Request key %s unblocked %d producer requests.",key, satisfied.size));
+
+            // send any newly unblocked responses;
+            satisfied.foreach(producerRequestPurgatory.respond(_));
+        }
+
+        /**
+         * Unblock some delayed fetch requests with the request key
+         */
+        public void  unblockDelayedFetchRequests(TopicAndPartition key) {
+            val satisfied = fetchRequestPurgatory.update(key);
+            debug(String.format("Request key %s unblocked %d fetch requests.",key, satisfied.size))
+
+            // send any newly unblocked responses;
+            satisfied.foreach(fetchRequestPurgatory.respond(_))
+        }
+
+        public void  startup() {
+            // start ISR expiration thread;
+            scheduler.schedule("isr-expiration", maybeShrinkIsr, period = config.replicaLagTimeMaxMs, unit = TimeUnit.MILLISECONDS);
+        }
+
+    public Short stopReplica(String topic, Integer partitionId, Boolean deletePartition) {
+        stateChangeLogger.trace(String.format("Broker %d handling stop replica (delete=%s) for partition <%s,%d>", localBrokerId,
+                deletePartition.toString(), topic, partitionId));
+        Short errorCode = ErrorMapping.NoError;
+        Optional<Partition> optional = getPartition(topic, partitionId);
+        if (optional.isPresent()) {
+            if (deletePartition) {
+                Partition removedPartition = allPartitions.remove(Tuple.of(topic, partitionId));
+                if (removedPartition != null)
+                    removedPartition.delete(); // this will delete the local log;
+            }
+        } else {
+            // Delete log and corresponding folders in case replica manager doesn't hold them anymore.;
+            // This could happen when topic is being deleted while broker is down and recovers.;
+            if (deletePartition) {
+                TopicAndPartition topicAndPartition = new TopicAndPartition(topic, partitionId);
+                if (logManager.getLog(topicAndPartition).isPresent()) {
+                    logManager.deleteLog(topicAndPartition);
+                }
+            }
+        }
+        stateChangeLogger.trace(String.format("Broker %d ignoring stop replica (delete=%s) for partition <%s,%d> as replica doesn't exist on broker", localBrokerId, deletePartition, topic, partitionId));
+        stateChangeLogger.trace(String.format("Broker %d finished handling stop replica (delete=%s) for partition <%s,%d>", localBrokerId, deletePartition, topic, partitionId));
+        return errorCode;
+    }
+
+            public void  stopReplicas(StopReplicaRequest stopReplicaRequest): (mutable.Map<TopicAndPartition, Short>, Short) = {
+            replicaStateChangeLock synchronized {
+                val responseMap = new collection.mutable.HashMap<TopicAndPartition, Short>;
+                if(stopReplicaRequest.controllerEpoch < controllerEpoch) {
+                    stateChangeLogger.warn("Broker %d received stop replica request from an old controller epoch %d.";
+                            .format(localBrokerId, stopReplicaRequest.controllerEpoch) +;
+                            " Latest known controller epoch is %d " + controllerEpoch);
+                    (responseMap, ErrorMapping.StaleControllerEpochCode);
+                } else {
+                    controllerEpoch = stopReplicaRequest.controllerEpoch;
+                    // First stop fetchers for all partitions, then stop the corresponding replicas;
+                    replicaFetcherManager.removeFetcherForPartitions(stopReplicaRequest.partitions.map(r => TopicAndPartition(r.topic, r.partition)));
+                    for(topicAndPartition <- stopReplicaRequest.partitions){
+                        val errorCode = stopReplica(topicAndPartition.topic, topicAndPartition.partition, stopReplicaRequest.deletePartitions);
+                        responseMap.put(topicAndPartition, errorCode);
+                    }
+                    (responseMap, ErrorMapping.NoError);
+                }
+            }
+        }
+
+        public Partition  getOrCreatePartition(String topic, Integer partitionId) {
+                Partition partition = allPartitions.get(Tuple.of(topic, partitionId));
+        if (partition == null) {
+            allPartitions.putIfNotExists(Tuple.of(topic, partitionId), new Partition(topic, partitionId, time, this));
+            partition = allPartitions.get(Tuple.of(topic, partitionId));
+        }
+        return partition;
+  }
+
+    public Optional<Partition> getPartition(String topic, Integer partitionId) {
+        Partition partition = allPartitions.get(Tuple.of(topic, partitionId));
+        if (partition == null)
+            return Optional.empty();
+        else
+            return Optional.of(partition);
+    }
 //
-//        newGauge(
-//                "LeaderCount",
-//                new Gauge<Int> {
-//            public void  value = {
-//                    getLeaderPartitions().size;
-//            }
-//        }
-//  );
-//        newGauge(
-//                "PartitionCount",
-//                new Gauge<Int> {
-//            public void  value = allPartitions.size;
-//        }
-//  );
-//        newGauge(
-//                "UnderReplicatedPartitions",
-//                new Gauge<Int> {
-//            public void  value = underReplicatedPartitionCount();
-//        }
-//  );
-//        val isrExpandRate = newMeter("IsrExpandsPerSec",  "expands", TimeUnit.SECONDS);
-//        val isrShrinkRate = newMeter("IsrShrinksPerSec",  "shrinks", TimeUnit.SECONDS);
-//
-//        public Integer  void  underReplicatedPartitionCount() {
-//                getLeaderPartitions().count(_.isUnderReplicated);
-//        }
-//
-//        public void  startHighWaterMarksCheckPointThread() = {
-//        if(highWatermarkCheckPointThreadStarted.compareAndSet(false, true))
-//            scheduler.schedule("highwatermark-checkpoint", checkpointHighWatermarks, period = config.replicaHighWatermarkCheckpointIntervalMs, unit = TimeUnit.MILLISECONDS);
-//  }
-//
-//        /**
-//         * Initialize the replica manager with the request purgatory
-//         *
-//         * will TODO be removed in 0.9 where we refactor server structure
-//         */
-//
-//        public void  initWithRequestPurgatory(ProducerRequestPurgatory producerRequestPurgatory, FetchRequestPurgatory fetchRequestPurgatory) {
-//            this.producerRequestPurgatory = producerRequestPurgatory;
-//            this.fetchRequestPurgatory = fetchRequestPurgatory;
-//        }
-//
-//        /**
-//         * Unblock some delayed produce requests with the request key
-//         */
-//        public void  unblockDelayedProduceRequests(TopicAndPartition key) {
-//            val satisfied = producerRequestPurgatory.update(key);
-//            debug("Request key %s unblocked %d producer requests.";
-//                    .format(key, satisfied.size))
-//
-//            // send any newly unblocked responses;
-//            satisfied.foreach(producerRequestPurgatory.respond(_))
-//        }
-//
-//        /**
-//         * Unblock some delayed fetch requests with the request key
-//         */
-//        public void  unblockDelayedFetchRequests(TopicAndPartition key) {
-//            val satisfied = fetchRequestPurgatory.update(key);
-//            debug(String.format("Request key %s unblocked %d fetch requests.",key, satisfied.size))
-//
-//            // send any newly unblocked responses;
-//            satisfied.foreach(fetchRequestPurgatory.respond(_))
-//        }
-//
-//        public void  startup() {
-//            // start ISR expiration thread;
-//            scheduler.schedule("isr-expiration", maybeShrinkIsr, period = config.replicaLagTimeMaxMs, unit = TimeUnit.MILLISECONDS);
-//        }
-//
-//        public void  stopReplica(String topic, Integer partitionId, Boolean deletePartition): Short  = {
-//                stateChangeLogger.trace(String.format("Broker %d handling stop replica (delete=%s) for partition <%s,%d>",localBrokerId,
-//                        deletePartition.toString, topic, partitionId));
-//                val errorCode = ErrorMapping.NoError;
-//                getPartition(topic, partitionId) match {
-//        case Some(partition) =>
-//            if(deletePartition) {
-//                val removedPartition = allPartitions.remove((topic, partitionId));
-//                if (removedPartition != null)
-//                    removedPartition.delete() // this will delete the local log;
-//            }
-//        case None =>
-//            // Delete log and corresponding folders in case replica manager doesn't hold them anymore.;
-//            // This could happen when topic is being deleted while broker is down and recovers.;
-//            if(deletePartition) {
-//                val topicAndPartition = TopicAndPartition(topic, partitionId);
-//
-//                if(logManager.getLog(topicAndPartition).isDefined) {
-//                    logManager.deleteLog(topicAndPartition);
-//                }
-//            }
-//            stateChangeLogger.trace("Broker %d ignoring stop replica (delete=%s) for partition <%s,%d> as replica doesn't exist on broker";
-//                    .format(localBrokerId, deletePartition, topic, partitionId))
-//    }
-//            stateChangeLogger.trace("Broker %d finished handling stop replica (delete=%s) for partition <%s,%d>";
-//                    .format(localBrokerId, deletePartition, topic, partitionId))
-//            errorCode;
-//  }
-//
-//            public void  stopReplicas(StopReplicaRequest stopReplicaRequest): (mutable.Map<TopicAndPartition, Short>, Short) = {
-//            replicaStateChangeLock synchronized {
-//                val responseMap = new collection.mutable.HashMap<TopicAndPartition, Short>;
-//                if(stopReplicaRequest.controllerEpoch < controllerEpoch) {
-//                    stateChangeLogger.warn("Broker %d received stop replica request from an old controller epoch %d.";
-//                            .format(localBrokerId, stopReplicaRequest.controllerEpoch) +;
-//                            " Latest known controller epoch is %d " + controllerEpoch);
-//                    (responseMap, ErrorMapping.StaleControllerEpochCode);
-//                } else {
-//                    controllerEpoch = stopReplicaRequest.controllerEpoch;
-//                    // First stop fetchers for all partitions, then stop the corresponding replicas;
-//                    replicaFetcherManager.removeFetcherForPartitions(stopReplicaRequest.partitions.map(r => TopicAndPartition(r.topic, r.partition)));
-//                    for(topicAndPartition <- stopReplicaRequest.partitions){
-//                        val errorCode = stopReplica(topicAndPartition.topic, topicAndPartition.partition, stopReplicaRequest.deletePartitions);
-//                        responseMap.put(topicAndPartition, errorCode);
-//                    }
-//                    (responseMap, ErrorMapping.NoError);
-//                }
-//            }
-//        }
-//
-//        public Partition  void  getOrCreatePartition(String topic, Integer partitionId) {
-//                var partition = allPartitions.get((topic, partitionId));
-//        if (partition == null) {
-//            allPartitions.putIfNotExists((topic, partitionId), new Partition(topic, partitionId, time, this));
-//            partition = allPartitions.get((topic, partitionId));
-//        }
-//        partition;
-//  }
-//
-//        public void  getPartition(String topic, Integer partitionId): Option<Partition> = {
-//                val partition = allPartitions.get((topic, partitionId));
-//        if (partition == null)
-//            None;
-//        else;
-//            Some(partition);
-//  }
-//
-//        public Replica  void  getReplicaOrException(String topic, Integer partition) {
-//                val replicaOpt = getReplica(topic, partition);
-//        if(replicaOpt.isDefined)
-//            return replicaOpt.get;
-//        else;
-//            throw new ReplicaNotAvailableException(String.format("Replica %d is not available for partition <%s,%d>",config.brokerId, topic, partition))
-//  }
+        public Replica    getReplicaOrException(String topic, Integer partition) {
+                Optional<Replica> replicaOpt = getReplica(topic, partition,null);
+        if(replicaOpt.isPresent())
+            return replicaOpt.get();
+        else;
+            throw new ReplicaNotAvailableException(String.format("Replica %d is not available for partition <%s,%d>",config.brokerId, topic, partition))
+  }
 //
 //        public Replica  void  getLeaderReplicaIfLocal(String topic, Integer partitionId)  {
 //                val partitionOpt = getPartition(topic, partitionId);
@@ -210,13 +228,17 @@ public class ReplicaManager  extends KafkaMetricsGroup {
 //    }
 //  }
 //
-//        public void  getReplica(String topic, Integer partitionId, Integer replicaId = config.brokerId): Option<Replica> =  {
-//                val partitionOpt = getPartition(topic, partitionId);
-//                partitionOpt match {
-//        case None => None;
-//        case Some(partition) => partition.getReplica(replicaId);
-//    }
-//  }
+        public Optional<Replica>  getReplica(String topic, Integer partitionId, Integer replicaId ){
+            if(replicaId==null){
+                replicaId = config.brokerId;
+            }
+            Optional<Partition> partitionOpt = getPartition(topic, partitionId);
+            if(partitionOpt.isPresent()){
+               return partitionOpt.get().getReplica(replicaId);
+            }
+            return Optional.empty();
+    }
+  }
 //
 //            /**
 //             * Read from all the offset details given and return a map of

@@ -36,11 +36,7 @@ public class Message {
         this.buffer = buffer;
     }
 
-    public Message(byte[] content,
-                   byte[] key,
-                   CompressionCodec codec,
-                   int payloadOffset,
-                   int payloadSize) {
+    public Message(byte[] content, byte[] key, CompressionCodec codec, int payloadOffset, int payloadSize) {
         int _payloadSize;
         if (content == null) {
             _payloadSize = 0;
@@ -112,6 +108,7 @@ public class Message {
 
     /**
      * Retrieve the previously computed CRC for this message
+     * 获取CRC32
      */
     public Long checksum() {
         return Utils.readUnsignedInt(buffer, CrcOffset);
