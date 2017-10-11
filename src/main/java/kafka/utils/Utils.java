@@ -15,6 +15,7 @@ import java.util.*;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.zip.CRC32;
 
 /**
@@ -801,12 +802,31 @@ public class Utils {
         }
         return maps;
     }
+    public static <K,V, RESULT> List<RESULT>map(Map<K, V> map, Handler<Map.Entry<K, V>, RESULT> handler) {
+        List<RESULT>list = Lists.newArrayList();
+        if (map != null) {
+            for (Map.Entry<K, V> entry : map.entrySet()) {
+                list.add(handler.handle(entry));
+            }
+        }
+        return list;
+    }
 
-    public static <K, V, V2> Map<K, V2> map(Map<K, V> map, Handler<V, V2> handler) {
+    public static <K, V, V2> Map<K, V2> mapValue(Map<K, V> map, Handler<V, V2> handler) {
         Map<K, V2> result = Maps.newHashMap();
         if (map != null) {
             for (Map.Entry<K, V> entry : map.entrySet()) {
                 result.put(entry.getKey(), handler.handle(entry.getValue()));
+            }
+        }
+        return result;
+    }
+
+    public static <K, V, V2> Map<K, V2> mapValue2(Map<K, V> map, Handler<Map.Entry<K, V>, V2> handler) {
+        Map<K, V2> result = Maps.newHashMap();
+        if (map != null) {
+            for (Map.Entry<K, V> entry : map.entrySet()) {
+                result.put(entry.getKey(), handler.handle(entry));
             }
         }
         return result;
@@ -839,5 +859,22 @@ public class Utils {
             map.put(kv.v1, kv.v2);
         }
         return map;
+    }
+
+    public static <T> List<T> iterate(int i, int limit, Handler<Integer, T> handler) {
+        return Stream.iterate(i, n -> n + 1).limit(limit).map(n -> handler.handle(n)).collect(Collectors.toList());
+    }
+
+    public static <T> List<T> iterateFlat(int i, int limit, Handler<Integer, Stream<T>> handler) {
+        return Stream.iterate(i, n -> n + 1).limit(limit).flatMap(n -> handler.handle(n)).collect(Collectors.toList());
+    }
+
+    public static <T> boolean exists(Collection<T> list,Handler<T,Boolean>handler) {
+        for (T t:list) {
+            if(handler.handle(t)){
+                return true;
+            }
+        }
+        return  false;
     }
 }

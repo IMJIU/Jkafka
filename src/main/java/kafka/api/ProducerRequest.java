@@ -2,6 +2,7 @@ package kafka.api;
 
 import kafka.common.ErrorMapping;
 import kafka.func.Handler;
+import kafka.func.IntCount;
 import kafka.func.Tuple;
 import kafka.log.TopicAndPartition;
 import kafka.message.ByteBufferMessageSet;
@@ -45,7 +46,7 @@ public class ProducerRequest extends RequestOrResponse {
         this.ackTimeoutMs = ackTimeoutMs;
         this.data = data;
         dataGroupedByTopic = Utils.groupByKey(data, k -> k.topic);
-        topicPartitionMessageSizeMap = Utils.map(data, r -> r.sizeInBytes());
+        topicPartitionMessageSizeMap = Utils.mapValue(data, r -> r.sizeInBytes());
     }
 
     public ProducerRequest(Integer correlationId,
@@ -112,7 +113,7 @@ public class ProducerRequest extends RequestOrResponse {
     }
 
     public Integer sizeInBytes() {
-        AtomicInteger foldedTopics = new AtomicInteger(0);
+        IntCount foldedTopics = IntCount.of(0);
         dataGroupedByTopic.entrySet().stream().forEach(currTopic -> {
             AtomicInteger foldedPartitions = new AtomicInteger(0);
             currTopic.getValue().entrySet().forEach(currPartition ->
@@ -121,7 +122,7 @@ public class ProducerRequest extends RequestOrResponse {
                             4 + /* byte-length of serialized messages */
                             currPartition.getValue().sizeInBytes())
             );
-            foldedTopics.set(foldedTopics.intValue() +
+            foldedTopics.set(foldedTopics.get() +
                     ApiUtils.shortStringLength(currTopic.getKey()) +
                     4 + /* the number of partitions */
                     foldedPartitions.intValue()
@@ -133,7 +134,7 @@ public class ProducerRequest extends RequestOrResponse {
                 2 + /* requiredAcks */
                 4 + /* ackTimeoutMs */
                 4 + /* number of topics */
-                foldedTopics.intValue();
+                foldedTopics.get();
     }
 
 
@@ -156,7 +157,7 @@ public class ProducerRequest extends RequestOrResponse {
             }
         } else {
             Map<TopicAndPartition, ProducerResponseStatus> producerResponseStatus =
-                    Utils.map(data, v -> new ProducerResponseStatus(ErrorMapping.codeFor(e.getClass()), -1l));
+                    Utils.mapValue(data, v -> new ProducerResponseStatus(ErrorMapping.codeFor(e.getClass()), -1l));
             ProducerResponse errorResponse = new ProducerResponse(correlationId, producerResponseStatus);
             try {
                 requestChannel.sendResponse(new RequestChannel.Response(request, new BoundedByteBufferSend(errorResponse)));

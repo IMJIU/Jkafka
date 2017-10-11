@@ -103,7 +103,7 @@ public class OffsetCommitRequest extends RequestOrResponse {
     }
 
     public OffsetCommitResponse responseFor(Short errorCode, Integer offsetMetadataMaxSize) {
-        Map<TopicAndPartition, Short> commitStatus = Utils.map(requestInfo, v -> {
+        Map<TopicAndPartition, Short> commitStatus = Utils.mapValue(requestInfo, v -> {
             if (v.metadata != null && v.metadata.length() > offsetMetadataMaxSize)
                 return ErrorMapping.OffsetMetadataTooLargeCode;
             else if (errorCode == ErrorMapping.UnknownTopicOrPartitionCode)

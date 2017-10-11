@@ -17,7 +17,6 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
 /**
@@ -408,7 +407,7 @@ public class LogManager extends Logging {
     private void checkpointLogsInDir(File dir) throws IOException {
         Map<TopicAndPartition, Log> recoveryPoints = this.logsByDir().get(dir.toString());
         if (recoveryPoints != null) {
-            this.recoveryPointCheckpoints.get(dir).write(Utils.map(recoveryPoints, v -> v.recoveryPoint));
+            this.recoveryPointCheckpoints.get(dir).write(Utils.mapValue(recoveryPoints, v -> v.recoveryPoint));
         }
     }
 
@@ -483,7 +482,7 @@ public class LogManager extends Logging {
             return logDirs.get(0);
         } else {
             // count the number of logs in each parent directory (including 0 for empty directories;
-            Map<String, Integer> logCounts = Utils.map(Utils.groupBy(allLogs(), log -> log.dir.getParent()), list -> list.size());
+            Map<String, Integer> logCounts = Utils.mapValue(Utils.groupBy(allLogs(), log -> log.dir.getParent()), list -> list.size());
             Map<String, Integer> zeros = logDirs.stream().map(dir -> Tuple.of(dir.getPath(), 0)).collect(Collectors.toMap(t -> t.v1, t -> t.v2));
             zeros.putAll(logCounts);
 //            var dirCounts = (zeros++ logCounts).toBuffer;

@@ -47,21 +47,3 @@ abstract class Receive extends Transmission {
 
 }
 
-/**
- * A transmission that is being sent out to the channel
- */
-abstract class Send extends Transmission {
-
-    public abstract Integer writeTo(GatheringByteChannel channel);
-
-    public Integer  writeCompletely(GatheringByteChannel channel) {
-        Integer totalWritten = 0;
-        while (!complete()) {
-            Integer written = writeTo(channel);
-            trace(written + " bytes written.");
-            totalWritten += written;
-        }
-        return totalWritten;
-    }
-
-}

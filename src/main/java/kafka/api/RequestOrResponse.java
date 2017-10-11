@@ -33,12 +33,3 @@ public abstract class RequestOrResponse extends Logging {
 
 }
 
-class Request {
-    Integer OrdinaryConsumerId = -1;
-    Integer DebuggingConsumerId = -2;
-
-    // Broker ids are non-negative int.
-    public Boolean isValidBrokerId(Integer brokerId) {
-        return brokerId >= 0;
-    }
-}

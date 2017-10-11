@@ -33,6 +33,10 @@ public class IntCount {
         return value -= n;
     }
 
+    public void set(int n){
+        this.value = n;
+    }
+
     public int get(){
         return value;
     }
