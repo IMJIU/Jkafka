@@ -21,7 +21,9 @@ public class ScalaTranslator {
 //                main + "cluster/Partition.java",
 //                main + "utils/Pool.java",
 //                main + "log/LogConfig.java",
-                main + "server/OffsetManagerConfig.java");
+             //   main + "server/OffsetManagerConfig.java"
+                  test + "api/SerializationTestUtils.java"
+                );
 //        List<String> filePaths = Arrays.asList(main + "log/Log.java");
         for (String p : filePaths) {
             convertToJava(p, true);
@@ -132,7 +134,7 @@ public class ScalaTranslator {
         }
     }
     public static String main = "g:/github/JKafka/src/main/java/kafka/";
-    public static String test = "g:/github/JKafka/src/test/kafka/";
+    public static String test = "g:/github/JKafka/src/test/java/kafka/";
 
     static {
         String ip = getMyIp();

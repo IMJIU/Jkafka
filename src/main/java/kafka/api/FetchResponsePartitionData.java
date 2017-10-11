@@ -20,7 +20,9 @@ public class FetchResponsePartitionData {
                     8 + /* high watermark */
                     4; /* messageSetSize */
     public Integer sizeInBytes;
-
+    public FetchResponsePartitionData(MessageSet messages) {
+        this(null,null,messages);
+    }
     public FetchResponsePartitionData(Short error, Long hw, MessageSet messages) {
         if (error == null) {
             error = ErrorMapping.NoError;
