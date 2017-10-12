@@ -7,7 +7,7 @@ import java.util.List;
  * A set of composite sends, sent one after another
  */
 public abstract class MultiSend<S extends Send> extends Send {
-    public Integer expectedBytesToWrite;
+    public abstract Integer expectedBytesToWrite();
     List<S> sends;
     private List<S> current = sends;
     int totalWritten = 0;
@@ -34,14 +34,14 @@ public abstract class MultiSend<S extends Send> extends Send {
             if (sendComplete)
                 current = current.subList(1,current.size());
         } while (!complete() && sendComplete);
-        trace("Bytes written as part of multisend call : " + totalWrittenPerCall + "Total bytes written so far : " + totalWritten + "Expected bytes to write : " + expectedBytesToWrite);
+        trace("Bytes written as part of multisend call : " + totalWrittenPerCall + "Total bytes written so far : " + totalWritten + "Expected bytes to write : " + expectedBytesToWrite());
         return totalWrittenPerCall;
     }
 
     public boolean complete() {
         if (current == null) {
-            if (totalWritten != expectedBytesToWrite)
-                error("mismatch in sending bytes over socket; expected: " + expectedBytesToWrite + " actual: " + totalWritten);
+            if (totalWritten != expectedBytesToWrite())
+                error("mismatch in sending bytes over socket; expected: " + expectedBytesToWrite() + " actual: " + totalWritten);
             return true;
         } else {
             return false;

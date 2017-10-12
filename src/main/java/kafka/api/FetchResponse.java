@@ -5,6 +5,7 @@ import kafka.func.IntCount;
 import kafka.func.Tuple;
 import kafka.log.TopicAndPartition;
 import kafka.message.ByteBufferMessageSet;
+import kafka.network.MultiSend;
 import kafka.network.Send;
 import kafka.utils.Utils;
 
@@ -42,7 +43,7 @@ public class FetchResponse extends RequestOrResponse {
     public FetchResponse readFrom(ByteBuffer buffer) {
         int correlationId = buffer.getInt();
         int topicCount = buffer.getInt();
-        List<Tuple<TopicAndPartition, FetchResponsePartitionData>> pairs = Utils.iterateFlat(1, topicCount, n -> {
+        List<Tuple<TopicAndPartition, FetchResponsePartitionData>> pairs = Utils.itFlatToList(1, topicCount, n -> {
             TopicData topicData = TopicData.readFrom(buffer);
             return topicData.partitionData.entrySet().stream().map(entry -> {
                 Integer partitionId = entry.getKey();
@@ -116,7 +117,7 @@ class TopicData {
     public static TopicData readFrom(ByteBuffer buffer) {
         String topic = readShortString(buffer);
         int partitionCount = buffer.getInt();
-        List<Tuple<Integer, FetchResponsePartitionData>> topicPartitionDataPairs = Utils.iterate(1, partitionCount, n -> {
+        List<Tuple<Integer, FetchResponsePartitionData>> topicPartitionDataPairs = Utils.itToList(1, partitionCount, n -> {
             int partitionId = buffer.getInt();
             FetchResponsePartitionData partitionData = FetchResponsePartitionData.readFrom(buffer);
             return Tuple.of(partitionId, partitionData);   /* pData : 4(error)+8(hw)+4(msize)+n(data) */
@@ -143,6 +144,7 @@ class TopicData {
 
 class FetchResponseSend extends Send {
     public FetchResponse fetchResponse;
+    public Send sends;
 
     public FetchResponseSend(FetchResponse fetchResponse) {
         this.fetchResponse = fetchResponse;
@@ -151,18 +153,12 @@ class FetchResponseSend extends Send {
         buffer.putInt(fetchResponse.correlationId);
         buffer.putInt(fetchResponse.dataGroupedByTopic.size()); // topic count
         buffer.rewind();
-
-        sends = new MultiSend(fetchResponse.dataGroupedByTopic.toList.map {
-        case(topic,data)=>new
-
-            TopicDataSend(TopicData(topic,
-                          data.map {
-                case (topicAndPartition,message) =>(topicAndPartition.partition, message)}))
-        })
-
-        {
-            val expectedBytesToWrite = fetchResponse.sizeInBytes - FetchResponse.headerSize
-        }
+        sends = new MultiSend<TopicDataSend>(Utils.map(fetchResponse.dataGroupedByTopic, e ->
+                new TopicDataSend(new TopicData(e.getKey(), Utils.mapKey(e.getValue(), k -> k.partition))))) {
+            public Integer expectedBytesToWrite() {
+                return fetchResponse.sizeInBytes() - FetchResponse.headerSize;
+            }
+        };
     }
 
     private Integer size;

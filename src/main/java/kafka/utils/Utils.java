@@ -802,8 +802,19 @@ public class Utils {
         }
         return maps;
     }
-    public static <K,V, RESULT> List<RESULT>map(Map<K, V> map, Handler<Map.Entry<K, V>, RESULT> handler) {
-        List<RESULT>list = Lists.newArrayList();
+
+    public static <V, RESULT> List<RESULT> map(Set<V> set, Handler<V, RESULT> handler) {
+        List<RESULT> list = Lists.newArrayList();
+        if (set != null) {
+            for (V entry : set) {
+                list.add(handler.handle(entry));
+            }
+        }
+        return list;
+    }
+
+    public static <K, V, RESULT> List<RESULT> map(Map<K, V> map, Handler<Map.Entry<K, V>, RESULT> handler) {
+        List<RESULT> list = Lists.newArrayList();
         if (map != null) {
             for (Map.Entry<K, V> entry : map.entrySet()) {
                 list.add(handler.handle(entry));
@@ -861,20 +872,24 @@ public class Utils {
         return map;
     }
 
-    public static <T> List<T> iterate(int i, int limit, Handler<Integer, T> handler) {
+    public static void it(int i, int limit, ActionWithParam<Integer> actionWithParam) {
+        Stream.iterate(i, n -> n + 1).limit(limit).forEach(n -> actionWithParam.invoke(n));
+    }
+
+    public static <T> List<T> itToList(int i, int limit, Handler<Integer, T> handler) {
         return Stream.iterate(i, n -> n + 1).limit(limit).map(n -> handler.handle(n)).collect(Collectors.toList());
     }
 
-    public static <T> List<T> iterateFlat(int i, int limit, Handler<Integer, Stream<T>> handler) {
+    public static <T> List<T> itFlatToList(int i, int limit, Handler<Integer, Stream<T>> handler) {
         return Stream.iterate(i, n -> n + 1).limit(limit).flatMap(n -> handler.handle(n)).collect(Collectors.toList());
     }
 
-    public static <T> boolean exists(Collection<T> list,Handler<T,Boolean>handler) {
-        for (T t:list) {
-            if(handler.handle(t)){
+    public static <T> boolean exists(Collection<T> list, Handler<T, Boolean> handler) {
+        for (T t : list) {
+            if (handler.handle(t)) {
                 return true;
             }
         }
-        return  false;
+        return false;
     }
 }

@@ -1,6 +1,7 @@
 package kafka.api;
 
 import kafka.common.ErrorMapping;
+import kafka.consumer.ConsumerConfig;
 import kafka.func.IntCount;
 import kafka.func.Tuple;
 import kafka.log.TopicAndPartition;
@@ -157,7 +158,11 @@ public class FetchRequest extends RequestOrResponse {
     public void handleError(Throwable e, RequestChannel requestChannel, RequestChannel.Request request) {
         Map<TopicAndPartition, FetchResponsePartitionData> fetchResponsePartitionData = Utils.mapValue(requestInfo, v -> new FetchResponsePartitionData(ErrorMapping.codeFor(e.getClass()), -1L, MessageSet.Empty));
         FetchResponse errorResponse = new FetchResponse(correlationId, fetchResponsePartitionData);
-        requestChannel.sendResponse(new RequestChannel.Response(request, new FetchResponseSend(errorResponse)));
+        try {
+            requestChannel.sendResponse(new RequestChannel.Response(request, new FetchResponseSend(errorResponse)));
+        } catch (InterruptedException e1) {
+            e1.printStackTrace();
+        }
     }
 
     @Override
@@ -171,7 +176,7 @@ public class FetchRequest extends RequestOrResponse {
         fetchRequest.append("; MaxWait: " + maxWait + " ms");
         fetchRequest.append("; MinBytes: " + minBytes + " bytes");
         if (details)
-            fetchRequest.append("; RequestInfo: " + requestInfo.mkString(","));
+            fetchRequest.append("; RequestInfo: " + requestInfo);
         return fetchRequest.toString();
     }
 }
