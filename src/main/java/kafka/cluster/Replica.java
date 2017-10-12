@@ -1,6 +1,7 @@
 package kafka.cluster;
 
 import kafka.log.Log;
+import kafka.server.LogOffsetMetadata;
 import kafka.utils.Time;
 
 import java.util.Optional;
@@ -35,7 +36,7 @@ public class Replica {
 
 
 //        // the high watermark offset value, in non-leader replicas only its message offsets are kept;
-//  @volatile private<this> var LogOffsetMetadata highWatermarkMetadata = new LogOffsetMetadata(initialHighWatermarkValue)
+   private volatile LogOffsetMetadata highWatermarkMetadata = new LogOffsetMetadata(initialHighWatermarkValue);
 //        // the log end offset value, kept in all replicas;
 //        // for local replica it is the log's end offset, for remote replicas its value is only updated by follower fetch;
 //  @volatile private<this> var LogOffsetMetadata logEndOffsetMetadata = LogOffsetMetadata.UnknownOffsetMetadata
@@ -81,7 +82,7 @@ public class Replica {
 //            }
 //        }
 //
-//        public void  highWatermark = highWatermarkMetadata;
+        public LogOffsetMetadata  highWatermark = highWatermarkMetadata;
 //
 //        public void  convertHWToLocalOffsetMetadata() = {
 //        if (isLocal) {

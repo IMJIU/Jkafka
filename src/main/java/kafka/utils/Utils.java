@@ -833,7 +833,7 @@ public class Utils {
         return result;
     }
 
-    public static <K, V, V2> Map<K, V2> mapValue2(Map<K, V> map, Handler<Map.Entry<K, V>, V2> handler) {
+    public static <K, V, V2> Map<K, V2> map2(Map<K, V> map, Handler<Map.Entry<K, V>, V2> handler) {
         Map<K, V2> result = Maps.newHashMap();
         if (map != null) {
             for (Map.Entry<K, V> entry : map.entrySet()) {
@@ -871,7 +871,17 @@ public class Utils {
         }
         return map;
     }
-
+    public static <T> List<T> filter(Iterable<T> it,Handler<T,Boolean>handler){
+        Iterator<T> iterator = it.iterator();
+        List<T> list = Lists.newArrayList();
+        while(iterator.hasNext()){
+            T t = iterator.next();
+            if(handler.handle(t)){
+                list.add(t);
+            }
+        }
+        return list;
+    }
     public static void it(int i, int limit, ActionWithParam<Integer> actionWithParam) {
         Stream.iterate(i, n -> n + 1).limit(limit).forEach(n -> actionWithParam.invoke(n));
     }

@@ -46,11 +46,11 @@ private Map<TopicAndPartition,FetchResponsePartitionData> topicDataFetchResponse
         topicDataFetchResponse = Utils.toMap(groupedData);
     }
 
-private val partitionDataMessage0 = new ByteBufferMessageSet(new Message("first message".getBytes));
-private val partitionDataMessage1 = new ByteBufferMessageSet(new Message("second message".getBytes));
-private val partitionDataMessage2 = new ByteBufferMessageSet(new Message("third message".getBytes));
-private val partitionDataMessage3 = new ByteBufferMessageSet(new Message("fourth message".getBytes));
-private val partitionDataProducerRequestArray = Array(partitionDataMessage0, partitionDataMessage1, partitionDataMessage2, partitionDataMessage3);
+private ByteBufferMessageSet partitionDataMessage0 = new ByteBufferMessageSet(new Message("first message".getBytes()));
+private ByteBufferMessageSet partitionDataMessage1 = new ByteBufferMessageSet(new Message("second message".getBytes()));
+private ByteBufferMessageSet partitionDataMessage2 = new ByteBufferMessageSet(new Message("third message".getBytes()));
+private ByteBufferMessageSet partitionDataMessage3 = new ByteBufferMessageSet(new Message("fourth message".getBytes()));
+private List<ByteBufferMessageSet> partitionDataProducerRequestArray = Lists.newArrayList(partitionDataMessage0, partitionDataMessage1, partitionDataMessage2, partitionDataMessage3);
 
 private val topicDataProducerRequest = {
         val groupedData = Array(topic1, topic2).flatMap(topic =>

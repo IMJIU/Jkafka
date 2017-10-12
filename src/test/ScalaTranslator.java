@@ -21,8 +21,8 @@ public class ScalaTranslator {
 //                main + "cluster/Partition.java",
 //                main + "utils/Pool.java",
 //                main + "log/LogConfig.java",
-             //   main + "server/OffsetManagerConfig.java"
-                  test + "api/SerializationTestUtils.java"
+                main + "server/DelayedProduce.java"
+               //   test + "api/SerializationTestUtils.java"
                 );
 //        List<String> filePaths = Arrays.asList(main + "log/Log.java");
         for (String p : filePaths) {
