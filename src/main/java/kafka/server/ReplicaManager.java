@@ -1,9 +1,11 @@
 package kafka.server;
 
+import com.google.common.collect.Maps;
 import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Meter;
 import kafka.api.FetchRequest;
 import kafka.api.Request;
+import kafka.api.StopReplicaRequest;
 import kafka.cluster.Partition;
 import kafka.cluster.Replica;
 import kafka.common.ErrorMapping;
@@ -172,11 +174,11 @@ public class ReplicaManager extends KafkaMetricsGroup {
         return errorCode;
     }
 
-            public void  stopReplicas(StopReplicaRequest stopReplicaRequest): (mutable.Map<TopicAndPartition, Short>, Short) = {
-            replicaStateChangeLock synchronized {
-                val responseMap = new collection.mutable.HashMap<TopicAndPartition, Short>;
+            public Tuple<Map<TopicAndPartition, Short>, Short> stopReplicas(StopReplicaRequest stopReplicaRequest){
+             synchronized(replicaStateChangeLock) {
+                 Map<TopicAndPartition, Short> responseMap = Maps.newHashMap();
                 if(stopReplicaRequest.controllerEpoch < controllerEpoch) {
-                    stateChangeLogger.warn("Broker %d received stop replica request from an old controller epoch %d.";
+                    stateChangeLogger.warn("Broker %d received stop replica request from an old controller epoch %d."
                             .format(localBrokerId, stopReplicaRequest.controllerEpoch) +;
                             " Latest known controller epoch is %d " + controllerEpoch);
                     (responseMap, ErrorMapping.StaleControllerEpochCode);
