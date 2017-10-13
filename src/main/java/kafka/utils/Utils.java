@@ -5,6 +5,7 @@ package kafka.utils;/**
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import kafka.func.*;
+import kafka.message.MessageAndOffset;
 
 import java.io.*;
 import java.nio.ByteBuffer;
@@ -871,17 +872,19 @@ public class Utils {
         }
         return map;
     }
-    public static <T> List<T> filter(Iterable<T> it,Handler<T,Boolean>handler){
+
+    public static <T> List<T> filter(Iterable<T> it, Handler<T, Boolean> handler) {
         Iterator<T> iterator = it.iterator();
         List<T> list = Lists.newArrayList();
-        while(iterator.hasNext()){
+        while (iterator.hasNext()) {
             T t = iterator.next();
-            if(handler.handle(t)){
+            if (handler.handle(t)) {
                 list.add(t);
             }
         }
         return list;
     }
+
     public static void it(int i, int limit, ActionWithParam<Integer> actionWithParam) {
         Stream.iterate(i, n -> n + 1).limit(limit).forEach(n -> actionWithParam.invoke(n));
     }
@@ -901,5 +904,16 @@ public class Utils {
             }
         }
         return false;
+    }
+
+    public static <T> Optional<T> lastOption(Iterator<T> it) {
+        T last = null;
+        while (it.hasNext()) {
+            last = it.next();
+        }
+        if (last != null) {
+            Optional.of(last);
+        }
+        return Optional.empty();
     }
 }

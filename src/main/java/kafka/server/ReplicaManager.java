@@ -82,13 +82,11 @@ public class ReplicaManager extends KafkaMetricsGroup {
                     public  Integer value() {
                         return getLeaderPartitions().size;
                     }
-                }
-        );
+                });
         newGauge("PartitionCount", new Gauge<Integer>() {
             public Integer value(){return allPartitions.getSize();}
         });
-        newGauge("UnderReplicatedPartitions",
-                new Gauge<Integer>() {
+        newGauge("UnderReplicatedPartitions", new Gauge<Integer>() {
             public Integer value(){ return  underReplicatedPartitionCount();}
         });
     }
@@ -619,11 +617,11 @@ class PartitionDataAndOffset {
 //        }
 //    }
 //
-//    public void  shutdown() {
-//        info("Shut down");
-//        replicaFetcherManager.shutdown();
-//        checkpointHighWatermarks();
-//        info("Shut down completely");
-//    }
+    public void  shutdown() {
+        info("Shut down");
+        replicaFetcherManager.shutdown();
+        checkpointHighWatermarks();
+        info("Shut down completely");
+    }
 //}
 }

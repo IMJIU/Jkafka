@@ -3,7 +3,7 @@ package kafka.server;
 
 /**
  * The purgatory holding delayed producer requests
- * Á¶Óü¿ØÖÆÑÓ³ÙproducerµÄÇëÇó
+ * ç‚¼ç‹±æŽ§åˆ¶å»¶è¿Ÿproducerçš„è¯·æ±‚
  */
 class ProducerRequestPurgatory extends RequestPurgatory<DelayedProduce>(replicaManager.config.brokerId, replicaManager.config.producerPurgatoryPurgeIntervalRequests) {
         this.logIdent = String.format("<ProducerRequestPurgatory-%d> ",replicaManager.config.brokerId)

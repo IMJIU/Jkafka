@@ -76,7 +76,7 @@ public class ErrorMapping {
             }
     }
 
-    public Exception exceptionFor(Short code) {
+    public static Exception exceptionFor(Short code) {
         try {
             Class<Exception> c = codeToException.get(code);
             if (c == null) {
