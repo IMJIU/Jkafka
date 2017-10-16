@@ -782,6 +782,17 @@ public class Utils {
         return result;
     }
 
+    public static <K,V,T> Map<T, List<V>> groupBy(Set<Map.Entry<K,V>> s, Handler<Map.Entry<K,V>, T> handler) {
+        Map<T, List<V>> result = Maps.newHashMap();
+        for (Map.Entry<K,V> t : s) {
+            T key = handler.handle(t);
+            List<V> itemList = result.getOrDefault(key, Lists.newArrayList());
+            itemList.add(t.getValue());
+            result.put(key, itemList);
+        }
+        return result;
+    }
+
     public static <K, V, V2> Map<V2, Map<K, V>> groupByValue(Map<K, V> map, Handler<V, V2> handler) {
         Map<V2, Map<K, V>> maps = Maps.newHashMap();
         for (Map.Entry<K, V> entry : map.entrySet()) {

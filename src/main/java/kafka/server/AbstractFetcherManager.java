@@ -11,6 +11,7 @@ import kafka.log.TopicAndPartition;
 import kafka.metrics.KafkaMetricsGroup;
 import kafka.utils.Utils;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -69,31 +70,34 @@ public abstract class AbstractFetcherManager extends KafkaMetricsGroup {
 
     public void addFetcherForPartitions(Map<TopicAndPartition, BrokerAndInitialOffset> partitionAndOffsets) {
         synchronized (mapLock) {
-            val partitionsPerFetcher = partitionAndOffsets.groupBy {
-                case (topicAndPartition,brokerAndInitialOffset)=>
-                    BrokerAndFetcherId(brokerAndInitialOffset.broker, getFetcherId(topicAndPartition.topic, topicAndPartition.partition))
-            }
-            for ((brokerAndFetcherId, partitionAndOffsets)<-partitionsPerFetcher){
-                var AbstractFetcherThread fetcherThread = null;
-                fetcherThreadMap.get(brokerAndFetcherId) match {
-                    case Some(f) =>fetcherThread = f;
-                    case None =>
+            Map<BrokerAndFetcherId,List<BrokerAndInitialOffset>>partitionsPerFetcher= Utils.groupBy(partitionAndOffsets.entrySet(), en->{
+                BrokerAndInitialOffset brokerAndInitialOffset = en.getValue();
+                TopicAndPartition topicAndPartition = en.getKey();
+                return new BrokerAndFetcherId(brokerAndInitialOffset.broker, getFetcherId(topicAndPartition.topic, topicAndPartition.partition));
+            });
+            for(Map.Entry<BrokerAndFetcherId,List<BrokerAndInitialOffset>> en :partitionsPerFetcher.entrySet()){
+                BrokerAndFetcherId brokerAndFetcherId = en.getKey();
+                List<BrokerAndInitialOffset> partitionAndOffsetList = en.getValue();
+
+                 AbstractFetcherThread fetcherThread = null;
+                AbstractFetcherThread f = fetcherThreadMap.get(brokerAndFetcherId);
+                if(f!=null) {
+                    fetcherThread = f;
+                }else{
                         fetcherThread = createFetcherThread(brokerAndFetcherId.fetcherId, brokerAndFetcherId.broker);
                         fetcherThreadMap.put(brokerAndFetcherId, fetcherThread);
-                        fetcherThread.start;
+                        fetcherThread.start();
                 }
 
-                fetcherThreadMap(brokerAndFetcherId).addPartitions(partitionAndOffsets.map {
-                    case (topicAndPartition,brokerAndInitOffset)=>
-                        topicAndPartition -> brokerAndInitOffset.initOffset;
-                });
+                fetcherThreadMap.get(brokerAndFetcherId).addPartitions(Utils.mapValue(partitionAndOffsets,brokerAndInitOffset->brokerAndInitOffset.initOffset));
             }
         }
 
-        info(String.format("Added fetcher for partitions %s", partitionAndOffsets.map {
-            case (topicAndPartition,brokerAndInitialOffset)=>
-                "<" + topicAndPartition + ", initOffset " + brokerAndInitialOffset.initOffset + " to broker " + brokerAndInitialOffset.broker + "> "
-        }));
+        info(String.format("Added fetcher for partitions %s", Utils.map(partitionAndOffsets,en->{
+            TopicAndPartition topicAndPartition = en.getKey();
+            BrokerAndInitialOffset brokerAndInitialOffset = en.getValue();
+                return "<" + topicAndPartition + ", initOffset " + brokerAndInitialOffset.initOffset + " to broker " + brokerAndInitialOffset.broker + "> ";
+        })));
     }
 
     public void removeFetcherForPartitions(Set<TopicAndPartition> partitions) {
