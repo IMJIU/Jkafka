@@ -1,24 +1,31 @@
 package kafka.cluster;
 
+import kafka.common.KafkaException;
 import kafka.log.Log;
 import kafka.server.LogOffsetMetadata;
+import kafka.utils.Logging;
 import kafka.utils.Time;
+import kafka.utils.Utils;
+import org.apache.log4j.Logger;
+import org.apache.log4j.spi.LoggerFactory;
 
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * @author
  * @create 2017-04-01 16 18
  **/
 public class Replica {
+    private static Logging logger = Logging.getLogger(Replica.class.getName());
     public Integer brokerId;
     public Partition partition;
     public Time time;
     public Long initialHighWatermarkValue = 0L;
     public Optional<Log> log = Optional.empty();
     ///////////////////////////////////////////////////////////////
-    public String topic ;
-    public Integer partitionId ;
+    public String topic;
+    public Integer partitionId;
 
     public Replica(Integer brokerId, Partition partition, Time time, Long initialHighWatermarkValue, Optional<Log> log) {
         this.brokerId = brokerId;
@@ -35,41 +42,47 @@ public class Replica {
     }
 
 
-//        // the high watermark offset value, in non-leader replicas only its message offsets are kept;
-   private volatile LogOffsetMetadata highWatermarkMetadata = new LogOffsetMetadata(initialHighWatermarkValue);
-//        // the log end offset value, kept in all replicas;
+    //        // the high watermark offset value, in non-leader replicas only its message offsets are kept;
+    private volatile LogOffsetMetadata highWatermarkMetadata = new LogOffsetMetadata(initialHighWatermarkValue);
+
+    //        // the log end offset value, kept in all replicas;
 //        // for local replica it is the log's end offset, for remote replicas its value is only updated by follower fetch;
-//  @volatile private<this> var LogOffsetMetadata logEndOffsetMetadata = LogOffsetMetadata.UnknownOffsetMetadata
-//        // the time when log offset is updated;
-//        private<this> val logEndOffsetUpdateTimeMsValue = new AtomicLong(time.milliseconds);
-//
-//        val topic = partition.topic;
-//        val partitionId = partition.partitionId;
-//
-//        public void  Boolean isLocal = {
-//                log match {
-//        case Some(l) => true;
-//        case None => false;
-//    }
-//  }
-//
-//            public void  logEndOffset_=(LogOffsetMetadata newLogEndOffset) {
-//            if (isLocal) {
-//                throw new KafkaException(String.format("Should not set log end offset on partition <%s,%d>'s local replica %d",topic, partitionId, brokerId))
-//            } else {
-//                logEndOffsetMetadata = newLogEndOffset;
-//                logEndOffsetUpdateTimeMsValue.set(time.milliseconds);
-//                trace("Setting log end offset for replica %d for partition <%s,%d> to <%s>";
-//                        .format(brokerId, topic, partitionId, logEndOffsetMetadata))
-//            }
-//        }
-//
-//        public void  logEndOffset =
-//        if (isLocal)
-//            log.get.logEndOffsetMetadata;
-//        else;
-//            logEndOffsetMetadata;
-//
+    private volatile LogOffsetMetadata logEndOffsetMetadata = LogOffsetMetadata.UnknownOffsetMetadata;
+    //        // the time when log offset is updated;
+    private AtomicLong logEndOffsetUpdateTimeMsValue = new AtomicLong(time.milliseconds());
+    //
+    public String topic = partition.topic;
+    public Integer partitionId = partition.partitionId;
+
+    //
+    public Boolean isLocal() {
+        if (log.isPresent()) {
+            return true;
+        }
+        return false;
+    }
+
+    //
+    public void logEndOffset_(LogOffsetMetadata newLogEndOffset) {
+        if (isLocal()) {
+            throw new KafkaException(String.format("Should not set log end offset on partition <%s,%d>'s local replica %d", topic, partitionId, brokerId))
+        } else {
+            logEndOffsetMetadata = newLogEndOffset;
+            logEndOffsetUpdateTimeMsValue.set(time.milliseconds());
+            logger.trace(String.format("Setting log end offset for replica %d for partition <%s,%d> to <%s>",
+                    brokerId, topic, partitionId, logEndOffsetMetadata));
+        }
+    }
+
+    //
+    public LogOffsetMetadata logEndOffset() {
+        if (isLocal())
+            return log.get().logEndOffsetMetadata();
+        else
+            return logEndOffsetMetadata;
+    }
+
+    //
 //        public void  logEndOffsetUpdateTimeMs = logEndOffsetUpdateTimeMsValue.get();
 //
 //        public void  highWatermark_=(LogOffsetMetadata newHighWatermark) {
@@ -82,8 +95,9 @@ public class Replica {
 //            }
 //        }
 //
-        public LogOffsetMetadata  highWatermark = highWatermarkMetadata;
-//
+    public LogOffsetMetadata highWatermark = highWatermarkMetadata;
+
+    //
 //        public void  convertHWToLocalOffsetMetadata() = {
 //        if (isLocal) {
 //            highWatermarkMetadata = log.get.convertToOffsetMetadata(highWatermarkMetadata.messageOffset);
@@ -101,18 +115,19 @@ public class Replica {
 //        false;
 //  }
 //
-//        override public void  hashCode(): Integer = {
-//                31 + topic.hashCode() + 17*brokerId + partition.hashCode();
-//        }
-//
-//
-//        override public void  toString(): String = {
-//                val replicaString = new StringBuilder;
-//                replicaString.append("ReplicaId: " + brokerId);
-//                replicaString.append("; Topic: " + topic);
-//                replicaString.append("; Partition: " + partition.partitionId);
-//                replicaString.append("; isLocal: " + isLocal);
-//        if(isLocal) replicaString.append("; Highwatermark: " + highWatermark)
-//        replicaString.toString();
-//  }
+    @Override
+    public int hashCode() {
+        return 31 + topic.hashCode() + 17 * brokerId + partition.hashCode();
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder replicaString = new StringBuilder();
+        replicaString.append("ReplicaId: " + brokerId);
+        replicaString.append("; Topic: " + topic);
+        replicaString.append("; Partition: " + partition.partitionId);
+        replicaString.append("; isLocal: " + isLocal());
+        if (isLocal()) replicaString.append("; Highwatermark: " + highWatermark);
+        return replicaString.toString();
+    }
 }

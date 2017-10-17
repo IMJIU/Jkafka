@@ -49,9 +49,9 @@ public abstract class AbstractFetcherThread extends ShutdownableThread {
     public Integer maxWait = 0;
     public Integer minBytes = 1;
 
-    public AbstractFetcherThread(String name, Boolean isInterruptible, String name1, String clientId, Broker sourceBroker, Integer socketTimeout, Integer socketBufferSize, Integer fetchSize, Integer fetcherBrokerId, Integer maxWait, Integer minBytes) {
+    public AbstractFetcherThread(String name, Boolean isInterruptible, String clientId, Broker sourceBroker, Integer socketTimeout, Integer socketBufferSize, Integer fetchSize, Integer fetcherBrokerId, Integer maxWait, Integer minBytes) {
         super(name, isInterruptible);
-        this.name = name1;
+        this.name = name;
         this.clientId = clientId;
         this.sourceBroker = sourceBroker;
         this.socketTimeout = socketTimeout;

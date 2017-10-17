@@ -28,7 +28,7 @@ public abstract class AbstractFetcherManager extends KafkaMetricsGroup {
     private Map<BrokerAndFetcherId, AbstractFetcherThread> fetcherThreadMap = Maps.newHashMap();
     private Object mapLock = new Object();
 
-    public AbstractFetcherManager(String name, String clientId, java.lang.Integer numFetchers) {
+    public AbstractFetcherManager(String name, String clientId, Integer numFetchers) {
         this.name = name;
         this.clientId = clientId;
         this.numFetchers = numFetchers;
