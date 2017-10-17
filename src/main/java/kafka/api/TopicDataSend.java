@@ -35,7 +35,7 @@ public class TopicDataSend extends Send {
         writeShortString(buffer, topicData.topic);
         buffer.putInt(topicData.partitionData.size());
         buffer.rewind();
-        sends = new MultiSend<PartitionDataSend>(Utils.map(topicData.partitionData, e -> new PartitionDataSend(e.getKey(), e.getValue()))) {
+        sends = new MultiSend<PartitionDataSend>(Utils.map(topicData.partitionData, (partition,data) -> new PartitionDataSend(partition, data))) {
             public Integer expectedBytesToWrite() {
                 return topicData.sizeInBytes() - topicData.headerSize;
             }

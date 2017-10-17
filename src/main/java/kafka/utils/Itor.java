@@ -1,7 +1,7 @@
 package kafka.utils;
 
 import com.google.common.collect.Lists;
-import kafka.func.ActionWithParam;
+import kafka.func.ActionP;
 import kafka.func.Handler;
 
 import java.util.Iterator;
@@ -11,7 +11,7 @@ import java.util.List;
  * Created by Administrator on 2017/4/6.
  */
 public class Itor {
-    public static <T> void loop(Iterator<T> it, ActionWithParam<T> action) {
+    public static <T> void loop(Iterator<T> it, ActionP<T> action) {
         while (it.hasNext()) {
             action.invoke(it.next());
         }

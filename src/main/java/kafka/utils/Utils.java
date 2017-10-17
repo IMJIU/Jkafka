@@ -5,7 +5,6 @@ package kafka.utils;/**
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import kafka.func.*;
-import kafka.message.MessageAndOffset;
 
 import java.io.*;
 import java.nio.ByteBuffer;
@@ -165,7 +164,7 @@ public class Utils {
      * @param log    The log method to use for logging. E.g. logger.warn
      * @param action The action to execute
      */
-    public static void swallow(ActionWithThrow action, ActionWithParam<Throwable> log) {
+    public static void swallow(ActionWithThrow action, ActionP<Throwable> log) {
         try {
             action.invoke();
         } catch (Exception e) {
@@ -771,6 +770,12 @@ public class Utils {
                 | (buffer[offset] << 8 * 3);
     }
 
+    public static <K, V> void foreach(Map<K, V> map, ActionP2<K,V> action) {
+        for (Map.Entry<K, V> entry : map.entrySet()) {
+            action.invoke(entry.getKey(), entry.getValue());
+        }
+    }
+
     public static <T, K> Map<K, List<T>> groupBy(Iterable<T> it, Handler<T, K> handler) {
         Map<K, List<T>> result = Maps.newHashMap();
         for (T t : it) {
@@ -782,15 +787,26 @@ public class Utils {
         return result;
     }
 
-    public static <K,V,T> Map<T, List<V>> groupBy(Set<Map.Entry<K,V>> s, Handler<Map.Entry<K,V>, T> handler) {
-        Map<T, List<V>> result = Maps.newHashMap();
-        for (Map.Entry<K,V> t : s) {
-            T key = handler.handle(t);
-            List<V> itemList = result.getOrDefault(key, Lists.newArrayList());
-            itemList.add(t.getValue());
-            result.put(key, itemList);
+    public static <K, V, V2> Map<V2, Map<K, V>> groupBy(Map<K, V> map, Handler2<K, V, V2> handler) {
+        Map<V2, Map<K, V>> maps = Maps.newHashMap();
+        for (Map.Entry<K, V> entry : map.entrySet()) {
+            V2 tag = handler.handle(entry.getKey(), entry.getValue());
+            Map<K, V> m = maps.getOrDefault(tag, Maps.newHashMap());
+            m.put(entry.getKey(), entry.getValue());
+            maps.put(tag, m);
         }
-        return result;
+        return maps;
+    }
+
+    public static <K, V, V2> Map<V2, List<V>> groupByToList(Map<K, V> map, Handler2<K, V, V2> handler) {
+        Map<V2, List<V>> maps = Maps.newHashMap();
+        for (Map.Entry<K, V> entry : map.entrySet()) {
+            V2 tag = handler.handle(entry.getKey(), entry.getValue());
+            List<V> list = maps.getOrDefault(tag, Lists.newArrayList());
+            list.add(entry.getValue());
+            maps.put(tag, list);
+        }
+        return maps;
     }
 
     public static <K, V, V2> Map<V2, Map<K, V>> groupByValue(Map<K, V> map, Handler<V, V2> handler) {
@@ -834,7 +850,15 @@ public class Utils {
         }
         return list;
     }
-
+    public static <K, V, RESULT> List<RESULT> map(Map<K, V> map, Handler2<K,V, RESULT> handler) {
+        List<RESULT> list = Lists.newArrayList();
+        if (map != null) {
+            for (Map.Entry<K, V> entry : map.entrySet()) {
+                list.add(handler.handle(entry.getKey(),entry.getValue()));
+            }
+        }
+        return list;
+    }
     public static <K, V, V2> Map<K, V2> mapValue(Map<K, V> map, Handler<V, V2> handler) {
         Map<K, V2> result = Maps.newHashMap();
         if (map != null) {
@@ -896,8 +920,8 @@ public class Utils {
         return list;
     }
 
-    public static void it(int i, int limit, ActionWithParam<Integer> actionWithParam) {
-        Stream.iterate(i, n -> n + 1).limit(limit).forEach(n -> actionWithParam.invoke(n));
+    public static void it(int i, int limit, ActionP<Integer> actionP) {
+        Stream.iterate(i, n -> n + 1).limit(limit).forEach(n -> actionP.invoke(n));
     }
 
     public static <T> List<T> itToList(int i, int limit, Handler<Integer, T> handler) {

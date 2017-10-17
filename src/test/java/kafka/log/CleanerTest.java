@@ -4,7 +4,7 @@ package kafka.log;/**
 
 import com.google.common.collect.Lists;
 import kafka.common.LogCleaningAbortedException;
-import kafka.func.ActionWithParam;
+import kafka.func.ActionP;
 import kafka.func.Tuple;
 import kafka.message.ByteBufferMessageSet;
 import kafka.message.Message;
@@ -111,10 +111,10 @@ public class CleanerTest {
                 .collect(Collectors.toList());
     }
 
-    public ActionWithParam<TopicAndPartition> noOpCheckDone = (topicAndPartition) -> {
+    public ActionP<TopicAndPartition> noOpCheckDone = (topicAndPartition) -> {
         /* do nothing */
     };
-    public ActionWithParam<TopicAndPartition> abortCheckDone = (topicAndPartition) -> {
+    public ActionP<TopicAndPartition> abortCheckDone = (topicAndPartition) -> {
         throw new LogCleaningAbortedException();
     };
 
@@ -247,7 +247,7 @@ public class CleanerTest {
         return makeCleaner(capacity, noOpCheckDone);
     }
 
-    public Cleaner makeCleaner(Integer capacity, ActionWithParam<TopicAndPartition> checkDone) {
+    public Cleaner makeCleaner(Integer capacity, ActionP<TopicAndPartition> checkDone) {
         return new Cleaner(0,
                 new FakeOffsetMap(capacity),
                 64 * 1024,

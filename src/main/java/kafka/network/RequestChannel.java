@@ -10,15 +10,13 @@ import com.yammer.metrics.core.Metric;
 import kafka.api.ProducerRequest;
 import kafka.api.RequestKeys;
 import kafka.api.RequestOrResponse;
-import kafka.func.ActionWithParam;
-import kafka.func.Handler;
+import kafka.func.ActionP;
 import kafka.metrics.KafkaMetricsGroup;
 import kafka.utils.Logging;
 import kafka.utils.Time;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.List;
@@ -33,7 +31,7 @@ import java.util.stream.Collectors;
 public class RequestChannel extends KafkaMetricsGroup {
     Integer numProcessors;
     Integer queueSize;
-    private List<ActionWithParam<Integer>> responseListeners = Lists.newArrayList();
+    private List<ActionP<Integer>> responseListeners = Lists.newArrayList();
     private ArrayBlockingQueue<Request> requestQueue ;
     private BlockingQueue<Response>[] responseQueues;
     public static Request AllDone = new Request(1, 2, getShutdownReceive(), 0L);
@@ -95,7 +93,7 @@ public class RequestChannel extends KafkaMetricsGroup {
      */
     public void sendResponse(Response response) throws InterruptedException {
         responseQueues[response.processor].put(response);
-        for (ActionWithParam onResponse : responseListeners)
+        for (ActionP onResponse : responseListeners)
             onResponse.invoke(response.processor);
     }
 
@@ -104,7 +102,7 @@ public class RequestChannel extends KafkaMetricsGroup {
      */
     public void noOperation(Integer processor, RequestChannel.Request request) throws InterruptedException {
         responseQueues[processor].put(new Response(processor, request, null, ResponseAction.NoOpAction));
-        for (ActionWithParam onResponse : responseListeners)
+        for (ActionP onResponse : responseListeners)
             onResponse.invoke(processor);
     }
 
@@ -113,7 +111,7 @@ public class RequestChannel extends KafkaMetricsGroup {
      */
     public void closeConnection(Integer processor, Request request) throws InterruptedException {
         responseQueues[processor].put(new Response(processor, request, null, ResponseAction.CloseConnectionAction));
-        for (ActionWithParam onResponse : responseListeners)
+        for (ActionP onResponse : responseListeners)
             onResponse.invoke(processor);
     }
 
@@ -141,7 +139,7 @@ public class RequestChannel extends KafkaMetricsGroup {
         return response;
     }
 
-    public void addResponseListener(ActionWithParam<Integer> onResponse) {
+    public void addResponseListener(ActionP<Integer> onResponse) {
         responseListeners.add(onResponse);
     }
 

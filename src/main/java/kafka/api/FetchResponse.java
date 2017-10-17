@@ -153,8 +153,8 @@ class FetchResponseSend extends Send {
         buffer.putInt(fetchResponse.correlationId);
         buffer.putInt(fetchResponse.dataGroupedByTopic.size()); // topic count
         buffer.rewind();
-        sends = new MultiSend<TopicDataSend>(Utils.map(fetchResponse.dataGroupedByTopic, e ->
-                new TopicDataSend(new TopicData(e.getKey(), Utils.mapKey(e.getValue(), k -> k.partition))))) {
+        sends = new MultiSend<TopicDataSend>(Utils.map(fetchResponse.dataGroupedByTopic, (topic,topicAndData) ->
+                new TopicDataSend(new TopicData(topic, Utils.mapKey(topicAndData, k -> k.partition))))) {
             public Integer expectedBytesToWrite() {
                 return fetchResponse.sizeInBytes() - FetchResponse.headerSize;
             }
