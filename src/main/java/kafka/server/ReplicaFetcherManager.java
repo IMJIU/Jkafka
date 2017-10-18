@@ -7,8 +7,8 @@ public class ReplicaFetcherManager extends AbstractFetcherManager {//"ReplicaFet
     private KafkaConfig brokerConfig;
     private ReplicaManager replicaMgr;
 
-    public ReplicaFetcherManager(String name, String clientId, Integer numFetchers, KafkaConfig brokerConfig, ReplicaManager replicaMgr) {
-        super("ReplicaFetcherManager on broker " + brokerConfig.brokerId, clientId, brokerConfig.numReplicaFetchers);
+    public ReplicaFetcherManager(KafkaConfig brokerConfig, ReplicaManager replicaMgr) {
+        super("ReplicaFetcherManager on broker " + brokerConfig.brokerId,"Replica", brokerConfig.numReplicaFetchers);
         this.brokerConfig = brokerConfig;
         this.replicaMgr = replicaMgr;
     }

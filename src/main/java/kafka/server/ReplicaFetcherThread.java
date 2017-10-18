@@ -21,10 +21,10 @@ public class ReplicaFetcherThread extends AbstractFetcherThread {
     public KafkaConfig brokerConfig;
     public ReplicaManager replicaMgr;
 
-    public ReplicaFetcherThread(String name, String clientId, Broker sourceBroker, KafkaConfig brokerConfig, ReplicaManager replicaMgr) {
+    public ReplicaFetcherThread(String name,  Broker sourceBroker, KafkaConfig brokerConfig, ReplicaManager replicaMgr) {
         super(name,
                 false,
-                clientId,
+                name,
                 sourceBroker,
                 brokerConfig.replicaSocketTimeoutMs,
                 brokerConfig.replicaSocketReceiveBufferBytes,
@@ -44,23 +44,23 @@ public class ReplicaFetcherThread extends AbstractFetcherThread {
             String topic = topicAndPartition.topic;
             Integer partitionId = topicAndPartition.partition;
             Replica replica = replicaMgr.getReplica(topic, partitionId).get();
-            ByteBufferMessageSet messageSet = (ByteBufferMessageSet)partitionData.messages;
+            ByteBufferMessageSet messageSet = (ByteBufferMessageSet) partitionData.messages;
 
             if (fetchOffset != replica.logEndOffset().messageOffset)
                 throw new RuntimeException(String.format("Offset fetched mismatch offset = %d, log end offset = %d.", fetchOffset, replica.logEndOffset().messageOffset));
-            logger.trace(String.format("Follower %d has replica log end offset %d for partition %s. Received %d messages and leader hw %d";
-        (replica.brokerId, replica.logEndOffset().messageOffset, topicAndPartition, messageSet.sizeInBytes(), partitionData.hw))
+            logger.trace(String.format("Follower %d has replica log end offset %d for partition %s. Received %d messages and leader hw %d",
+                    replica.brokerId, replica.logEndOffset().messageOffset, topicAndPartition, messageSet.sizeInBytes(), partitionData.hw));
             replica.log.get().append(messageSet, false);
-            logger.trace(String.format("Follower %d has replica log end offset %d after appending %d bytes of messages for partition %s",replica.brokerId, replica.logEndOffset().messageOffset, messageSet.sizeInBytes(), topicAndPartition))
-            Long followerHighWatermark = Long.min(replica.logEndOffset().messageOffset,partitionData.hw);
+            logger.trace(String.format("Follower %d has replica log end offset %d after appending %d bytes of messages for partition %s", replica.brokerId, replica.logEndOffset().messageOffset, messageSet.sizeInBytes(), topicAndPartition));
+            Long followerHighWatermark = Long.min(replica.logEndOffset().messageOffset, partitionData.hw);
             // for the follower replica, we do not need to keep;
             // its segment base offset the physical position,
             // these values will be computed upon making the leader;
             replica.highWatermark = new LogOffsetMetadata(followerHighWatermark);
             logger.trace(String.format("Follower %d set replica high watermark for partition <%s,%d> to %s", replica.brokerId, topic, partitionId, followerHighWatermark));
-        } catch (KafkaStorageException e){
-                logger.error("Disk error while replicating data.", e);
-                Runtime.getRuntime().halt(1);
+        } catch (KafkaStorageException e) {
+            logger.error("Disk error while replicating data.", e);
+            Runtime.getRuntime().halt(1);
         }
     }
 
@@ -90,13 +90,13 @@ public class ReplicaFetcherThread extends AbstractFetcherThread {
                 // Log a fatal error and shutdown the broker to ensure that data loss does not unexpectedly occur.;
                 logger.error(String.format("Halting because log truncation is not allowed for topic %s,", topicAndPartition.topic) +
                         String.format(" Current leader %d's latest offset %d is less than replica %d's latest offset %d",
-        sourceBroker.id, leaderEndOffset, brokerConfig.brokerId, replica.logEndOffset().messageOffset));
+                                sourceBroker.id, leaderEndOffset, brokerConfig.brokerId, replica.logEndOffset().messageOffset));
                 Runtime.getRuntime().halt(1);
             }
 
-            replicaMgr.logManager.truncateTo(ImmutableMap.of(topicAndPartition ,leaderEndOffset));
+            replicaMgr.logManager.truncateTo(ImmutableMap.of(topicAndPartition, leaderEndOffset));
             logger.warn(String.format("Replica %d for partition %s reset its fetch offset from %d to current leader %d's latest offset %d",
-            brokerConfig.brokerId, topicAndPartition, replica.logEndOffset().messageOffset, sourceBroker.id, leaderEndOffset))
+                    brokerConfig.brokerId, topicAndPartition, replica.logEndOffset().messageOffset, sourceBroker.id, leaderEndOffset))
             return leaderEndOffset;
         } else {
             /**
@@ -108,13 +108,13 @@ public class ReplicaFetcherThread extends AbstractFetcherThread {
             val leaderStartOffset = simpleConsumer.earliestOrLatestOffset(topicAndPartition, OffsetRequest.EarliestTime, brokerConfig.brokerId);
             replicaMgr.logManager.truncateFullyAndStartAt(topicAndPartition, leaderStartOffset);
             logger.warn(String.format("Replica %d for partition %s reset its fetch offset from %d to current leader %d's start offset %d",
-            brokerConfig.brokerId, topicAndPartition, replica.logEndOffset().messageOffset, sourceBroker.id, leaderStartOffset));
+                    brokerConfig.brokerId, topicAndPartition, replica.logEndOffset().messageOffset, sourceBroker.id, leaderStartOffset));
             return leaderStartOffset;
         }
     }
 
     // any logic for partitions whose leader has changed;
-    public void handlePartitionsWithErrors(Iterable partitions<TopicAndPartition>) {
+    public void handlePartitionsWithErrors(Iterable<TopicAndPartition> partitions) {
         // no handler needed since the controller will make the changes accordingly;
     }
 }

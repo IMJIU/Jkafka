@@ -64,7 +64,7 @@ public class ReplicaManager extends KafkaMetricsGroup {
     private Integer localBrokerId = config.brokerId;
     private Pool<Tuple<String, Integer>, Partition> allPartitions = new Pool<>();
     private Object replicaStateChangeLock = new Object();
-    //        public ReplicaFetcherManager replicaFetcherManager = new ReplicaFetcherManager(config, this);
+    public ReplicaFetcherManager replicaFetcherManager = new ReplicaFetcherManager(config, this);
     private AtomicBoolean highWatermarkCheckPointThreadStarted = new AtomicBoolean(false);
     Map<File, OffsetCheckpoint> highWatermarkCheckpoints = null;
 
