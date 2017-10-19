@@ -40,7 +40,7 @@ public class Broker {
         }
     }
 
-    public Broker readFrom(ByteBuffer buffer) {
+    public static Broker readFrom(ByteBuffer buffer) {
         Integer id = buffer.getInt();
         String host = ApiUtils.readShortString(buffer);
         Integer port = buffer.getInt();

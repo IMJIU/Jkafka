@@ -636,12 +636,12 @@ public class Utils {
     }
 
 
-    public static void inReadLock(ReadWriteLock lock, Fun fun) {
-        inLock(lock.readLock(), fun);
+    public static <T> T inReadLock(ReadWriteLock lock, Fun<T> fun) {
+        return inLock(lock.readLock(), fun);
     }
 
-    public static void inWriteLock(ReadWriteLock lock, Fun fun) {
-        inLock(lock.writeLock(), fun);
+    public static <T> T inWriteLock(ReadWriteLock lock, Fun<T> fun) {
+        return inLock(lock.writeLock(), fun);
     }
 //
 //
@@ -770,7 +770,7 @@ public class Utils {
                 | (buffer[offset] << 8 * 3);
     }
 
-    public static <K, V> void foreach(Map<K, V> map, ActionP2<K,V> action) {
+    public static <K, V> void foreach(Map<K, V> map, ActionP2<K, V> action) {
         for (Map.Entry<K, V> entry : map.entrySet()) {
             action.invoke(entry.getKey(), entry.getValue());
         }
@@ -830,7 +830,15 @@ public class Utils {
         }
         return maps;
     }
-
+    public static <V, RESULT> List<RESULT> map(List<V> set, Handler<V, RESULT> handler) {
+        List<RESULT> list = Lists.newArrayList();
+        if (set != null) {
+            for (V entry : set) {
+                list.add(handler.handle(entry));
+            }
+        }
+        return list;
+    }
     public static <V, RESULT> List<RESULT> map(Set<V> set, Handler<V, RESULT> handler) {
         List<RESULT> list = Lists.newArrayList();
         if (set != null) {
@@ -850,15 +858,17 @@ public class Utils {
         }
         return list;
     }
-    public static <K, V, RESULT> List<RESULT> map(Map<K, V> map, Handler2<K,V, RESULT> handler) {
+
+    public static <K, V, RESULT> List<RESULT> map(Map<K, V> map, Handler2<K, V, RESULT> handler) {
         List<RESULT> list = Lists.newArrayList();
         if (map != null) {
             for (Map.Entry<K, V> entry : map.entrySet()) {
-                list.add(handler.handle(entry.getKey(),entry.getValue()));
+                list.add(handler.handle(entry.getKey(), entry.getValue()));
             }
         }
         return list;
     }
+
     public static <K, V, V2> Map<K, V2> mapValue(Map<K, V> map, Handler<V, V2> handler) {
         Map<K, V2> result = Maps.newHashMap();
         if (map != null) {
@@ -950,5 +960,20 @@ public class Utils {
             Optional.of(last);
         }
         return Optional.empty();
+    }
+
+    public static <T> List<T> yield(int i, int numAliveBrokers, Fun<T> fun) {
+        List<T> list = new ArrayList<T>(numAliveBrokers);
+        for (; i < numAliveBrokers; i++) {
+            list.add(fun.invoke());
+        }
+        return list;
+    }
+    public static <T> Set<T> yieldSet(int i, int numAliveBrokers, Fun<T> fun) {
+        Set<T> list = new HashSet<T>(numAliveBrokers);
+        for (; i < numAliveBrokers; i++) {
+            list.add(fun.invoke());
+        }
+        return list;
     }
 }

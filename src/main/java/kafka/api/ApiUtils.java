@@ -3,6 +3,7 @@ package kafka.api;/**
  */
 
 import kafka.common.KafkaException;
+import kafka.func.Tuple;
 
 import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
@@ -80,36 +81,30 @@ public class ApiUtils {
             }
         }
     }
-//
-//    /**
-//     * Read an integer out of the bytebuffer from the current position and check that it falls within the given
-//     * range. If not, throw KafkaException.
-//     */
-//    public Integer
-//
-//    void readIntInRange(ByteBuffer buffer, String name, range:(Int, Int))
-//
-//    {
-//        val value = buffer.getInt;
-//        if (value < range._1 || value > range._2)
-//            throw new KafkaException(name + " has value " + value + " which is not in the range " + range + ".");
-//        else value;
-//    }
-//
-//    /**
-//     * Read a short out of the bytebuffer from the current position and check that it falls within the given
-//     * range. If not, throw KafkaException.
-//     */
-//    public Short
-//
-//    void readShortInRange(ByteBuffer buffer, String name, range:(Short, Short))
-//
-//    {
-//        val value = buffer.getShort;
-//        if (value < range._1 || value > range._2)
-//            throw new KafkaException(name + " has value " + value + " which is not in the range " + range + ".");
-//        else value;
-//    }
+
+    /**
+     * Read an integer out of the bytebuffer from the current position and check that it falls within the given
+     * range. If not, throw KafkaException.
+     */
+    public  static int readIntInRange(ByteBuffer buffer, String name, Tuple<Integer,Integer> range){
+        int value = buffer.getInt();
+        if (value < range.v1 || value > range.v2)
+            throw new KafkaException(name + " has value " + value + " which is not in the range " + range + ".");
+        else
+            return value;
+    }
+
+    /**
+     * Read a short out of the bytebuffer from the current position and check that it falls within the given
+     * range. If not, throw KafkaException.
+     */
+    public static short readShortInRange(ByteBuffer buffer, String name, Tuple<Short, Short> range) {
+        short value = buffer.getShort();
+        if (value < range.v1 || value > range.v2)
+            throw new KafkaException(name + " has value " + value + " which is not in the range " + range + ".");
+        else
+            return value;
+    }
 //
 //    /**
 //     * Read a long out of the bytebuffer from the current position and check that it falls within the given

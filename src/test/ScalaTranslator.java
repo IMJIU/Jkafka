@@ -1,4 +1,6 @@
 
+import com.google.common.collect.Lists;
+
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.FileWriter;
@@ -21,9 +23,11 @@ public class ScalaTranslator {
 //                main + "cluster/Partition.java",
 //                main + "utils/Pool.java",
 //                main + "log/LogConfig.java",
-                main + "server/DelayedProduce.java"
-               //   test + "api/SerializationTestUtils.java"
-                );
+//                main + "server/MetadataCache.java"
+//                main+"consumer/PartitionTopicInfo.java"
+//                main + "network/MultiSend.java"
+                main + "api/PartitionMetadata.java"
+        );
 //        List<String> filePaths = Arrays.asList(main + "log/Log.java");
         for (String p : filePaths) {
             convertToJava(p, true);
@@ -35,7 +39,7 @@ public class ScalaTranslator {
         List<Character> lastList = Arrays.asList('[', '(', '}', '{', ';', '*', '/', ',', '>', '=', '+');
         String[] ps = new String[]{
                 " Int ", " Integer ",
-                "\\[(\\D+)\\]","<$1>",
+                "\\[(\\D+)\\]", "<$1>",
                 "\\sInt\\s", " Integer ",
                 "Int>", "Integer>",
                 "<Int,", "<Integer,>",
@@ -51,6 +55,7 @@ public class ScalaTranslator {
                 "Double.MaxValue", "Double.MAX_VALUE",
                 " assertEquals", "Assert.assertEquals",
                 "val\\s(\\S+)\\s?\\s?:\\s?(\\S+)", "$2 $1",
+                "overrride", " @Override",
                 " assertTrue", " Assert.assertTrue"
         };
         StringBuilder content = new StringBuilder();
@@ -109,16 +114,17 @@ public class ScalaTranslator {
             boolean finded = false;// 是否找到外网IP
             while (netInterfaces.hasMoreElements() && !finded) {
                 NetworkInterface ni = (NetworkInterface) netInterfaces.nextElement();
+                if (ni.getDisplayName() != null && ni.getDisplayName().indexOf("VMnet") != -1) {
+                    continue;
+                }
                 Enumeration address = ni.getInetAddresses();
                 while (address.hasMoreElements()) {
                     ip = (InetAddress) address.nextElement();
-                    if (!ip.isSiteLocalAddress() && !ip.isLoopbackAddress() && ip.getHostAddress().indexOf(":") ==
-                            -1) {// 外网IP
+                    if (!ip.isSiteLocalAddress() && !ip.isLoopbackAddress() && ip.getHostAddress().indexOf(":") == -1) {// 外网IP
                         netip = ip.getHostAddress();
                         finded = true;
                         break;
-                    } else if (ip.isSiteLocalAddress() && !ip.isLoopbackAddress() && ip.getHostAddress().indexOf(":")
-                            == -1) {// 内网IP
+                    } else if (ip.isSiteLocalAddress() && !ip.isLoopbackAddress() && ip.getHostAddress().indexOf(":") == -1) {// 内网IP
                         localip = ip.getHostAddress();
                     }
                 }
@@ -133,14 +139,15 @@ public class ScalaTranslator {
             return localip;
         }
     }
+
     public static String main = "g:/github/JKafka/src/main/java/kafka/";
     public static String test = "g:/github/JKafka/src/test/java/kafka/";
 
     static {
         String ip = getMyIp();
-        if (ip.equals("10.8.72.109")) {
+        if (ip.equals("10.8.74.190")) {
             main = "e:/github/JKafka/src/main/java/kafka/";
-            test = "e:/github/JKafka/src/test/kafka/";
+            test = "e:/github/JKafka/src/test/java/kafka/";
         }
     }
 }

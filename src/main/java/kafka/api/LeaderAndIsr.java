@@ -14,7 +14,7 @@ public class LeaderAndIsr {
 
     public Integer leader;
     public Integer leaderEpoch;
-    public java.util.List<Integer> isr;
+    public List<Integer> isr;
     public Integer zkVersion;
 
     public LeaderAndIsr(Integer leader, Integer leaderEpoch, List<Integer> isr, Integer zkVersion) {
