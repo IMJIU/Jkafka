@@ -37,7 +37,7 @@ public class TopicMetadata extends Logging{
             PartitionMetadata partitionMetadata = PartitionMetadata.readFrom(buffer, brokers);
         partitionsMetadata(partitionMetadata.partitionId) = partitionMetadata;
         }
-        new TopicMetadata(topic, partitionsMetadata, errorCode);
+       return  new TopicMetadata(topic, partitionsMetadata, errorCode);
         }
         }
 
