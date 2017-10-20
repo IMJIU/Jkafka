@@ -1,14 +1,15 @@
 package kafka.api;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import kafka.cluster.Broker;
 import kafka.common.ErrorMapping;
+import kafka.func.Tuple;
 import kafka.utils.Logging;
 import kafka.utils.Utils;
-
 import java.nio.ByteBuffer;
 import java.util.*;
-import java.util.Optional;
+import static kafka.api.ApiUtils.*;
 
 /**
  * @author zhoulf
@@ -17,12 +18,12 @@ import java.util.Optional;
 
 public class PartitionMetadata extends Logging {
     Integer partitionId;
-    Optional<Broker> leader;
+    Broker leader;
     List<Broker> replicas;
-    Set<Broker> isr = Sets.newHashSet();
+    List<Broker> isr = Lists.newArrayList();
     Short errorCode = ErrorMapping.NoError;
 
-    public PartitionMetadata(java.lang.Integer partitionId, Optional<Broker> leader, List<Broker> replicas, Set<Broker> isr, Short errorCode) {
+    public PartitionMetadata(java.lang.Integer partitionId, Broker leader, List<Broker> replicas, List<Broker> isr, Short errorCode) {
         this.partitionId = partitionId;
         this.leader = leader;
         this.replicas = replicas;
@@ -30,22 +31,21 @@ public class PartitionMetadata extends Logging {
         this.errorCode = errorCode;
     }
 
-    public static PartitionMetadata readFrom(ByteBuffer buffer, Map<Integer, Broker> brokers>) {
-        val errorCode = readShortInRange(buffer, "error code", (-1, Short.MaxValue));
-        val partitionId = readIntInRange(buffer, "partition id", (0, Integer.MAX_VALUE)) /* partition id */
-        val leaderId = buffer.getInt;
-        val leader = brokers.get(leaderId);
+    public static PartitionMetadata readFrom(ByteBuffer buffer, Map<Integer, Broker> brokers) {
+        short errorCode = readShortInRange(buffer, "error code", Tuple.of((short) -1, Short.MAX_VALUE));
+        int partitionId = readIntInRange(buffer, "partition id", Tuple.of(0, Integer.MAX_VALUE)); /* partition id */
+        int leaderId = buffer.getInt();
+        Broker leader = brokers.get(leaderId);
 
     /* list of all replicas */
-        val numReplicas = readIntInRange(buffer, "number of all replicas", (0, Integer.MAX_VALUE));
-        val replicaIds = (0 until numReplicas).map(_ = > buffer.getInt);
-        val replicas = replicaIds.map(brokers);
+        int numReplicas = readIntInRange(buffer, "number of all replicas", Tuple.of(0, Integer.MAX_VALUE));
+        List<Integer> replicaIds = Utils.itToList(0, numReplicas, n -> buffer.getInt());
+        List<Broker> replicas = Utils.map(replicaIds, r -> brokers.get(r));
 
     /* list of in-sync replicas */
-        val numIsr = readIntInRange(buffer, "number of in-sync replicas", (0, Integer.MAX_VALUE));
-        val isrIds = (0 until numIsr).map(_ = > buffer.getInt);
-        val isr = isrIds.map(brokers);
-
+        int numIsr = readIntInRange(buffer, "number of in-sync replicas", Tuple.of(0, Integer.MAX_VALUE));
+        List<Integer> isrIds = Utils.itToList(0, numIsr, n -> buffer.getInt());
+        List<Broker> isr = Utils.map(isrIds, r -> brokers.get(r));
         return new PartitionMetadata(partitionId, leader, replicas, isr, errorCode);
     }
 
@@ -63,31 +63,30 @@ public class PartitionMetadata extends Logging {
         buffer.putInt(partitionId);
 
     /* leader */
-        val leaderId = if (leader.isDefined) leader.get.id
-        else TopicMetadata.NoLeaderNodeId;
+        Integer leaderId = leader != null ? leader.id : TopicMetadata.NoLeaderNodeId;
         buffer.putInt(leaderId);
 
     /* number of replicas */
-        buffer.putInt(replicas.size);
-        replicas.foreach(r = > buffer.putInt(r.id))
+        buffer.putInt(replicas.size());
+        replicas.forEach(r -> buffer.putInt(r.id));
 
     /* number of in-sync replicas */
-        buffer.putInt(isr.size);
-        isr.foreach(r = > buffer.putInt(r.id))
+        buffer.putInt(isr.size());
+        isr.forEach(r -> buffer.putInt(r.id));
     }
 
     @Override
     public String toString() {
         StringBuilder partitionMetadataString = new StringBuilder();
         partitionMetadataString.append("\tpartition " + partitionId);
-        partitionMetadataString.append("\tleader: " + (leader.isPresent() ? formatBroker(leader.get()) : "none"));
+        partitionMetadataString.append("\tleader: " + (leader!=null ?formatBroker(leader) : "none"));
         partitionMetadataString.append("\treplicas: " + Utils.map(replicas, this::formatBroker));
         partitionMetadataString.append("\tisr: " + Utils.map(isr, this::formatBroker));
-        partitionMetadataString.append(String.format("\tisUnderReplicated: %s", isr.size() < replicas.size() ? "true" : "false"))
+        partitionMetadataString.append(String.format("\tisUnderReplicated: %s", isr.size() < replicas.size() ? "true" : "false"));
         return partitionMetadataString.toString();
     }
 
     private String formatBroker(Broker broker) {
-        return broker.id + " (" + formatAddress(broker.host, broker.port) + ")";
+        return broker.id + " (" + org.apache.kafka.common.utils.Utils.formatAddress(broker.host, broker.port) + ")";
     }
 }

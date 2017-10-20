@@ -15,6 +15,18 @@ public class OffsetManagerConfig {
         public static final CompressionCodec DefaultOffsetsTopicCompressionCodec = CompressionCodec.NoCompressionCodec;
         public static final Integer DefaultOffsetCommitTimeoutMs = 5000;
         public static final Short DefaultOffsetCommitRequiredAcks = (-1);
+
+       public Integer maxMetadataSize = OffsetManagerConfig.DefaultMaxMetadataSize;
+        public Integer loadBufferSize = OffsetManagerConfig.DefaultLoadBufferSize;
+        public  Long offsetsRetentionMs = 24*60*60000L;
+        public  Long offsetsRetentionCheckIntervalMs = OffsetManagerConfig.DefaultOffsetsRetentionCheckIntervalMs;
+        public   Integer offsetsTopicNumPartitions = OffsetManagerConfig.DefaultOffsetsTopicNumPartitions;
+        public   Integer offsetsTopicSegmentBytes = OffsetManagerConfig.DefaultOffsetsTopicSegmentBytes;
+        public  Short offsetsTopicReplicationFactor = OffsetManagerConfig.DefaultOffsetsTopicReplicationFactor;
+        public  CompressionCodec offsetsTopicCompressionCodec = OffsetManagerConfig.DefaultOffsetsTopicCompressionCodec;
+        public  Integer offsetCommitTimeoutMs = OffsetManagerConfig.DefaultOffsetCommitTimeoutMs;
+        public  Short offsetCommitRequiredAcks = OffsetManagerConfig.DefaultOffsetCommitRequiredAcks;
+
 /**
  * Configuration settings for in-built offset management
  * @param maxMetadataSize The maximum allowed metadata for any offset commit.
@@ -32,16 +44,6 @@ public class OffsetManagerConfig {
  * @param offsetCommitRequiredAcks The required acks before the commit can be accepted. In general, the default (-1)
  *                                 should not be overridden.
  */
-//    case class OffsetManagerConfig(Integer maxMetadataSize = OffsetManagerConfig.DefaultMaxMetadataSize,
-//    Integer loadBufferSize = OffsetManagerConfig.DefaultLoadBufferSize,
-//    Long offsetsRetentionMs = 24*60*60000L,
-//    Long offsetsRetentionCheckIntervalMs = OffsetManagerConfig.DefaultOffsetsRetentionCheckIntervalMs,
-//    Integer offsetsTopicNumPartitions = OffsetManagerConfig.DefaultOffsetsTopicNumPartitions,
-//    Integer offsetsTopicSegmentBytes = OffsetManagerConfig.DefaultOffsetsTopicSegmentBytes,
-//    Short offsetsTopicReplicationFactor = OffsetManagerConfig.DefaultOffsetsTopicReplicationFactor,
-//    CompressionCodec offsetsTopicCompressionCodec = OffsetManagerConfig.DefaultOffsetsTopicCompressionCodec,
-//    Integer offsetCommitTimeoutMs = OffsetManagerConfig.DefaultOffsetCommitTimeoutMs,
-//    Short offsetCommitRequiredAcks = OffsetManagerConfig.DefaultOffsetCommitRequiredAcks);
 //
 //    object OffsetManagerConfig {
 

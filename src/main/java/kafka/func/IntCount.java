@@ -17,8 +17,9 @@ public class IntCount {
         return new IntCount(v);
     }
 
-    public int add(int n) {
-        return value += n;
+    public IntCount add(int n) {
+         value += n;
+         return this;
     }
 
     public int mul(int n){

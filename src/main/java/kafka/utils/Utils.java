@@ -4,6 +4,8 @@ package kafka.utils;/**
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+import kafka.cluster.Replica;
 import kafka.func.*;
 
 import java.io.*;
@@ -14,8 +16,8 @@ import java.nio.charset.Charset;
 import java.util.*;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import java.util.function.*;
+import java.util.stream.*;
 import java.util.zip.CRC32;
 
 /**
@@ -830,6 +832,7 @@ public class Utils {
         }
         return maps;
     }
+
     public static <V, RESULT> List<RESULT> map(List<V> set, Handler<V, RESULT> handler) {
         List<RESULT> list = Lists.newArrayList();
         if (set != null) {
@@ -839,6 +842,7 @@ public class Utils {
         }
         return list;
     }
+
     public static <V, RESULT> List<RESULT> map(Set<V> set, Handler<V, RESULT> handler) {
         List<RESULT> list = Lists.newArrayList();
         if (set != null) {
@@ -909,6 +913,18 @@ public class Utils {
         return size;
     }
 
+    public static <K, V, R> List<R> flatMap(Map<K, V> map, Handler2<K, V, Stream<R>> handler2) {
+        Stream<R> stream = null;
+        for (K k : map.keySet()) {
+            Stream<R> s = handler2.handle(k, map.get(k));
+            if (stream == null) {
+                stream = s;
+            } else {
+                Stream.concat(stream, s);
+            }
+        }
+        return stream.collect(Collectors.toList());
+    }
 
     public static <K, V> Map<K, V> toMap(List<Tuple<K, V>> list) {
         Map<K, V> map = Maps.newHashMap();
@@ -942,6 +958,7 @@ public class Utils {
         return Stream.iterate(i, n -> n + 1).limit(limit).flatMap(n -> handler.handle(n)).collect(Collectors.toList());
     }
 
+
     public static <T> boolean exists(Collection<T> list, Handler<T, Boolean> handler) {
         for (T t : list) {
             if (handler.handle(t)) {
@@ -963,17 +980,27 @@ public class Utils {
     }
 
     public static <T> List<T> yield(int i, int numAliveBrokers, Fun<T> fun) {
-        List<T> list = new ArrayList<T>(numAliveBrokers);
+        List<T> list = new ArrayList<>(numAliveBrokers);
         for (; i < numAliveBrokers; i++) {
             list.add(fun.invoke());
         }
         return list;
     }
+
     public static <T> Set<T> yieldSet(int i, int numAliveBrokers, Fun<T> fun) {
-        Set<T> list = new HashSet<T>(numAliveBrokers);
+        Set<T> list = new HashSet<>(numAliveBrokers);
         for (; i < numAliveBrokers; i++) {
             list.add(fun.invoke());
         }
         return list;
+    }
+
+    public static<T> Set<T> toSet(Iterable<T> iterable) {
+        Set<T>set = Sets.newHashSet();
+        Iterator<T> it = iterable.iterator();
+        while (it.hasNext()){
+            set.add(it.next());
+        }
+        return set;
     }
 }

@@ -6,6 +6,7 @@ import com.yammer.metrics.core.Meter;
 import kafka.api.*;
 import kafka.cluster.Partition;
 import kafka.cluster.Replica;
+import kafka.common.ControllerMovedException;
 import kafka.common.ErrorMapping;
 import kafka.common.ReplicaNotAvailableException;
 import kafka.func.Tuple;
@@ -189,7 +190,6 @@ public class ReplicaManager extends KafkaMetricsGroup {
                 controllerEpoch = stopReplicaRequest.controllerEpoch;
                 // First stop fetchers for all partitions, then stop the corresponding replicas;
                 replicaFetcherManager.removeFetcherForPartitions(stopReplicaRequest.partitions.map(r = > TopicAndPartition(r.topic, r.partition)))
-                ;
                 for (TopicAndPartition topicAndPartition : stopReplicaRequest.partitions) {
                     short errorCode = stopReplica(topicAndPartition.topic, topicAndPartition.partition, stopReplicaRequest.deletePartitions);
                     responseMap.put(topicAndPartition, errorCode);
@@ -220,8 +220,8 @@ public class ReplicaManager extends KafkaMetricsGroup {
         Optional<Replica> replicaOpt = getReplica(topic, partition, null);
         if (replicaOpt.isPresent())
             return replicaOpt.get();
-        else ;
-        throw new ReplicaNotAvailableException(String.format("Replica %d is not available for partition <%s,%d>", config.brokerId, topic, partition))
+        else
+         throw new ReplicaNotAvailableException(String.format("Replica %d is not available for partition <%s,%d>", config.brokerId, topic, partition))
     }
 
     public Replica getLeaderReplicaIfLocal(String topic, Integer partitionId) {
@@ -252,30 +252,20 @@ public class ReplicaManager extends KafkaMetricsGroup {
         }
         return Optional.empty();
     }
-}
 
-class PartitionDataAndOffset {
-   public FetchResponsePartitionData data;
-    public LogOffsetMetadata offset;
 
-    public PartitionDataAndOffset(FetchResponsePartitionData data, LogOffsetMetadata offset) {
-        this.data = data;
-        this.offset = offset;
-    }
-
-}
 
     /**
      * Read from all the offset details given and return a map of
      * (topic, partition) -> PartitionData
      */
-    public Tuple<TopicAndPartition, PartitionDataAndOffset> readMessageSets(FetchRequest fetchRequest) {
+    public List<Tuple<TopicAndPartition, PartitionDataAndOffset>> readMessageSets(FetchRequest fetchRequest) {
         boolean isFetchFromFollower = fetchRequest.isFromFollower();
-        return Utils.map2(fetchRequest.requestInfo, kv -> {
-            String topic = kv.getKey().topic;
-            Integer partition = kv.getKey().partition;
-            Long offset = kv.getValue().offset;
-            Integer fetchSize = kv.getValue().fetchSize;
+        return Utils.map(fetchRequest.requestInfo, (topicAndPartition, partitionFetchInfo) -> {
+            String topic = topicAndPartition.topic;
+            Integer partition = topicAndPartition.partition;
+            Long offset = partitionFetchInfo.offset;
+            Integer fetchSize = partitionFetchInfo.fetchSize;
             PartitionDataAndOffset partitionDataAndOffsetInfo;
             try {
                 Tuple<FetchDataInfo, Long> fetchInfoTuple = readMessageSet(topic, partition, offset, fetchSize, fetchRequest.replicaId);
@@ -342,10 +332,10 @@ class PartitionDataAndOffset {
 
 
     public void  maybeUpdateMetadataCache(UpdateMetadataRequest updateMetadataRequest, MetadataCache metadataCache) {
-        replicaStateChangeLock synchronized {
+         synchronized(replicaStateChangeLock) {
             if(updateMetadataRequest.controllerEpoch < controllerEpoch) {
-                val stateControllerEpochErrorMessage = ("Broker %d received update metadata request with correlation id %d from an " +;
-                        "old controller %d with epoch %d. Latest known controller epoch is %d").format(localBrokerId,
+                String stateControllerEpochErrorMessage = String.format("Broker %d received update metadata request with correlation id %d from an " +
+                        "old controller %d with epoch %d. Latest known controller epoch is %d",localBrokerId,
                         updateMetadataRequest.correlationId, updateMetadataRequest.controllerId, updateMetadataRequest.controllerEpoch,
                         controllerEpoch);
                 stateChangeLogger.warn(stateControllerEpochErrorMessage);
@@ -357,8 +347,7 @@ class PartitionDataAndOffset {
         }
     }
 
-    public void  becomeLeaderOrFollower(LeaderAndIsrRequest leaderAndISRRequest,
-                               OffsetManager offsetManager): (collection.Map[(String, Int), Short], Short) = {
+    public Map<Tuple<String, Integer>, Short>  becomeLeaderOrFollower(LeaderAndIsrRequest leaderAndISRRequest, OffsetManager offsetManager) {
         leaderAndISRRequest.partitionStateInfos.foreach { case ((topic, partition), stateInfo) =>
             stateChangeLogger.trace("Broker %d received LeaderAndIsr request %s correlation id %d from controller %d epoch %d for partition <%s,%d>";
                     .format(localBrokerId, stateInfo, leaderAndISRRequest.correlationId,
@@ -439,7 +428,7 @@ class PartitionDataAndOffset {
     private public void  makeLeaders Integer controllerId, Integer epoch,
                             Map partitionState<Partition, PartitionStateInfo>,
                             Integer correlationId, mutable responseMap.Map[(String, Int), Short],
-    OffsetManager offsetManager) = {
+    OffsetManager offsetManager) {
         partitionState.foreach(state =>
                 stateChangeLogger.trace(("Broker %d handling LeaderAndIsr request correlationId %d from controller %d epoch %d " +;
                         "starting the become-leader transition for partition %s")
@@ -644,4 +633,15 @@ class PartitionDataAndOffset {
         info("Shut down completely");
     }
 //}
+}
+
+class PartitionDataAndOffset {
+    public FetchResponsePartitionData data;
+    public LogOffsetMetadata offset;
+
+    public PartitionDataAndOffset(FetchResponsePartitionData data, LogOffsetMetadata offset) {
+        this.data = data;
+        this.offset = offset;
+    }
+
 }
