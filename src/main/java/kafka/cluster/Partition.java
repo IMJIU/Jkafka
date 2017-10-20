@@ -79,19 +79,14 @@ public class Partition extends KafkaMetricsGroup {
 
 
     public Boolean isUnderReplicated() {
-        leaderReplicaIfLocal() match {
-            case Some(_) =>
-                inSyncReplicas.size<assignedReplicas.size ;
-            case None =>
-                false;
+       Optional<Replica> opt = leaderReplicaIfLocal() ;
+       if(opt.isPresent()){
+           return inSyncReplicas.size<assignedReplicas.size ;
         }
+        return false;
     }
 
-    public Replica
-    void getOrCreateReplica
-    Integer replicaId = localBrokerId)
-
-    {
+    public Replica getOrCreateReplica(Integer replicaId = localBrokerId) {
         val replicaOpt = getReplica(replicaId);
         replicaOpt match {
         case Some(replica) =>replica;
