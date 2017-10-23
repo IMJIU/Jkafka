@@ -1,5 +1,9 @@
 package kafka.utils;
 
+import kafka.api.LeaderAndIsr;
+import kafka.func.Tuple;
+import org.I0Itec.zkclient.ZkClient;
+
 /**
  * @author zhoulf
  * @create 2017-10-20 30 17
@@ -7,13 +11,13 @@ package kafka.utils;
 
 public class ReplicationUtils extends Logging {
 
-       public void updateLeaderAndIsr(ZkClient zkClient, String topic, Int partitionId, LeaderAndIsr newLeaderAndIsr, Int controllerEpoch,
-        Int zkVersion): (Boolean,Int) = {
+       public static Tuple<Boolean,Integer> updateLeaderAndIsr(
+               ZkClient zkClient, String topic, Integer partitionId, LeaderAndIsr newLeaderAndIsr, Integer controllerEpoch, Integer zkVersion){
         debug(String.format("Updated ISR for partition <%s,%d> to %s",topic, partitionId, newLeaderAndIsr.isr.mkString(",")))
         val path = ZkUtils.getTopicPartitionLeaderAndIsrPath(topic, partitionId);
         val newLeaderData = ZkUtils.leaderAndIsrZkData(newLeaderAndIsr, controllerEpoch);
         // use the epoch of the controller that made the leadership decision, instead of the current controller epoch;
-        ZkUtils.conditionalUpdatePersistentPath(zkClient, path, newLeaderData, zkVersion, Some(checkLeaderAndIsrZkData));
+        return ZkUtils.conditionalUpdatePersistentPath(zkClient, path, newLeaderData, zkVersion, Some(checkLeaderAndIsrZkData));
         }
 
        public void checkLeaderAndIsrZkData(ZkClient zkClient, String path, String expectedLeaderAndIsrInfo): (Boolean,Int) = {

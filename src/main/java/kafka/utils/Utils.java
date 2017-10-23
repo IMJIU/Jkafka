@@ -946,6 +946,15 @@ public class Utils {
         return list;
     }
 
+    public static <T> Set<T> filter(Set<T> it, Handler<T, Boolean> handler) {
+       Set<T> result = Sets.newHashSet();
+        for(T t:it){
+            if (handler.handle(t)) {
+                result.add(t);
+            }
+        }
+        return result;
+    }
     public static void it(int i, int limit, ActionP<Integer> actionP) {
         Stream.iterate(i, n -> n + 1).limit(limit).forEach(n -> actionP.invoke(n));
     }

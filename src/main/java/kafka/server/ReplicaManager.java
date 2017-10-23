@@ -64,7 +64,7 @@ public class ReplicaManager extends KafkaMetricsGroup {
     private Object replicaStateChangeLock = new Object();
     public ReplicaFetcherManager replicaFetcherManager = new ReplicaFetcherManager(config, this);
     private AtomicBoolean highWatermarkCheckPointThreadStarted = new AtomicBoolean(false);
-    Map<File, OffsetCheckpoint> highWatermarkCheckpoints = null;
+    public Map<File, OffsetCheckpoint> highWatermarkCheckpoints = null;
 
     public void init() {
         highWatermarkCheckpoints = Utils.toMap(config.logDirs.stream().map(dir -> {
@@ -73,12 +73,13 @@ public class ReplicaManager extends KafkaMetricsGroup {
             } catch (IOException e) {
                 e.printStackTrace();
             }
+            return Tuple.empty();
         }).collect(Collectors.toList()));
         this.logIdent = "[Replica Manager on Broker " + localBrokerId + "]: ";
 
         newGauge("LeaderCount", new Gauge<Integer>() {
             public Integer value() {
-                return getLeaderPartitions().size;
+                return getLeaderPartitions().size();
             }
         });
         newGauge("PartitionCount", new Gauge<Integer>() {
@@ -95,14 +96,14 @@ public class ReplicaManager extends KafkaMetricsGroup {
 
     private boolean hwThreadInitialized = false;
 
-    StateChangeLogger stateChangeLogger = KafkaController.stateChangeLogger;
+    public StateChangeLogger stateChangeLogger = KafkaController.stateChangeLogger;
     //
 //         ProducerRequestPurgatory producerRequestPurgatory = null;
 //         FetchRequestPurgatory fetchRequestPurgatory = null;
 //
 //
-    Meter isrExpandRate = newMeter("IsrExpandsPerSec", "expands", TimeUnit.SECONDS);
-    Meter isrShrinkRate = newMeter("IsrShrinksPerSec", "shrinks", TimeUnit.SECONDS);
+    public Meter isrExpandRate = newMeter("IsrExpandsPerSec", "expands", TimeUnit.SECONDS);
+    public Meter isrShrinkRate = newMeter("IsrShrinksPerSec", "shrinks", TimeUnit.SECONDS);
 
     //
     public Integer underReplicatedPartitionCount() {

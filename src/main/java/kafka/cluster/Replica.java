@@ -16,8 +16,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * @author
  * @create 2017-04-01 16 18
  **/
-public class Replica {
-    private static Logging logger = Logging.getLogger(Replica.class.getName());
+public class Replica extends Logging {
     public Integer brokerId;
     public Partition partition;
     public Time time;
@@ -26,6 +25,10 @@ public class Replica {
     ///////////////////////////////////////////////////////////////
     public String topic;
     public Integer partitionId;
+
+    public Replica(Integer brokerId, Partition partition, Time time) {
+        this(brokerId, partition, time, 0L, Optional.empty());
+    }
 
     public Replica(Integer brokerId, Partition partition, Time time, Long initialHighWatermarkValue, Optional<Log> log) {
         this.brokerId = brokerId;
@@ -50,9 +53,7 @@ public class Replica {
     private volatile LogOffsetMetadata logEndOffsetMetadata = LogOffsetMetadata.UnknownOffsetMetadata;
     //        // the time when log offset is updated;
     private AtomicLong logEndOffsetUpdateTimeMsValue = new AtomicLong(time.milliseconds());
-    //
-    public String topic = partition.topic;
-    public Integer partitionId = partition.partitionId;
+
 
     //
     public Boolean isLocal() {
@@ -65,7 +66,7 @@ public class Replica {
     //
     public void logEndOffset_(LogOffsetMetadata newLogEndOffset) {
         if (isLocal()) {
-            throw new KafkaException(String.format("Should not set log end offset on partition <%s,%d>'s local replica %d", topic, partitionId, brokerId))
+            throw new KafkaException(String.format("Should not set log end offset on partition <%s,%d>'s local replica %d", topic, partitionId, brokerId));
         } else {
             logEndOffsetMetadata = newLogEndOffset;
             logEndOffsetUpdateTimeMsValue.set(time.milliseconds());
@@ -82,39 +83,43 @@ public class Replica {
             return logEndOffsetMetadata;
     }
 
-    //
-//        public void  logEndOffsetUpdateTimeMs = logEndOffsetUpdateTimeMsValue.get();
-//
-//        public void  highWatermark_=(LogOffsetMetadata newHighWatermark) {
-//            if (isLocal) {
-//                highWatermarkMetadata = newHighWatermark;
-//                trace("Setting high watermark for replica %d partition <%s,%d> on broker %d to <%s>";
-//                        .format(brokerId, topic, partitionId, brokerId, newHighWatermark))
-//            } else {
-//                throw new KafkaException(String.format("Should not set high watermark on partition <%s,%d>'s non-local replica %d",topic, partitionId, brokerId))
-//            }
-//        }
-//
+    public long logEndOffsetUpdateTimeMs() {
+        return logEndOffsetUpdateTimeMsValue.get();
+    }
+
+
+    public void highWatermark_(LogOffsetMetadata newHighWatermark) {
+        if (isLocal()) {
+            highWatermarkMetadata = newHighWatermark;
+            trace(String.format("Setting high watermark for replica %d partition <%s,%d> on broker %d to <%s>",
+                    brokerId, topic, partitionId, brokerId, newHighWatermark));
+        } else {
+            throw new KafkaException(String.format("Should not set high watermark on partition <%s,%d>'s non-local replica %d", topic, partitionId, brokerId));
+        }
+    }
+
     public LogOffsetMetadata highWatermark = highWatermarkMetadata;
 
-    //
-//        public void  convertHWToLocalOffsetMetadata() = {
-//        if (isLocal) {
-//            highWatermarkMetadata = log.get.convertToOffsetMetadata(highWatermarkMetadata.messageOffset);
-//        } else {
-//            throw new KafkaException(String.format("Should not construct complete high watermark on partition <%s,%d>'s non-local replica %d",topic, partitionId, brokerId))
-//        }
-//  }
-//
-//        override public void  equals(Any that): Boolean = {
-//        if(!(that.isInstanceOf<Replica>))
-//            return false;
-//        val other = that.asInstanceOf<Replica>;
-//        if(topic.equals(other.topic) && brokerId == other.brokerId && partition.equals(other.partition))
-//            return true;
-//        false;
-//  }
-//
+
+    public void convertHWToLocalOffsetMetadata() {
+        if (isLocal()) {
+            highWatermarkMetadata = log.get().convertToOffsetMetadata(highWatermarkMetadata.messageOffset);
+        } else {
+            throw new KafkaException(String.format("Should not construct complete high watermark on partition <%s,%d>'s non-local replica %d", topic, partitionId, brokerId));
+        }
+    }
+
+
+    @Override
+    public boolean equals(Object that) {
+        if (!(that instanceof Replica))
+            return false;
+        Replica other = (Replica) that;
+        if (topic.equals(other.topic) && brokerId == other.brokerId && partition.equals(other.partition))
+            return true;
+        return false;
+    }
+
     @Override
     public int hashCode() {
         return 31 + topic.hashCode() + 17 * brokerId + partition.hashCode();
