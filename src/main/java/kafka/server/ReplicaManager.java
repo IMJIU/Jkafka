@@ -116,7 +116,7 @@ public class ReplicaManager extends KafkaMetricsGroup {
 
     public void startHighWaterMarksCheckPointThread() {
         if (highWatermarkCheckPointThreadStarted.compareAndSet(false, true))
-            scheduler.schedule("highwatermark-checkpoint", checkpointHighWatermarks, period = config.replicaHighWatermarkCheckpointIntervalMs, unit = TimeUnit.MILLISECONDS);
+            scheduler.schedule("highwatermark-checkpoint", () -> checkpointHighWatermarks(), config.replicaHighWatermarkCheckpointIntervalMs);
     }
 
     /**
@@ -237,7 +237,7 @@ public class ReplicaManager extends KafkaMetricsGroup {
             if (leaderReplicaIfLocalOpt.isPresent()) {
                 return leaderReplicaIfLocalOpt.get();
             } else {
-                throw new NotLeaderForPartitionException(String.format("Leader not local for partition <%s,%d> on broker %d",topic, partitionId, config.brokerId));
+                throw new NotLeaderForPartitionException(String.format("Leader not local for partition <%s,%d> on broker %d", topic, partitionId, config.brokerId));
             }
         }
         throw new UnknownTopicOrPartitionException(String.format("Partition <%s,%d> doesn't exist on %d", topic, partitionId, config.brokerId));
