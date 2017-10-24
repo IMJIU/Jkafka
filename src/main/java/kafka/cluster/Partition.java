@@ -67,8 +67,8 @@ public class Partition extends KafkaMetricsGroup {
     private ReentrantReadWriteLock leaderIsrUpdateLock = new ReentrantReadWriteLock();
     private Integer zkVersion = LeaderAndIsr.initialZKVersion;
     private volatile Integer leaderEpoch = LeaderAndIsr.initialLeaderEpoch - 1;
-    volatile Optional<Integer> leaderReplicaIdOpt = Optional.empty();
-    volatile Set<Replica> inSyncReplicas = Sets.newHashSet();
+    public volatile Optional<Integer> leaderReplicaIdOpt = Optional.empty();
+    public volatile Set<Replica> inSyncReplicas = Sets.newHashSet();
 
     /* Epoch of the controller that last changed the leader. This needs to be initialized correctly upon broker startup.
  * One way of doing that is through the controller's start replica state change command. When a new broker starts up
@@ -206,7 +206,7 @@ public class Partition extends KafkaMetricsGroup {
             Set<Replica> newInSyncReplicas = Utils.toSet(Utils.map(leaderAndIsr.isr, r -> getOrCreateReplica(r)));
             // remove assigned replicas that have been removed by the controller;
 //            (assignedReplicas().stream().map(r->r.brokerId)-- allReplicas).foreach(removeReplica(_));
-            List<Integer> replicaBrokerIdList = Utils.map(assignedReplicas(), r -> r.brokerId);
+            Set<Integer> replicaBrokerIdList = Utils.map(assignedReplicas(), r -> r.brokerId);
             allReplicas.stream().filter(r -> !replicaBrokerIdList.contains(r)).forEach(this::removeReplica);
             inSyncReplicas = newInSyncReplicas;
             leaderEpoch = leaderAndIsr.leaderEpoch;
@@ -251,7 +251,7 @@ public class Partition extends KafkaMetricsGroup {
             allReplicas.forEach(r -> getOrCreateReplica(r));
             // remove assigned replicas that have been removed by the controller;
 //        (assignedReplicas().map(_.brokerId)-- allReplicas).foreach(removeReplica(_));
-            List<Integer> replicaBrokerIdList = Utils.map(assignedReplicas(), r -> r.brokerId);
+            Set<Integer> replicaBrokerIdList = Utils.map(assignedReplicas(), r -> r.brokerId);
             allReplicas.stream().filter(r -> !replicaBrokerIdList.contains(r)).forEach(this::removeReplica);
             inSyncReplicas = Sets.newHashSet();
             leaderEpoch = leaderAndIsr.leaderEpoch;
@@ -352,7 +352,7 @@ public class Partition extends KafkaMetricsGroup {
      * @param leaderReplica
      */
     private void maybeIncrementLeaderHW(Replica leaderReplica) {
-        List<LogOffsetMetadata> allLogEndOffsets = Utils.map(inSyncReplicas,r->r.logEndOffset());
+        Set<LogOffsetMetadata> allLogEndOffsets = Utils.map(inSyncReplicas,r->r.logEndOffset());
         LogOffsetMetadata newHighWatermark =  allLogEndOffsets.stream().min(LogOffsetMetadata::compare).get();
         LogOffsetMetadata oldHighWatermark = leaderReplica.highWatermark;
         if (oldHighWatermark.precedes(newHighWatermark)) {
@@ -453,7 +453,7 @@ public class Partition extends KafkaMetricsGroup {
     }
 
     private void updateIsr(Set<Replica> newIsr) {
-        LeaderAndIsr newLeaderAndIsr = new LeaderAndIsr(localBrokerId, leaderEpoch, Utils.map(newIsr,r -> r.brokerId), zkVersion);
+        LeaderAndIsr newLeaderAndIsr = new LeaderAndIsr(localBrokerId, leaderEpoch, Utils.toList(Utils.map(newIsr,r -> r.brokerId)), zkVersion);
         Tuple<Boolean,Integer> result = ReplicationUtils.updateLeaderAndIsr(zkClient, topic, partitionId,
                 newLeaderAndIsr, controllerEpoch, zkVersion);
         Boolean updateSucceeded = result.v1;

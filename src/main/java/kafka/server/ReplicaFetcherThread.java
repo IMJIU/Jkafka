@@ -1,6 +1,7 @@
 package kafka.server;
 
 import com.google.common.collect.ImmutableMap;
+import kafka.admin.AdminUtils;
 import kafka.api.FetchResponsePartitionData;
 import kafka.api.OffsetRequest;
 import kafka.cluster.Broker;

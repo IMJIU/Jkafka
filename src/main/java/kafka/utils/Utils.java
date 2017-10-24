@@ -5,6 +5,8 @@ package kafka.utils;/**
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import kafka.api.PartitionStateInfo;
+import kafka.cluster.Partition;
 import kafka.cluster.Replica;
 import kafka.func.*;
 
@@ -833,7 +835,16 @@ public class Utils {
         return maps;
     }
 
-    public static <V, RESULT> List<RESULT> map(List<V> set, Handler<V, RESULT> handler) {
+    public static <V, RESULT> List<RESULT> map(Iterable<V> it, Handler<V, RESULT> handler) {
+        List<RESULT> list = Lists.newArrayList();
+        Iterator<V> itor = it.iterator();
+        while(itor.hasNext()){
+            list.add(handler.handle(itor.next()));
+        }
+        return list;
+    }
+
+    public static <V, RESULT> List<RESULT> map(Collection<V> set, Handler<V, RESULT> handler) {
         List<RESULT> list = Lists.newArrayList();
         if (set != null) {
             for (V entry : set) {
@@ -843,8 +854,8 @@ public class Utils {
         return list;
     }
 
-    public static <V, RESULT> List<RESULT> map(Set<V> set, Handler<V, RESULT> handler) {
-        List<RESULT> list = Lists.newArrayList();
+    public static <V, RESULT> Set<RESULT> map(Set<V> set, Handler<V, RESULT> handler) {
+        Set<RESULT> list = Sets.newHashSet();
         if (set != null) {
             for (V entry : set) {
                 list.add(handler.handle(entry));
@@ -915,8 +926,8 @@ public class Utils {
 
     public static <K, V, R> List<R> flatMap(Map<K, V> map, Handler2<K, V, Stream<R>> handler2) {
         Stream<R> stream = null;
-        for (K k : map.keySet()) {
-            Stream<R> s = handler2.handle(k, map.get(k));
+        for (Map.Entry<K, V> entry : map.entrySet()) {
+            Stream<R> s = handler2.handle(entry.getKey(), entry.getValue());
             if (stream == null) {
                 stream = s;
             } else {
@@ -926,7 +937,7 @@ public class Utils {
         return stream.collect(Collectors.toList());
     }
 
-    public static <K, V> Map<K, V> toMap(List<Tuple<K, V>> list) {
+    public static <K, V> Map<K, V> toMap(Collection<Tuple<K, V>> list) {
         Map<K, V> map = Maps.newHashMap();
         for (Tuple<K, V> kv : list) {
             map.put(kv.v1, kv.v2);
@@ -947,14 +958,15 @@ public class Utils {
     }
 
     public static <T> Set<T> filter(Set<T> it, Handler<T, Boolean> handler) {
-       Set<T> result = Sets.newHashSet();
-        for(T t:it){
+        Set<T> result = Sets.newHashSet();
+        for (T t : it) {
             if (handler.handle(t)) {
                 result.add(t);
             }
         }
         return result;
     }
+
     public static void it(int i, int limit, ActionP<Integer> actionP) {
         Stream.iterate(i, n -> n + 1).limit(limit).forEach(n -> actionP.invoke(n));
     }
@@ -1004,12 +1016,41 @@ public class Utils {
         return list;
     }
 
-    public static<T> Set<T> toSet(Iterable<T> iterable) {
-        Set<T>set = Sets.newHashSet();
+    public static <T> Set<T> toSet(Iterable<T> iterable) {
+        Set<T> set = Sets.newHashSet();
         Iterator<T> it = iterable.iterator();
-        while (it.hasNext()){
+        while (it.hasNext()) {
             set.add(it.next());
         }
         return set;
+    }
+
+    public static <T> List<T> toList(Collection<T> list) {
+        List<T> result = new ArrayList<T>(list.size());
+        for (T t : list) {
+            result.add(t);
+        }
+        return result;
+    }
+
+    public static <T> T find(Collection<T> list,Handler<T,Boolean>handler) {
+        for (T t : list) {
+            if(handler.handle(t)){
+                return t;
+            }
+        }
+        return null;
+    }
+
+    public static <K, V> Map<K, V> filter(Map<K, V> map, Handler2<K, V, Boolean> handler2) {
+        Map<K, V> result = Maps.newHashMap();
+        for (Map.Entry<K, V> en : map.entrySet()) {
+            K k = en.getKey();
+            V v = en.getValue();
+            if (handler2.handle(k, v)) {
+                result.put(k, v);
+            }
+        }
+        return result;
     }
 }
