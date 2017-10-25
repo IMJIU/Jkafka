@@ -98,7 +98,9 @@ public class Replica extends Logging {
         }
     }
 
-    public LogOffsetMetadata highWatermark = highWatermarkMetadata;
+    public LogOffsetMetadata highWatermark(){
+        return highWatermarkMetadata;
+    }
 
 
     public void convertHWToLocalOffsetMetadata() {
@@ -132,7 +134,7 @@ public class Replica extends Logging {
         replicaString.append("; Topic: " + topic);
         replicaString.append("; Partition: " + partition.partitionId);
         replicaString.append("; isLocal: " + isLocal());
-        if (isLocal()) replicaString.append("; Highwatermark: " + highWatermark);
+        if (isLocal()) replicaString.append("; Highwatermark: " + highWatermark());
         return replicaString.toString();
     }
 }

@@ -1,38 +1,59 @@
 package kafka.utils;
 
+import java.util.concurrent.Delayed;
+import java.util.concurrent.TimeUnit;
+
 /**
  * @author zhoulf
  * @create 2017-10-24 31 18
  **/
 
-class DelayedItem<T>(val T item, Long delay, TimeUnit unit) extends Delayed with Logging {
+public class DelayedItem<T> extends Logging implements Delayed {
+    public T item;
+    public Long delay;
+    public TimeUnit unit;
 
-        val createdMs = SystemTime.milliseconds;
-        val delayMs = {
-        val given = unit.toMillis(delay);
-        if (given < 0 || (createdMs + given) < 0) (Long.MAX_VALUE - createdMs)
-        else given;
-        }
-
-       public void this(T item, Long delayMs) =
+    public DelayedItem(T item, Long delayMs) {
         this(item, delayMs, TimeUnit.MILLISECONDS);
+    }
 
-        /**
-         * The remaining delay time
-         */
-       public Long  void getDelay(TimeUnit unit) {
-        val elapsedMs = (SystemTime.milliseconds - createdMs);
-        unit.convert(max(delayMs - elapsedMs, 0), TimeUnit.MILLISECONDS);
+    public DelayedItem(T item, Long delay, TimeUnit unit) {
+        this.item = item;
+        this.delay = delay;
+        this.unit = unit;
+        init();
+    }
+
+    public void init() {
+        long given = unit.toMillis(delay);
+        if (given < 0 || (createdMs + given) < 0) {
+            delayMs = (Long.MAX_VALUE - createdMs);
+        } else {
+            delayMs = given;
         }
+    }
 
-       public Integer  void compareTo(Delayed d) {
-        val delayed = d.asInstanceOf<DelayedItem[T]>
-        val myEnd = createdMs + delayMs;
-        val yourEnd = delayed.createdMs + delayed.delayMs;
+    public long createdMs = SystemTime.get().milliseconds();
+    public long delayMs;
 
-        if(myEnd < yourEnd) -1;
-        else if(myEnd > yourEnd) 1;
-        else 0;
-        }
 
-        }
+    /**
+     * The remaining delay time
+     */
+    @Override
+    public long getDelay(TimeUnit unit) {
+        long elapsedMs = (SystemTime.get().milliseconds() - createdMs);
+        return unit.convert(Math.max(delayMs - elapsedMs, 0), TimeUnit.MILLISECONDS);
+    }
+
+    public int compareTo(Delayed d) {
+        DelayedItem<T> delayed = (DelayedItem)d;
+                long myEnd = createdMs + delayMs;
+        long yourEnd = delayed.createdMs + delayed.delayMs;
+
+        if (myEnd < yourEnd) return -1;
+        else if (myEnd > yourEnd) return 1;
+        else return 0;
+    }
+
+}

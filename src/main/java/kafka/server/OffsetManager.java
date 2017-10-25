@@ -285,7 +285,7 @@ public class OffsetManager extends KafkaMetricsGroup {
         Optional<Partition> partitionOpt = replicaManager.getPartition(OffsetManager.OffsetsTopicName, partitionId);
         Long hw;
         if (partitionOpt.isPresent()) {
-            Optional<Long> opt = partitionOpt.get().leaderReplicaIfLocal().map(l -> l.highWatermark.messageOffset);
+            Optional<Long> opt = partitionOpt.get().leaderReplicaIfLocal().map(l -> l.highWatermark().messageOffset);
             if (opt.isPresent()) {
                 hw = opt.get();
             } else {

@@ -101,11 +101,8 @@ public class ReplicaManager extends KafkaMetricsGroup {
     private boolean hwThreadInitialized = false;
 
     public StateChangeLogger stateChangeLogger = KafkaController.stateChangeLogger;
-    //
-//         ProducerRequestPurgatory producerRequestPurgatory = null;
-//         FetchRequestPurgatory fetchRequestPurgatory = null;
-//
-//
+    ProducerRequestPurgatory producerRequestPurgatory = null;
+    FetchRequestPurgatory fetchRequestPurgatory = null;
     public Meter isrExpandRate = newMeter("IsrExpandsPerSec", "expands", TimeUnit.SECONDS);
     public Meter isrShrinkRate = newMeter("IsrShrinksPerSec", "shrinks", TimeUnit.SECONDS);
 
@@ -134,27 +131,27 @@ public class ReplicaManager extends KafkaMetricsGroup {
      * Unblock some delayed produce requests with the request key
      */
     public void unblockDelayedProduceRequests(TopicAndPartition key) {
-        val satisfied = producerRequestPurgatory.update(key);
-        debug(String.format("Request key %s unblocked %d producer requests.", key, satisfied.size));
+        List satisfied = producerRequestPurgatory.update(key);
+        debug(String.format("Request key %s unblocked %d producer requests.", key, satisfied.size()));
 
         // send any newly unblocked responses;
-        satisfied.foreach(producerRequestPurgatory.respond(_));
+        satisfied.forEach(s -> producerRequestPurgatory.respond(s));
     }
 
     /**
      * Unblock some delayed fetch requests with the request key
      */
     public void unblockDelayedFetchRequests(TopicAndPartition key) {
-        val satisfied = fetchRequestPurgatory.update(key);
-        debug(String.format("Request key %s unblocked %d fetch requests.", key, satisfied.size))
+        List<DelayedFetch> satisfied = fetchRequestPurgatory.update(key);
+        debug(String.format("Request key %s unblocked %d fetch requests.", key, satisfied.size()));
 
         // send any newly unblocked responses;
-        satisfied.foreach(fetchRequestPurgatory.respond(_))
+        satisfied.forEach(s -> fetchRequestPurgatory.respond(s));
     }
 
     public void startup() {
         // start ISR expiration thread;
-        scheduler.schedule("isr-expiration", maybeShrinkIsr, period = config.replicaLagTimeMaxMs, unit = TimeUnit.MILLISECONDS);
+        scheduler.schedule("isr-expiration", () -> maybeShrinkIsr(), config.replicaLagTimeMaxMs);
     }
 
     public Short stopReplica(String topic, Integer partitionId, Boolean deletePartition) {
@@ -323,7 +320,7 @@ public class ReplicaManager extends KafkaMetricsGroup {
         if (Request.isValidBrokerId(fromReplicaId))
             maxOffsetOpt = Optional.empty();
         else
-            maxOffsetOpt = Optional.of(localReplica.highWatermark.messageOffset);
+            maxOffsetOpt = Optional.of(localReplica.highWatermark().messageOffset);
         FetchDataInfo fetchInfo;
         if (localReplica.log.isPresent()) {
             fetchInfo = localReplica.log.get().read(offset, maxSize, maxOffsetOpt);
@@ -331,7 +328,7 @@ public class ReplicaManager extends KafkaMetricsGroup {
             error(String.format("Leader for partition <%s,%d> does not have a local log", topic, partition));
             fetchInfo = new FetchDataInfo(LogOffsetMetadata.UnknownOffsetMetadata, MessageSet.Empty);
         }
-        return Tuple.of(fetchInfo, localReplica.highWatermark.messageOffset);
+        return Tuple.of(fetchInfo, localReplica.highWatermark().messageOffset);
     }
 
 
@@ -540,7 +537,7 @@ public class ReplicaManager extends KafkaMetricsGroup {
                         localBrokerId, controllerId, epoch, correlationId, new TopicAndPartition(partition.topic, partition.partitionId)));
             });
 
-            logManager.truncateTo(Utils.toMap(Utils.map(partitionsToMakeFollower, partition -> Tuple.of(new TopicAndPartition(partition), partition.getOrCreateReplica().highWatermark.messageOffset))));
+            logManager.truncateTo(Utils.toMap(Utils.map(partitionsToMakeFollower, partition -> Tuple.of(new TopicAndPartition(partition), partition.getOrCreateReplica().highWatermark().messageOffset))));
 
             partitionsToMakeFollower.forEach(partition ->
                     stateChangeLogger.trace(String.format("Broker %d truncated logs and checkpointed recovery boundaries for partition <%s,%d> as part of " +
@@ -633,7 +630,7 @@ public class ReplicaManager extends KafkaMetricsGroup {
         }), p -> p != null);
         Map<String, List<Replica>> replicasByDir = Utils.groupBy(Utils.filter(replicas, r -> r.log.isPresent()), r -> r.log.get().dir.getParentFile().getAbsolutePath());
         replicasByDir.forEach((dir, reps) -> {
-            Map<TopicAndPartition, Long> hwms = Utils.toMap(Utils.map(reps, r -> Tuple.of(new TopicAndPartition(r), r.highWatermark.messageOffset)));
+            Map<TopicAndPartition, Long> hwms = Utils.toMap(Utils.map(reps, r -> Tuple.of(new TopicAndPartition(r), r.highWatermark().messageOffset)));
             try {
                 highWatermarkCheckpoints.get(dir).write(hwms);
             } catch (IOException e) {

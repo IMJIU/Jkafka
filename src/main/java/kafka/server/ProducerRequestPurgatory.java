@@ -1,16 +1,26 @@
 package kafka.server;
 
 
+import kafka.network.RequestChannel;
+
 /**
  * The purgatory holding delayed producer requests
  * 炼狱控制延迟producer的请求
  */
-class ProducerRequestPurgatory extends RequestPurgatory<DelayedProduce>(replicaManager.config.brokerId, replicaManager.config.producerPurgatoryPurgeIntervalRequests) {
+public class ProducerRequestPurgatory extends RequestPurgatory<DelayedProduce> {
         this.logIdent = String.format("<ProducerRequestPurgatory-%d> ",replicaManager.config.brokerId)
         public ReplicaManager replicaManager;
         public OffsetManager offsetManager;
         public RequestChannel requestChannel;
-private class DelayedProducerRequestMetrics(Option metricId<TopicAndPartition>) extends KafkaMetricsGroup {
+
+    public ProducerRequestPurgatory(ReplicaManager replicaManager, OffsetManager offsetManager, RequestChannel requestChannel) {
+        super(replicaManager.config.brokerId, purgeInterval);
+        this.replicaManager = replicaManager;
+        this.offsetManager = offsetManager;
+        this.requestChannel = requestChannel;
+    }
+
+    private class DelayedProducerRequestMetrics(Option metricId<TopicAndPartition>) extends KafkaMetricsGroup {
         val scala tags.collection.Map<String, String> = metricId match {
         case Some(topicAndPartition) => Map("topic" -> topicAndPartition.topic, "partition" -> topicAndPartition.partition.toString);
         case None => Map.empty;

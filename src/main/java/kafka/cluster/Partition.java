@@ -280,7 +280,7 @@ public class Partition extends KafkaMetricsGroup {
             if (opt.isPresent()) {
                 Replica leaderReplica = opt.get();
                 Replica replica = getReplica(replicaId).get();
-                LogOffsetMetadata leaderHW = leaderReplica.highWatermark;
+                LogOffsetMetadata leaderHW = leaderReplica.highWatermark();
                 // For a replica to get added back to ISR, it has to satisfy 3 conditions-;
                 // 1. It is not already in the ISR;
                 // 2. It is part of the assigned replica list. See KAFKA-1097;
@@ -319,7 +319,7 @@ public class Partition extends KafkaMetricsGroup {
             Integer minIsr = leaderReplica.log.get().config.minInSyncReplicas;
 
             trace(String.format("%d/%d acks satisfied for %s-%d", numAcks, requiredAcks, topic, partitionId));
-            if (requiredAcks < 0 && leaderReplica.highWatermark.messageOffset >= requiredOffset) {
+            if (requiredAcks < 0 && leaderReplica.highWatermark().messageOffset >= requiredOffset) {
           /*
           * requiredAcks < 0 means acknowledge after all replicas in ISR
           * are fully caught up to the (local) leader's offset
@@ -354,9 +354,9 @@ public class Partition extends KafkaMetricsGroup {
     private void maybeIncrementLeaderHW(Replica leaderReplica) {
         Set<LogOffsetMetadata> allLogEndOffsets = Utils.map(inSyncReplicas,r->r.logEndOffset());
         LogOffsetMetadata newHighWatermark =  allLogEndOffsets.stream().min(LogOffsetMetadata::compare).get();
-        LogOffsetMetadata oldHighWatermark = leaderReplica.highWatermark;
+        LogOffsetMetadata oldHighWatermark = leaderReplica.highWatermark();
         if (oldHighWatermark.precedes(newHighWatermark)) {
-            leaderReplica.highWatermark = newHighWatermark;
+            leaderReplica.highWatermark_( newHighWatermark);
             debug(String.format("High watermark for partition <%s,%d> updated to %s", topic, partitionId, newHighWatermark));
             // some delayed requests may be unblocked after HW changed;
             TopicAndPartition requestKey = new TopicAndPartition(this.topic, this.partitionId);

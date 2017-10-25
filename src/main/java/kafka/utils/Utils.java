@@ -1041,6 +1041,9 @@ public class Utils {
         }
         return null;
     }
+    public static <T extends Number> Long sum(Collection<T> list) {
+       return list.stream().mapToLong(n->n.longValue()).sum();
+    }
 
     public static <K, V> Map<K, V> filter(Map<K, V> map, Handler2<K, V, Boolean> handler2) {
         Map<K, V> result = Maps.newHashMap();

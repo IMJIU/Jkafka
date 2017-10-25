@@ -57,7 +57,7 @@ public class ReplicaFetcherThread extends AbstractFetcherThread {
             // for the follower replica, we do not need to keep;
             // its segment base offset the physical position,
             // these values will be computed upon making the leader;
-            replica.highWatermark = new LogOffsetMetadata(followerHighWatermark);
+            replica.highWatermark_(new LogOffsetMetadata(followerHighWatermark));
             logger.trace(String.format("Follower %d set replica high watermark for partition <%s,%d> to %s", replica.brokerId, topic, partitionId, followerHighWatermark));
         } catch (KafkaStorageException e) {
             logger.error("Disk error while replicating data.", e);
