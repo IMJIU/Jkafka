@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * The associated keys are used for bookeeping, and represent the "trigger" that causes this request to check if it is satisfied,
  * for example a key could be a (topic, partition) pair.
  */
-class DelayedRequest extends DelayedItem<RequestChannel.Request> {
+ class DelayedRequest extends DelayedItem<RequestChannel.Request> {
     public List  keys;
     public RequestChannel.Request request;
     public Long delayMs;

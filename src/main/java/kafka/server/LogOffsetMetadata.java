@@ -47,31 +47,31 @@ public class LogOffsetMetadata {
 
     public Boolean offsetOnOlderSegment(LogOffsetMetadata that) {
         if (messageOffsetOnly())
-            throw new KafkaException("%s cannot compare its segment info with %s since it only has message offset info".format(this, that))
+            throw new KafkaException(String.format("%s cannot compare its segment info with %s since it only has message offset info", this, that));
 
         return this.segmentBaseOffset < that.segmentBaseOffset;
     }
 
     // decide if the offset metadata only contains message offset info
     public boolean messageOffsetOnly() {
-        return segmentBaseOffset == LogOffsetMetadata.UnknownSegBaseOffset && relativePositionInSegment == LogOffsetMetadata.UnknownFilePosition
+        return segmentBaseOffset == LogOffsetMetadata.UnknownSegBaseOffset && relativePositionInSegment == LogOffsetMetadata.UnknownFilePosition;
     }
 
     // compute the number of bytes between this offset to the given offset
     // if they are on the same segment and this offset precedes the given offset
     public int positionDiff(LogOffsetMetadata that) {
         if (!offsetOnSameSegment(that))
-            throw new KafkaException("%s cannot compare its segment position with %s since they are not on the same segment".format(this, that))
+            throw new KafkaException(String.format("%s cannot compare its segment position with %s since they are not on the same segment", this, that));
         if (messageOffsetOnly())
-            throw new KafkaException("%s cannot compare its segment position with %s since it only has message offset info".format(this, that))
+            throw new KafkaException(String.format("%s cannot compare its segment position with %s since it only has message offset info", this, that));
 
-        return this.relativePositionInSegment - that.relativePositionInSegment
+        return this.relativePositionInSegment - that.relativePositionInSegment;
     }
 
     // check if this offset is on the same segment with the given offset
     public boolean offsetOnSameSegment(LogOffsetMetadata that) {
         if (messageOffsetOnly())
-            throw new KafkaException("%s cannot compare its segment info with %s since it only has message offset info".format(this, that))
+            throw new KafkaException(String.format("%s cannot compare its segment info with %s since it only has message offset info", this, that));
 
         return this.segmentBaseOffset == that.segmentBaseOffset;
     }

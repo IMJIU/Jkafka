@@ -101,12 +101,3 @@ public class ProducerResponse extends RequestOrResponse {
     }
 }
 
-class ProducerResponseStatus {
-    public Short error;
-    public Long offset;
-
-    public ProducerResponseStatus(Short error, Long offset) {
-        this.error = error;
-        this.offset = offset;
-    }
-}

@@ -1041,6 +1041,15 @@ public class Utils {
         }
         return null;
     }
+
+    public static<K,V> T find(Map<K,V> list,Handler<T,Boolean>handler) {
+        for (T t : list) {
+            if(handler.handle(t)){
+                return t;
+            }
+        }
+        return null;
+    }
     public static <T extends Number> Long sum(Collection<T> list) {
        return list.stream().mapToLong(n->n.longValue()).sum();
     }
