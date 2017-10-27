@@ -336,6 +336,12 @@ public class Sc {
         return list.stream().mapToLong(n -> n.longValue()).sum();
     }
 
+    public static <T> int sum(Collection<T> list, Handler<T, Integer> handler) {
+        IntCount size = IntCount.of(0);
+        list.forEach(t -> size.add(handler.handle(t)));
+        return size.get();
+    }
+
     public static <K, V> Map<K, V> filter(Map<K, V> map, Handler2<K, V, Boolean> handler2) {
         Map<K, V> result = Maps.newHashMap();
         for (Map.Entry<K, V> en : map.entrySet()) {

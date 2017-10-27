@@ -21,7 +21,7 @@ import static kafka.api.ApiUtils.*;
  * @create 2017-10-19 16 9
  **/
 
-public class UpdateMetadataRequest  extends RequestOrResponse{
+public class UpdateMetadataRequest extends RequestOrResponse {
     public static Short CurrentVersion = 0;
     public static Boolean IsInit = true;
     public static Boolean NotInit = false;
@@ -119,11 +119,7 @@ public class UpdateMetadataRequest  extends RequestOrResponse{
     @Override
     public void handleError(Throwable e, RequestChannel requestChannel, RequestChannel.Request request) {
         UpdateMetadataResponse errorResponse = new UpdateMetadataResponse(correlationId, ErrorMapping.codeFor(e.getCause().getClass()));
-        try {
-            requestChannel.sendResponse(new RequestChannel.Response(request, new BoundedByteBufferSend(errorResponse)));
-        } catch (InterruptedException e1) {
-            e1.printStackTrace();
-        }
+        requestChannel.sendResponse(new RequestChannel.Response(request, new BoundedByteBufferSend(errorResponse)));
     }
 
     @Override

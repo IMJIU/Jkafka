@@ -86,10 +86,6 @@ public class ProducerRequestPurgatory extends RequestPurgatory<DelayedProduce> {
     // purgatory TODO should not be responsible for sending back the responses;
     public void respond(DelayedProduce delayedProduce) {
         RequestOrResponse response = delayedProduce.respond(offsetManager);
-        try {
-            requestChannel.sendResponse(new RequestChannel.Response(delayedProduce.request, new BoundedByteBufferSend(response)));
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        requestChannel.sendResponse(new RequestChannel.Response(delayedProduce.request, new BoundedByteBufferSend(response)));
     }
 }

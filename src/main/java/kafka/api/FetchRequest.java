@@ -26,7 +26,7 @@ public class FetchRequest extends RequestOrResponse {
     public static final Integer DefaultMinBytes = 0;
     public static final Integer DefaultCorrelationId = 0;
     public Short versionId = FetchRequest.CurrentVersion;
-    public  Integer correlationId = FetchRequest.DefaultCorrelationId;
+    public Integer correlationId = FetchRequest.DefaultCorrelationId;
     public String clientId = ConsumerConfig.DefaultClientId;
     public Integer replicaId = Request.OrdinaryConsumerId;
     public Integer maxWait = FetchRequest.DefaultMaxWait;
@@ -158,11 +158,7 @@ public class FetchRequest extends RequestOrResponse {
     public void handleError(Throwable e, RequestChannel requestChannel, RequestChannel.Request request) {
         Map<TopicAndPartition, FetchResponsePartitionData> fetchResponsePartitionData = Utils.mapValue(requestInfo, v -> new FetchResponsePartitionData(ErrorMapping.codeFor(e.getClass()), -1L, MessageSet.Empty));
         FetchResponse errorResponse = new FetchResponse(correlationId, fetchResponsePartitionData);
-        try {
-            requestChannel.sendResponse(new RequestChannel.Response(request, new FetchResponseSend(errorResponse)));
-        } catch (InterruptedException e1) {
-            e1.printStackTrace();
-        }
+        requestChannel.sendResponse(new RequestChannel.Response(request, new FetchResponseSend(errorResponse)));
     }
 
     @Override

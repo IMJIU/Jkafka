@@ -173,11 +173,7 @@ public class OffsetCommitRequest extends RequestOrResponse {
     public void handleError(Throwable e, RequestChannel requestChannel, RequestChannel.Request request) {
         Short errorCode = ErrorMapping.codeFor(e.getClass());
         OffsetCommitResponse errorResponse = responseFor(errorCode, Integer.MAX_VALUE);
-        try {
-            requestChannel.sendResponse(new RequestChannel.Response(request, new BoundedByteBufferSend(errorResponse)));
-        } catch (InterruptedException e1) {
-            error(e1.getMessage(),e1);
-        }
+        requestChannel.sendResponse(new RequestChannel.Response(request, new BoundedByteBufferSend(errorResponse)));
     }
 
     @Override

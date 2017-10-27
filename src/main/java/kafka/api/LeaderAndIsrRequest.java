@@ -116,14 +116,10 @@ public class LeaderAndIsrRequest extends RequestOrResponse {
     @Override
     public void handleError(Throwable e, RequestChannel requestChannel, RequestChannel.Request request) {
         Map<Tuple<String, Integer>, Short> responseMap = Utils.toMap(
-                Utils.map(partitionStateInfos,(topicAndPartition,partitionAndState)->
-             Tuple.of(topicAndPartition, ErrorMapping.codeFor(e.getClass()))));
+                Utils.map(partitionStateInfos, (topicAndPartition, partitionAndState) ->
+                        Tuple.of(topicAndPartition, ErrorMapping.codeFor(e.getClass()))));
         LeaderAndIsrResponse errorResponse = new LeaderAndIsrResponse(correlationId, responseMap);
-        try {
-            requestChannel.sendResponse(new RequestChannel.Response(request, new BoundedByteBufferSend(errorResponse)));
-        } catch (InterruptedException e1) {
-            e1.printStackTrace();
-        }
+        requestChannel.sendResponse(new RequestChannel.Response(request, new BoundedByteBufferSend(errorResponse)));
     }
 
     @Override

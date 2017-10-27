@@ -159,11 +159,7 @@ public class ProducerRequest extends RequestOrResponse {
             Map<TopicAndPartition, ProducerResponseStatus> producerResponseStatus =
                     Utils.mapValue(data, v -> new ProducerResponseStatus(ErrorMapping.codeFor(e.getClass()), -1l));
             ProducerResponse errorResponse = new ProducerResponse(correlationId, producerResponseStatus);
-            try {
-                requestChannel.sendResponse(new RequestChannel.Response(request, new BoundedByteBufferSend(errorResponse)));
-            } catch (InterruptedException e1) {
-                error(e1.getMessage(), e1);
-            }
+            requestChannel.sendResponse(new RequestChannel.Response(request, new BoundedByteBufferSend(errorResponse)));
         }
     }
 

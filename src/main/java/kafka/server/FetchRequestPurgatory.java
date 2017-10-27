@@ -32,6 +32,7 @@ public class FetchRequestPurgatory extends RequestPurgatory<DelayedFetch> {
         public boolean forFollower;
         private String metricPrefix;
         public Meter expiredRequestMeter;
+
         public DelayedFetchRequestMetrics(boolean forFollower) {
             this.forFollower = forFollower;
             if (forFollower) metricPrefix = "Follower";
@@ -55,10 +56,9 @@ public class FetchRequestPurgatory extends RequestPurgatory<DelayedFetch> {
     /**
      * Check if a specified delayed fetch request is satisfied
      */
-    public Boolean checkSatisfied(DelayedFetch delayedFetch){
+    public Boolean checkSatisfied(DelayedFetch delayedFetch) {
         return delayedFetch.isSatisfied(replicaManager);
     }
-
 
 
     /**
@@ -74,10 +74,6 @@ public class FetchRequestPurgatory extends RequestPurgatory<DelayedFetch> {
     // purgatory TODO should not be responsible for sending back the responses;
     public void respond(DelayedFetch delayedFetch) {
         FetchResponse response = delayedFetch.respond(replicaManager);
-        try {
-            requestChannel.sendResponse(new RequestChannel.Response(delayedFetch.request, new FetchResponseSend(response)));
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        requestChannel.sendResponse(new RequestChannel.Response(delayedFetch.request, new FetchResponseSend(response)));
     }
 }

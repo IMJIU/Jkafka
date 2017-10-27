@@ -91,8 +91,12 @@ public class RequestChannel extends KafkaMetricsGroup {
     /**
      * Send a response back to the socket server to be sent over the network
      */
-    public void sendResponse(Response response) throws InterruptedException {
-        responseQueues[response.processor].put(response);
+    public void sendResponse(Response response)  {
+        try {
+            responseQueues[response.processor].put(response);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
         for (ActionP onResponse : responseListeners)
             onResponse.invoke(response.processor);
     }
@@ -125,8 +129,13 @@ public class RequestChannel extends KafkaMetricsGroup {
     /**
      * Get the next request or block until there is one
      */
-    public Request receiveRequest() throws InterruptedException {
-        return requestQueue.take();
+    public Request receiveRequest()  {
+        try {
+            return requestQueue.take();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     /**

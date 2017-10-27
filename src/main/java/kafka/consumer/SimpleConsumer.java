@@ -5,7 +5,14 @@ package kafka.consumer;
  * @create 2017-10-24 30 18
  **/
 
+import kafka.api.*;
+import kafka.network.BlockingChannel;
+import kafka.network.Receive;
 import kafka.utils.Logging;
+
+import java.nio.channels.ClosedChannelException;
+
+import static org.apache.kafka.common.utils.Utils.*;
 
 /**
  * A consumer of kafka messages
@@ -32,17 +39,17 @@ public class SimpleConsumer extends Logging {
 
     private Object lock = new Object();
     private BlockingChannel blockingChannel = new BlockingChannel(host, port, bufferSize, BlockingChannel.UseDefaultBufferSize, soTimeout);
-    private FetchRequestAndResponseStatsRegistry fetchRequestAndResponseStats = FetchRequestAndResponseStatsRegistry.getFetchRequestAndResponseStats(clientId);
+    private FetchRequestAndResponseStats fetchRequestAndResponseStats = FetchRequestAndResponseStatsRegistry.getFetchRequestAndResponseStats(clientId);
     private boolean isClosed = false;
 
     private BlockingChannel connect() {
-        close;
+        close();
         blockingChannel.connect();
-        blockingChannel;
+        return blockingChannel;
     }
 
     private void disconnect() {
-        debug("Disconnecting from " + formatAddress(host, port))
+        debug("Disconnecting from " + formatAddress(host, port));
         blockingChannel.disconnect();
     }
 
@@ -52,41 +59,38 @@ public class SimpleConsumer extends Logging {
     }
 
     public void close() {
-        lock synchronized {
+        synchronized (lock) {
             disconnect();
             isClosed = true;
         }
     }
 
-    private Receive sendRequest(RequestOrResponse request) {
-        lock synchronized {
-            var Receive response = null;
+    private Receive sendRequest(RequestOrResponse request) throws ClosedChannelException {
+        synchronized (lock) {
+            Receive response = null;
             try {
                 getOrMakeConnection();
                 blockingChannel.send(request);
                 response = blockingChannel.receive();
-            } catch {
-                case e:
-                    Throwable =>
-                    info(String.format("Reconnect due to socket error: %s", e.toString))
-                    // retry once;
-                    try {
-                        reconnect();
-                        blockingChannel.send(request);
-                        response = blockingChannel.receive();
-                    } catch {
-                    case Throwable e =>
-                        disconnect();
-                        throw e;
+            } catch (Throwable e) {
+                info(String.format("Reconnect due to socket error: %s", e.toString()));
+                // retry once;
+                try {
+                    reconnect();
+                    blockingChannel.send(request);
+                    response = blockingChannel.receive();
+                } catch (Throwable e2) {
+                    disconnect();
+                    throw e2;
                 }
             }
-            response;
+           return  response;
         }
     }
 
-    public TopicMetadataResponse send(TopicMetadataRequest request) {
-        val response = sendRequest(request);
-        TopicMetadataResponse.readFrom(response.buffer);
+    public TopicMetadataResponse send(TopicMetadataRequest request) throws ClosedChannelException {
+        Receive response = sendRequest(request);
+        TopicMetadataResponse.readFrom(response.buffer());
     }
 
     public ConsumerMetadataResponse send(ConsumerMetadataRequest request) {

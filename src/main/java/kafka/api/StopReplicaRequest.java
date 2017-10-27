@@ -108,13 +108,9 @@ public class StopReplicaRequest extends RequestOrResponse {
 
     @Override
     public void handleError(Throwable e, RequestChannel requestChannel, RequestChannel.Request request) {
-        Map<TopicAndPartition,Short> responseMap = Utils.toMap(Utils.map(partitions, p-> Tuple.of(p, ErrorMapping.NoError)));
+        Map<TopicAndPartition, Short> responseMap = Utils.toMap(Utils.map(partitions, p -> Tuple.of(p, ErrorMapping.NoError)));
         StopReplicaResponse errorResponse = new StopReplicaResponse(correlationId, responseMap);
-        try {
-            requestChannel.sendResponse(new RequestChannel.Response(request, new BoundedByteBufferSend(errorResponse)));
-        } catch (InterruptedException e1) {
-            e1.printStackTrace();
-        }
+        requestChannel.sendResponse(new RequestChannel.Response(request, new BoundedByteBufferSend(errorResponse)));
     }
 
     @Override

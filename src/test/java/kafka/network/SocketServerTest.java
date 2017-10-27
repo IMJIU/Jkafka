@@ -59,7 +59,7 @@ public class SocketServerTest {
     }
 
     /* A simple request handler that just echos back the response */
-    public void processRequest(RequestChannel channel) throws InterruptedException {
+    public void processRequest(RequestChannel channel) {
         RequestChannel.Request request = channel.receiveRequest();
         ByteBuffer byteBuffer = ByteBuffer.allocate(request.requestObj.sizeInBytes());
         request.requestObj.writeTo(byteBuffer);
