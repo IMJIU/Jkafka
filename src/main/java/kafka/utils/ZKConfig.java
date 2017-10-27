@@ -1,10 +1,12 @@
 package kafka.utils;
 
+import kafka.common.Config;
+
 /**
  * Created by Administrator on 2017/4/4.
  */
 
-public class ZKConfig {
+public class ZKConfig extends Config{
     public VerifiableProperties props;
     /**
      * ZK host string
@@ -33,6 +35,5 @@ public class ZKConfig {
         zkConnectionTimeoutMs = props.getInt("zookeeper.connection.timeout.ms", zkSessionTimeoutMs);
         zkSyncTimeMs = props.getInt("zookeeper.sync.time.ms", 2000);
     }
-
 
 }

@@ -1,11 +1,10 @@
 package kafka.server;
 
 
-import kafka.api.OffsetCommitRequest;
-import kafka.api.ProducerRequest;
-import kafka.api.ProducerResponseStatus;
-import kafka.api.RequestOrResponse;
+import kafka.api.*;
+import kafka.cluster.Partition;
 import kafka.common.ErrorMapping;
+import kafka.func.Tuple;
 import kafka.log.TopicAndPartition;
 import kafka.network.RequestChannel;
 import kafka.utils.Utils;
@@ -48,53 +47,43 @@ public class DelayedProduce extends DelayedRequest {
 
     public RequestOrResponse respond(OffsetManager offsetManager) {
         Map<TopicAndPartition, ProducerResponseStatus> responseStatus = Utils.mapValue(partitionStatus, status -> status.responseStatus);
-        Utils.find(responseStatus,(k,v)->{
-            v.error != ErrorMapping.NoError;
-        })
-        val errorCode = responseStatus.find {
-            case (_,status) =>
-                status.error != ErrorMapping.NoError;
-        }.map(_._2.error).getOrElse(ErrorMapping.NoError);
-
+        Tuple<TopicAndPartition, ProducerResponseStatus> result = Utils.find(responseStatus, (k, v) -> v.error != ErrorMapping.NoError);
+        Short errorCode = result.isEmpty() ? ErrorMapping.NoError : result.v2.error;
         if (errorCode == ErrorMapping.NoError) {
-            offsetCommitRequestOpt.foreach(ocr = > offsetManager.putOffsets(ocr.groupId, ocr.requestInfo) )
+            Utils.foreach(offsetCommitRequestOpt, ocr -> offsetManager.putOffsets(ocr.groupId, ocr.requestInfo));
         }
-
-        val response = offsetCommitRequestOpt.map(_.responseFor(errorCode, offsetManager.config.maxMetadataSize));
-        .getOrElse(ProducerResponse(produce.correlationId, responseStatus));
-
-        return response;
+        offsetCommitRequestOpt.orElseGet(null);
+        Optional<RequestOrResponse> opt = Utils.map(offsetCommitRequestOpt, o -> o.responseFor(errorCode, offsetManager.config.maxMetadataSize));
+        if (opt.isPresent()) {
+            return opt.get();
+        }
+        return new ProducerResponse(produce.correlationId, responseStatus);
     }
 
     public boolean isSatisfied(ReplicaManager replicaManager) {
         // check for each partition if it still has pending acks;
-        partitionStatus.foreach {
-            case (topicAndPartition,fetchPartitionStatus) =>
-                trace("Checking producer request satisfaction for %s, acksPending = %b";
-        .format(topicAndPartition, fetchPartitionStatus.acksPending))
-                // skip those partitions that have already been satisfied;
-                if (fetchPartitionStatus.acksPending) {
-                    val partitionOpt = replicaManager.getPartition(topicAndPartition.topic, topicAndPartition.partition);
-                    val(hasEnough, errorCode) = partitionOpt match {
-                        case Some(partition) =>
-                            partition.checkEnoughReplicasReachOffset(
-                                    fetchPartitionStatus.requiredOffset,
-                                    produce.requiredAcks);
-                        case None =>
-                            (false, ErrorMapping.UnknownTopicOrPartitionCode);
-                    }
-                    if (errorCode != ErrorMapping.NoError) {
-                        fetchPartitionStatus.acksPending = false;
-                        fetchPartitionStatus.responseStatus.error = errorCode;
-                    } else if (hasEnough) {
-                        fetchPartitionStatus.acksPending = false;
-                        fetchPartitionStatus.responseStatus.error = ErrorMapping.NoError;
-                    }
+        partitionStatus.forEach((topicAndPartition, fetchPartitionStatus) -> {
+            trace(String.format("Checking producer request satisfaction for %s, acksPending = %b",
+                    topicAndPartition, fetchPartitionStatus.acksPending));
+            // skip those partitions that have already been satisfied;
+            if (fetchPartitionStatus.acksPending) {
+                Optional<Partition> partitionOpt = replicaManager.getPartition(topicAndPartition.topic, topicAndPartition.partition);
+                Tuple<Boolean, Short> result = Utils.match(partitionOpt, partition -> partition.checkEnoughReplicasReachOffset(fetchPartitionStatus.requiredOffset, produce.requiredAcks.intValue())
+                        , () -> Tuple.of(false, ErrorMapping.UnknownTopicOrPartitionCode));
+                Boolean hasEnough = result.v1;
+                Short errorCode = result.v2;
+                if (errorCode != ErrorMapping.NoError) {
+                    fetchPartitionStatus.acksPending = false;
+                    fetchPartitionStatus.responseStatus.error = errorCode;
+                } else if (hasEnough) {
+                    fetchPartitionStatus.acksPending = false;
+                    fetchPartitionStatus.responseStatus.error = ErrorMapping.NoError;
                 }
-        }
+            }
+        });
 
         // unblocked if there are no partitions with pending acks;
-        boolean satisfied = !partitionStatus.exists(p = > p._2.acksPending);
+        boolean satisfied = !Utils.exists(partitionStatus, (k, v) -> v.acksPending);
         return satisfied;
     }
 }

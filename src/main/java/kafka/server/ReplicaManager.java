@@ -77,7 +77,7 @@ public class ReplicaManager extends KafkaMetricsGroup {
             } catch (IOException e) {
                 e.printStackTrace();
             }
-            return Tuple.empty();
+            return Tuple.EMPTY;
         }).collect(Collectors.toList()));
         this.logIdent = "[Replica Manager on Broker " + localBrokerId + "]: ";
 

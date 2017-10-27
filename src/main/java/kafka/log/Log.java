@@ -286,7 +286,7 @@ public class Log extends KafkaMetricsGroup {
                 }
 
                 // re-validate message sizes since after re-compression some may exceed the limit;
-                Itor.loop(validMessages.shallowIterator(), messageAndOffset -> {//浅遍历 消息长度是否超过maxMessageSize
+                Sc.loop(validMessages.shallowIterator(), messageAndOffset -> {//浅遍历 消息长度是否超过maxMessageSize
                     if (MessageSet.entrySize(messageAndOffset.message) > config.maxMessageSize) {
                         // we record the original message set size instead of trimmed size;
                         // to be consistent with pre-compression bytesRejectedRate recording;

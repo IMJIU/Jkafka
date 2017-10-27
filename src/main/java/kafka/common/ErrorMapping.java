@@ -12,30 +12,30 @@ import java.util.stream.Collectors;
  * A bi-directional mapping between error codes and exceptions
  */
 public class ErrorMapping {
-    public static ByteBuffer EmptyByteBuffer = ByteBuffer.allocate(0);
+    public static final ByteBuffer EmptyByteBuffer = ByteBuffer.allocate(0);
 
-    public static Short UnknownCode = -1;
-    public static Short NoError = 0;
-    public static Short OffsetOutOfRangeCode = 1;
-    public static Short InvalidMessageCode = 2;
-    public static Short UnknownTopicOrPartitionCode = 3;
-    public static Short InvalidFetchSizeCode = 4;
-    public static Short LeaderNotAvailableCode = 5;
-    public static Short NotLeaderForPartitionCode = 6;
-    public static Short RequestTimedOutCode = 7;
-    public static Short BrokerNotAvailableCode = 8;
-    public static Short ReplicaNotAvailableCode = 9;
-    public static Short MessageSizeTooLargeCode = 10;
-    public static Short StaleControllerEpochCode = 11;
-    public static Short OffsetMetadataTooLargeCode = 12;
-    public static Short StaleLeaderEpochCode = 13;
-    public static Short OffsetsLoadInProgressCode = 14;
-    public static Short ConsumerCoordinatorNotAvailableCode = 15;
-    public static Short NotCoordinatorForConsumerCode = 16;
-    public static Short InidTopicCode = 17;
-    public static Short MessageSetSizeTooLargeCode = 18;
-    public static Short NotEnoughReplicasCode = 19;
-    public static Short NotEnoughReplicasAfterAppendCode = 20;
+    public static final Short UnknownCode = -1;
+    public static final Short NoError = 0;
+    public static final Short OffsetOutOfRangeCode = 1;
+    public static final Short InvalidMessageCode = 2;
+    public static final Short UnknownTopicOrPartitionCode = 3;
+    public static final Short InvalidFetchSizeCode = 4;
+    public static final Short LeaderNotAvailableCode = 5;
+    public static final Short NotLeaderForPartitionCode = 6;
+    public static final Short RequestTimedOutCode = 7;
+    public static final Short BrokerNotAvailableCode = 8;
+    public static final Short ReplicaNotAvailableCode = 9;
+    public static final Short MessageSizeTooLargeCode = 10;
+    public static final Short StaleControllerEpochCode = 11;
+    public static final Short OffsetMetadataTooLargeCode = 12;
+    public static final Short StaleLeaderEpochCode = 13;
+    public static final Short OffsetsLoadInProgressCode = 14;
+    public static final Short ConsumerCoordinatorNotAvailableCode = 15;
+    public static final Short NotCoordinatorForConsumerCode = 16;
+    public static final Short InidTopicCode = 17;
+    public static final Short MessageSetSizeTooLargeCode = 18;
+    public static final Short NotEnoughReplicasCode = 19;
+    public static final Short NotEnoughReplicasAfterAppendCode = 20;
 
     private static Map<Class<Exception>, Short> exceptionToCode = new HashMap() {{
         put(OffsetOutOfRangeException.class, OffsetOutOfRangeCode);
@@ -63,7 +63,7 @@ public class ErrorMapping {
     private static final Map<Short, Class<Exception>> codeToException = exceptionToCode.entrySet().stream()
             .collect(Collectors.toMap(kv -> kv.getValue(), kv -> kv.getKey()));
 
-    public static Short codeFor(Class exception){
+    public static Short codeFor(Class exception) {
         return exceptionToCode.get(exception);
     }
 

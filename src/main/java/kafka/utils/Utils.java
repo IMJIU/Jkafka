@@ -9,6 +9,7 @@ import kafka.api.PartitionStateInfo;
 import kafka.cluster.Partition;
 import kafka.cluster.Replica;
 import kafka.func.*;
+import org.apache.zookeeper.Op;
 
 import java.io.*;
 import java.nio.ByteBuffer;
@@ -780,6 +781,12 @@ public class Utils {
         }
     }
 
+    public static <V> void foreach(Optional<V> opt, ActionP<V> action) {
+        if (opt.isPresent()) {
+            action.invoke(opt.get());
+        }
+    }
+
     public static <T, K> Map<K, List<T>> groupBy(Iterable<T> it, Handler<T, K> handler) {
         Map<K, List<T>> result = Maps.newHashMap();
         for (T t : it) {
@@ -835,10 +842,17 @@ public class Utils {
         return maps;
     }
 
+    public static <V, RESULT> Optional<RESULT> map(Optional<V> it, Handler<V, RESULT> handler) {
+        if (it.isPresent()) {
+            return Optional.of(handler.handle(it.get()));
+        }
+        return Optional.empty();
+    }
+
     public static <V, RESULT> List<RESULT> map(Iterable<V> it, Handler<V, RESULT> handler) {
         List<RESULT> list = Lists.newArrayList();
         Iterator<V> itor = it.iterator();
-        while(itor.hasNext()){
+        while (itor.hasNext()) {
             list.add(handler.handle(itor.next()));
         }
         return list;
@@ -980,9 +994,18 @@ public class Utils {
     }
 
 
-    public static <T> boolean exists(Collection<T> list, Handler<T, Boolean> handler) {
+    public static <T> Boolean exists(Collection<T> list, Handler<T, Boolean> handler) {
         for (T t : list) {
             if (handler.handle(t)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static <K, V> Boolean exists(Map<K, V> map, Handler2<K, V, Boolean> handler) {
+        for (Map.Entry<K, V> entry : map.entrySet()) {
+            if (handler.handle(entry.getKey(), entry.getValue())) {
                 return true;
             }
         }
@@ -1033,25 +1056,28 @@ public class Utils {
         return result;
     }
 
-    public static <T> T find(Collection<T> list,Handler<T,Boolean>handler) {
+    public static <T> T find(Collection<T> list, Handler<T, Boolean> handler) {
         for (T t : list) {
-            if(handler.handle(t)){
+            if (handler.handle(t)) {
                 return t;
             }
         }
         return null;
     }
 
-    public static<K,V> T find(Map<K,V> list,Handler<T,Boolean>handler) {
-        for (T t : list) {
-            if(handler.handle(t)){
-                return t;
+    public static <K, V> Tuple<K, V> find(Map<K, V> map, Handler2<K, V, Boolean> handler) {
+        for (Map.Entry<K, V> entry : map.entrySet()) {
+            K k = entry.getKey();
+            V v = entry.getValue();
+            if (handler.handle(k, v)) {
+                return Tuple.of(k, v);
             }
         }
-        return null;
+        return Tuple.EMPTY;
     }
+
     public static <T extends Number> Long sum(Collection<T> list) {
-       return list.stream().mapToLong(n->n.longValue()).sum();
+        return list.stream().mapToLong(n -> n.longValue()).sum();
     }
 
     public static <K, V> Map<K, V> filter(Map<K, V> map, Handler2<K, V, Boolean> handler2) {
@@ -1064,5 +1090,12 @@ public class Utils {
             }
         }
         return result;
+    }
+
+    public static <V, RET> RET match(Optional<V> opt, Handler<V, RET> handler, Fun<RET> fun) {
+        if (opt.isPresent()) {
+            return handler.handle(opt.get());
+        }
+        return fun.invoke();
     }
 }

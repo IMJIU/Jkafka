@@ -7,6 +7,7 @@ import kafka.func.Handler;
 import kafka.func.Tuple;
 import kafka.log.TopicAndPartition;
 import kafka.utils.Utils;
+
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
@@ -22,8 +23,7 @@ public class ProducerResponse extends RequestOrResponse {
     public Integer correlationId;
     public Map<TopicAndPartition, ProducerResponseStatus> status;
 
-    public ProducerResponse(Integer correlationId, Map<TopicAndPartition,
-            ProducerResponseStatus> status) {
+    public ProducerResponse(Integer correlationId, Map<TopicAndPartition, ProducerResponseStatus> status) {
         this.correlationId = correlationId;
         this.status = status;
     }

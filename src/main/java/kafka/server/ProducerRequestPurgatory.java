@@ -1,12 +1,17 @@
 package kafka.server;
+
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.yammer.metrics.core.Meter;
+import kafka.api.RequestOrResponse;
 import kafka.func.Handler;
 import kafka.log.TopicAndPartition;
+import kafka.metrics.KafkaMetricsGroup;
+import kafka.network.BoundedByteBufferSend;
 import kafka.network.RequestChannel;
 import kafka.utils.Pool;
+
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -30,7 +35,7 @@ public class ProducerRequestPurgatory extends RequestPurgatory<DelayedProduce> {
         this.logIdent = String.format("<ProducerRequestPurgatory-%d> ", replicaManager.config.brokerId);
     }
 
-    private class DelayedProducerRequestMetrics extends kafkaMetricsGroup {
+    private class DelayedProducerRequestMetrics extends KafkaMetricsGroup {
         public Optional<TopicAndPartition> metricId;
         public Meter expiredRequestMeter;
         public Map<String, String> tags;
@@ -57,13 +62,13 @@ public class ProducerRequestPurgatory extends RequestPurgatory<DelayedProduce> {
 
     private void recordDelayedProducerKeyExpired(TopicAndPartition metricId) {
         DelayedProducerRequestMetrics keyMetrics = producerRequestMetricsForKey().getAndMaybePut(metricId);
-        Lists.newArrayList(keyMetrics, aggregateProduceRequestMetrics).forEach(m->m.expiredRequestMeter.mark());
+        Lists.newArrayList(keyMetrics, aggregateProduceRequestMetrics).forEach(m -> m.expiredRequestMeter.mark());
     }
 
     /**
      * Check if a specified delayed fetch request is satisfied
      */
-    public boolean checkSatisfied(DelayedProduce delayedProduce){
+    public Boolean checkSatisfied(DelayedProduce delayedProduce) {
         return delayedProduce.isSatisfied(replicaManager);
     }
 
@@ -71,15 +76,20 @@ public class ProducerRequestPurgatory extends RequestPurgatory<DelayedProduce> {
      * When a delayed produce request expires answer it with possible time out error codes
      */
     public void expire(DelayedProduce delayedProduce) {
-        debug(String.format("Expiring produce request %s.", delayedProduce.produce))
-        for ((topicPartition, responseStatus)<-delayedProduce.partitionStatus if responseStatus.acksPending)
-        recordDelayedProducerKeyExpired(topicPartition);
+        debug(String.format("Expiring produce request %s.", delayedProduce.produce));
+        delayedProduce.partitionStatus.forEach((topicPartition, responseStatus) -> {
+            if (responseStatus.acksPending) recordDelayedProducerKeyExpired(topicPartition);
+        });
         respond(delayedProduce);
     }
 
     // purgatory TODO should not be responsible for sending back the responses;
     public void respond(DelayedProduce delayedProduce) {
-        val response = delayedProduce.respond(offsetManager);
-        requestChannel.sendResponse(new RequestChannel.Response(delayedProduce.request, new BoundedByteBufferSend(response)));
+        RequestOrResponse response = delayedProduce.respond(offsetManager);
+        try {
+            requestChannel.sendResponse(new RequestChannel.Response(delayedProduce.request, new BoundedByteBufferSend(response)));
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 }

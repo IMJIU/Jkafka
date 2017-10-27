@@ -4,8 +4,8 @@ package kafka.message;/**
 
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
-import kafka.utils.Itor;
 import kafka.utils.Logging;
+import kafka.utils.Sc;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -111,13 +111,13 @@ public abstract class MessageSet extends Logging implements Iterable<MessageAndO
 
     public List<MessageAndOffset> toMessageAndOffsetList() {
         List<MessageAndOffset> result = Lists.newArrayList();
-        Itor.loop(iterator(), m -> result.add(m));
+        Sc.loop(iterator(), m -> result.add(m));
         return result;
     }
 
     public List<Message> toMessageList() {
         List<Message> result = Lists.newLinkedList();
-        Itor.loop(iterator(), m -> result.add(m.message));
+        Sc.loop(iterator(), m -> result.add(m.message));
         return result;
     }
 
@@ -149,7 +149,7 @@ public abstract class MessageSet extends Logging implements Iterable<MessageAndO
     }
 
     public void printAll(){
-        Itor.loop(iterator(),m-> System.out.println(m));
+        Sc.loop(iterator(),m-> System.out.println(m));
         System.out.println("=====================================");
     }
 }

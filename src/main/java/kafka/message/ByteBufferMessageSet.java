@@ -4,8 +4,8 @@ package kafka.message;/**
 
 import com.google.common.collect.Lists;
 import kafka.utils.IteratorTemplate;
-import kafka.utils.Itor;
 import kafka.utils.Logging;
+import kafka.utils.Sc;
 import org.apache.commons.collections.CollectionUtils;
 
 import java.io.ByteArrayOutputStream;
@@ -278,7 +278,7 @@ public class ByteBufferMessageSet extends MessageSet {
         } else {
             // messages are compressed, crack open the messageset and recompress with correct offset
             List<Message> list = Lists.newArrayList();
-            Itor.loop(this.internalIterator(false), m -> list.add(m.message));
+            Sc.loop(this.internalIterator(false), m -> list.add(m.message));
             return new ByteBufferMessageSet(codec, offsetCounter, list);
         }
     }
