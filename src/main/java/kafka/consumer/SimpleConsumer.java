@@ -5,7 +5,11 @@ package kafka.consumer;
  * @create 2017-10-24 30 18
  **/
 
+import com.google.common.collect.ImmutableMap;
 import kafka.api.*;
+import kafka.common.ErrorMapping;
+import kafka.log.TopicAndPartition;
+import kafka.metrics.KafkaTimer;
 import kafka.network.BlockingChannel;
 import kafka.network.Receive;
 import kafka.utils.Logging;
@@ -84,18 +88,19 @@ public class SimpleConsumer extends Logging {
                     throw e2;
                 }
             }
-           return  response;
+            return response;
         }
     }
 
     public TopicMetadataResponse send(TopicMetadataRequest request) throws ClosedChannelException {
         Receive response = sendRequest(request);
-        TopicMetadataResponse.readFrom(response.buffer());
+        return TopicMetadataResponse.readFrom(response.buffer());
     }
 
-    public ConsumerMetadataResponse send(ConsumerMetadataRequest request) {
-        val response = sendRequest(request);
-        ConsumerMetadataResponse.readFrom(response.buffer);
+    public ConsumerMetadataResponse send(ConsumerMetadataRequest request) throws ClosedChannelException {
+        Receive response = null;
+        response = sendRequest(request);
+        return ConsumerMetadataResponse.readFrom(response.buffer());
     }
 
     /**
@@ -105,19 +110,24 @@ public class SimpleConsumer extends Logging {
      * @return a set of fetched messages
      */
     public FetchResponse fetch(FetchRequest request) {
-        var Receive response = null;
-        val specificTimer = fetchRequestAndResponseStats.getFetchRequestAndResponseStats(host, port).requestTimer;
-        val aggregateTimer = fetchRequestAndResponseStats.getFetchRequestAndResponseAllBrokersStats.requestTimer;
-        aggregateTimer.time {
-            specificTimer.time {
-                response = sendRequest(request);
-            }
-        }
-        val fetchResponse = FetchResponse.readFrom(response.buffer);
-        val fetchedSize = fetchResponse.sizeInBytes;
+        Receive response;
+        KafkaTimer specificTimer = fetchRequestAndResponseStats.getFetchRequestAndResponseStats(host, port).requestTimer;
+        KafkaTimer aggregateTimer = fetchRequestAndResponseStats.getFetchRequestAndResponseAllBrokersStats().requestTimer;
+        response = aggregateTimer.time(() ->
+                specificTimer.time(() -> {
+                    try {
+                        return sendRequest(request);
+                    } catch (ClosedChannelException e) {
+                        e.printStackTrace();
+                    }
+                    return null;
+                })
+        );
+        FetchResponse fetchResponse = FetchResponse.readFrom(response.buffer());
+        Integer fetchedSize = fetchResponse.sizeInBytes();
         fetchRequestAndResponseStats.getFetchRequestAndResponseStats(host, port).requestSizeHist.update(fetchedSize);
-        fetchRequestAndResponseStats.getFetchRequestAndResponseAllBrokersStats.requestSizeHist.update(fetchedSize);
-        fetchResponse;
+        fetchRequestAndResponseStats.getFetchRequestAndResponseAllBrokersStats().requestSizeHist.update(fetchedSize);
+        return fetchResponse;
     }
 
     /**
@@ -126,9 +136,9 @@ public class SimpleConsumer extends Logging {
      * @param request a <<kafka.api.OffsetRequest>> object.
      * @return a <<kafka.api.OffsetResponse>> object.
      */
-    public void getOffsetsBefore(OffsetRequest request) =OffsetResponse.readFrom(
-
-    sendRequest(request).buffer)
+    public OffsetResponse getOffsetsBefore(OffsetRequest request) throws ClosedChannelException {
+        return OffsetResponse.readFrom(sendRequest(request).buffer());
+    }
 
     /**
      * Commit offsets for a topic
@@ -137,12 +147,10 @@ public class SimpleConsumer extends Logging {
      * @param request a <<kafka.api.OffsetCommitRequest>> object.
      * @return a <<kafka.api.OffsetCommitResponse>> object.
      */
-    public void commitOffsets(OffsetCommitRequest request) =
-
-    {
+    public OffsetCommitResponse commitOffsets(OffsetCommitRequest request) throws ClosedChannelException {
         // With TODO KAFKA-1012, we have to first issue a ConsumerMetadataRequest and connect to the coordinator before;
         // we can commit offsets.;
-        OffsetCommitResponse.readFrom(sendRequest(request).buffer);
+        return OffsetCommitResponse.readFrom(sendRequest(request).buffer());
     }
 
     /**
@@ -152,34 +160,31 @@ public class SimpleConsumer extends Logging {
      * @param request a <<kafka.api.OffsetFetchRequest>> object.
      * @return a <<kafka.api.OffsetFetchResponse>> object.
      */
-    public void fetchOffsets(OffsetFetchRequest request) =OffsetFetchResponse.readFrom(
-
-    sendRequest(request).buffer);
+    public OffsetFetchResponse fetchOffsets(OffsetFetchRequest request) throws ClosedChannelException {
+        return OffsetFetchResponse.readFrom(sendRequest(request).buffer());
+    }
 
     private void getOrMakeConnection() {
-        if (!isClosed && !blockingChannel.isConnected) {
+        if (!isClosed && !blockingChannel.isConnected()) {
             connect();
         }
     }
 
     /**
      * Get the earliest or latest offset of a given topic, partition.
+     *
      * @param topicAndPartition Topic and partition of which the offset is needed.
-     * @param earliestOrLatest A value to indicate earliest or latest offset.
-     * @param consumerId Id of the consumer which could be a consumer client, SimpleConsumerShell or a follower broker.
+     * @param earliestOrLatest  A value to indicate earliest or latest offset.
+     * @param consumerId        Id of the consumer which could be a consumer client, SimpleConsumerShell or a follower broker.
      * @return Requested offset.
      */
-    public Long
-
-    void earliestOrLatestOffset(TopicAndPartition topicAndPartition, Long earliestOrLatest, Int consumerId) {
-        val request = OffsetRequest(requestInfo = Map(topicAndPartition -> PartitionOffsetRequestInfo(earliestOrLatest, 1)),
-                clientId = clientId,
-                replicaId = consumerId);
-        val partitionErrorAndOffset = getOffsetsBefore(request).partitionErrorAndOffsets(topicAndPartition)
-        val offset = partitionErrorAndOffset.error match {
-            case ErrorMapping.NoError =>partitionErrorAndOffset.offsets.head;
-            case _ =>throw ErrorMapping.exceptionFor(partitionErrorAndOffset.error);
+    public Long earliestOrLatestOffset(TopicAndPartition topicAndPartition, Long earliestOrLatest, Integer consumerId) throws Exception {
+        OffsetRequest request = new OffsetRequest(ImmutableMap.of(topicAndPartition, new PartitionOffsetRequestInfo(earliestOrLatest, 1)),
+                clientId, consumerId);
+        PartitionOffsetsResponse partitionErrorAndOffset = getOffsetsBefore(request).partitionErrorAndOffsets.get(topicAndPartition);
+        if(ErrorMapping.NoError == partitionErrorAndOffset.error){
+            return partitionErrorAndOffset.offsets.get(0);
         }
-        offset;
+        throw ErrorMapping.exceptionFor(partitionErrorAndOffset.error);
     }
 }

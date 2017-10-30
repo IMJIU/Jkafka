@@ -19,10 +19,7 @@ import kafka.log.TopicAndPartition;
 import kafka.message.ByteBufferMessageSet;
 import kafka.message.MessageSet;
 import kafka.metrics.KafkaMetricsGroup;
-import kafka.utils.Pool;
-import kafka.utils.Scheduler;
-import kafka.utils.Time;
-import kafka.utils.Utils;
+import kafka.utils.*;
 import org.I0Itec.zkclient.ZkClient;
 import org.apache.kafka.common.errors.NotLeaderForPartitionException;
 import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
@@ -108,7 +105,7 @@ public class ReplicaManager extends KafkaMetricsGroup {
 
     //
     public Integer underReplicatedPartitionCount() {
-        return getLeaderPartitions().count(_.isUnderReplicated);
+        return Sc.count(getLeaderPartitions(),p->p.isUnderReplicated());
     }
 
     public void startHighWaterMarksCheckPointThread() {
@@ -131,7 +128,7 @@ public class ReplicaManager extends KafkaMetricsGroup {
      * Unblock some delayed produce requests with the request key
      */
     public void unblockDelayedProduceRequests(TopicAndPartition key) {
-        List satisfied = producerRequestPurgatory.update(key);
+        List<DelayedProduce> satisfied = producerRequestPurgatory.update(key);
         debug(String.format("Request key %s unblocked %d producer requests.", key, satisfied.size()));
 
         // send any newly unblocked responses;

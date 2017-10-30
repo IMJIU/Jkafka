@@ -43,7 +43,7 @@ import java.util.concurrent.TimeUnit;
     /**
      * Tracks metrics of the requests made by a given consumer client to all brokers, and the responses obtained from the brokers.
      *
-     * @param clientId ClientId of the given consumer
+     * clientId ClientId of the given consumer
      */
     class FetchRequestAndResponseStats {
         public String clientId;

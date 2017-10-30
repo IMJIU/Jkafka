@@ -27,6 +27,9 @@ public class OffsetMetadataAndError {
         if (error == null) this.error = ErrorMapping.NoError;
     }
 
+    public OffsetMetadataAndError(Long offset, Short error) {
+        this(offset, OffsetAndMetadata.NoMetadata, error);
+    }
 
     public OffsetMetadataAndError(OffsetAndMetadata offsetMetadata, Short error) {
         this(offsetMetadata.offset, offsetMetadata.metadata, error);

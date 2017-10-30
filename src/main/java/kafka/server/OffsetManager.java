@@ -84,7 +84,7 @@ public class OffsetManager extends KafkaMetricsGroup {
         debug("Compacting offsets cache.");
         long startMs = Time.get().milliseconds();
 
-        List<Tuple<GroupTopicPartition, OffsetAndMetadata>> staleOffsets = Itor.filter(offsetsCache.iterator(), c -> (startMs - c.v2.timestamp > config.offsetsRetentionMs));
+        List<Tuple<GroupTopicPartition, OffsetAndMetadata>> staleOffsets = Sc.filter(offsetsCache.iterator(), c -> (startMs - c.v2.timestamp > config.offsetsRetentionMs));
 
         debug(String.format("Found %d stale offsets (older than %d ms).", staleOffsets.size(), config.offsetsRetentionMs));
 

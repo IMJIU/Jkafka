@@ -5,6 +5,7 @@ import kafka.common.ErrorMapping;
 import kafka.func.IntCount;
 import kafka.func.Tuple;
 import kafka.utils.Logging;
+
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
@@ -22,6 +23,10 @@ public class TopicMetadata extends Logging {
     public List<PartitionMetadata> partitionsMetadata;
     public short errorCode = ErrorMapping.NoError;
     public static final Integer NoLeaderNodeId = -1;
+
+    public TopicMetadata(String topic, List<PartitionMetadata> partitionsMetadata) {
+        this(topic, partitionsMetadata, ErrorMapping.NoError);
+    }
 
     public TopicMetadata(String topic, List<PartitionMetadata> partitionsMetadata, Short errorCode) {
         this.topic = topic;

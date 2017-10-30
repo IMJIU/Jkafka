@@ -40,7 +40,7 @@ public class FetchResponse extends RequestOrResponse {
         dataGroupedByTopic = Utils.groupByKey(data, key -> key.topic);
     }
 
-    public FetchResponse readFrom(ByteBuffer buffer) {
+    public static FetchResponse readFrom(ByteBuffer buffer) {
         int correlationId = buffer.getInt();
         int topicCount = buffer.getInt();
         List<Tuple<TopicAndPartition, FetchResponsePartitionData>> pairs = Utils.itFlatToList(1, topicCount, n -> {

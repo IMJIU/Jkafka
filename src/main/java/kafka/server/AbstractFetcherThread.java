@@ -14,6 +14,7 @@ import kafka.common.ClientIdAndBroker;
 import kafka.common.ErrorMapping;
 import kafka.common.KafkaException;
 import kafka.consumer.PartitionTopicInfo;
+import kafka.consumer.SimpleConsumer;
 import kafka.func.Handler;
 import kafka.log.TopicAndPartition;
 import kafka.message.ByteBufferMessageSet;
@@ -82,7 +83,7 @@ public abstract class AbstractFetcherThread extends ShutdownableThread {
     public abstract void processPartitionData(TopicAndPartition topicAndPartition, Long fetchOffset, FetchResponsePartitionData partitionData);
 
     // handle a partition whose offset is out of range and return a new fetch offset;
-    public abstract Long handleOffsetOutOfRange(TopicAndPartition topicAndPartition);
+    public abstract Long handleOffsetOutOfRange(TopicAndPartition topicAndPartition) throws Exception;
 
     // deal with partitions with errors, potentially due to leadership changes;
     public abstract void handlePartitionsWithErrors(Iterable<TopicAndPartition> partitions);
@@ -121,7 +122,7 @@ public abstract class AbstractFetcherThread extends ShutdownableThread {
 
     private void processFetchRequest(FetchRequest fetchRequest) {
         final Set<TopicAndPartition> partitionsWithError = Sets.newHashSet();
-        final FetchResponse response = null;
+         FetchResponse response = null;
         try {
             logger.trace(String.format("Issuing to broker %d of fetch request %s", sourceBroker.id, fetchRequest));
             response = simpleConsumer.fetch(fetchRequest);
@@ -134,13 +135,11 @@ public abstract class AbstractFetcherThread extends ShutdownableThread {
             }
         }
         fetcherStats.requestRate.mark();
-
         if (response != null) {
+            final FetchResponse response2 = response;
             // process fetched data;
             Utils.inLock(partitionMapLock, () ->
-                    response.data.entrySet().forEach(e -> {
-                        TopicAndPartition topicAndPartition = e.getKey();
-                        FetchResponsePartitionData partitionData = e.getValue();
+                    response2.data.forEach((topicAndPartition,partitionData) -> {
                         String topic = topicAndPartition.topic;
                         Integer partitionId = topicAndPartition.partition;
                         Long currentOffset = partitionMap.get(topicAndPartition);
@@ -208,6 +207,8 @@ public abstract class AbstractFetcherThread extends ShutdownableThread {
             }
             partitionMapCond.signalAll();
         } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (Exception e) {
             e.printStackTrace();
         } finally {
             partitionMapLock.unlock();
@@ -300,19 +301,3 @@ class FetcherStats extends KafkaMetricsGroup {
     Meter byteRate = newMeter("BytesPerSec", "bytes", TimeUnit.SECONDS, tags);
 }
 
-class ClientIdTopicPartition {
-    String clientId;
-    String topic;
-    Integer partitionId;
-
-    public ClientIdTopicPartition(String clientId, String topic, Integer partitionId) {
-        this.clientId = clientId;
-        this.topic = topic;
-        this.partitionId = partitionId;
-    }
-
-    @Override
-    public String toString() {
-        return String.format("%s-%s-%d", clientId, topic, partitionId);
-    }
-}

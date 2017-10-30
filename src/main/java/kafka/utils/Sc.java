@@ -14,6 +14,17 @@ import java.util.stream.Stream;
  * @create 2017-10-27 14:07
  **/
 public class Sc {
+
+    public static <T> int count(Collection<T> it, Handler<T, Boolean> handler) {
+        int count = 0;
+        for (T t : it) {
+            if (handler.handle(t)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
     public static <T> void loop(Iterator<T> it, ActionP<T> action) {
         while (it.hasNext()) {
             action.invoke(it.next());
@@ -215,6 +226,31 @@ public class Sc {
         return map;
     }
 
+
+    public static <T> Set<T> filterNot(Set<T> it, Handler<T, Boolean> handler) {
+        Iterator<T> iterator = it.iterator();
+        Set<T> set = Sets.newHashSet();
+        while (iterator.hasNext()) {
+            T t = iterator.next();
+            if (!handler.handle(t)) {
+                set.add(t);
+            }
+        }
+        return set;
+    }
+
+    public static <T> List<T> filterNot(Iterable<T> it, Handler<T, Boolean> handler) {
+        Iterator<T> iterator = it.iterator();
+        List<T> list = Lists.newArrayList();
+        while (iterator.hasNext()) {
+            T t = iterator.next();
+            if (!handler.handle(t)) {
+                list.add(t);
+            }
+        }
+        return list;
+    }
+
     public static <T> List<T> filter(Iterable<T> it, Handler<T, Boolean> handler) {
         Iterator<T> iterator = it.iterator();
         List<T> list = Lists.newArrayList();
@@ -277,6 +313,14 @@ public class Sc {
             Optional.of(last);
         }
         return Optional.empty();
+    }
+
+    public static <T> T last(Iterator<T> it) {
+        T last = null;
+        while (it.hasNext()) {
+            last = it.next();
+        }
+        return last;
     }
 
     public static <T> List<T> yield(int i, int numAliveBrokers, Fun<T> fun) {

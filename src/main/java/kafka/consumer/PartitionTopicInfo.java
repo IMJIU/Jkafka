@@ -1,7 +1,10 @@
 package kafka.consumer;
 
+import kafka.message.ByteBufferMessageSet;
 import kafka.utils.Logging;
+import kafka.utils.Sc;
 
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -35,9 +38,10 @@ public class PartitionTopicInfo extends Logging {
         this.clientId = clientId;
         debug("initial consumer offset of " + this + " is " + consumedOffset.get());
         debug("initial fetch offset of " + this + " is " + fetchedOffset.get());
+        consumerTopicStats = ConsumerTopicStatsRegistry.getConsumerTopicStat(clientId);
     }
 
-    private val consumerTopicStats = ConsumerTopicStatsRegistry.getConsumerTopicStat(clientId);
+    private ConsumerTopicStats consumerTopicStats ;
 
     public Long getConsumeOffset() {
         return consumedOffset.get();
@@ -60,18 +64,18 @@ public class PartitionTopicInfo extends Logging {
     /**
      * Enqueue a message set for processing.
      */
-    public void enqueue(ByteBufferMessageSet messages) {
-        val size = messages.validBytes;
+    public void enqueue(ByteBufferMessageSet messages) throws InterruptedException {
+        Integer size = messages.validBytes();
         if (size > 0) {
-            val next = messages.shallowIterator.toSeq.last.nextOffset;
-            trace("Updating fetch offset = " + fetchedOffset.get + " to " + next);
-            chunkQueue.put(new FetchedDataChunk(messages, this, fetchedOffset.get));
+            Long next = Sc.last(messages.shallowIterator()).nextOffset();
+            trace("Updating fetch offset = " + fetchedOffset.get() + " to " + next);
+            chunkQueue.put(new FetchedDataChunk(messages, this, fetchedOffset.get()));
             fetchedOffset.set(next);
-            debug(String.format("updated fetch offset of (%s) to %d", this, next))
+            debug(String.format("updated fetch offset of (%s) to %d", this, next));
             consumerTopicStats.getConsumerTopicStats(topic).byteRate.mark(size);
             consumerTopicStats.getConsumerAllTopicStats().byteRate.mark(size);
-        } else if (messages.sizeInBytes > 0) {
-            chunkQueue.put(new FetchedDataChunk(messages, this, fetchedOffset.get));
+        } else if (messages.sizeInBytes() > 0) {
+            chunkQueue.put(new FetchedDataChunk(messages, this, fetchedOffset.get()));
         }
     }
 
