@@ -86,8 +86,8 @@ public class ReplicaFetcherThread extends AbstractFetcherThread {
             // Prior to truncating the follower's log, ensure that doing so is not disallowed by the configuration for unclean leader election.;
             // This situation could only happen if the unclean election configuration for a topic changes while a replica is down. Otherwise,
             // we should never encounter this situation since a non-ISR leader cannot be elected if disallowed by the broker configuration.;
-            if (!LogConfig.fromProps(brokerConfig.props.props, AdminUtils.fetchTopicConfig(replicaMgr.zkClient,
-                    topicAndPartition.topic)).uncleanLeaderElectionEnable) {
+            if (!LogConfig.fromProps(brokerConfig.props.props,
+                    AdminUtils.fetchTopicConfig(replicaMgr.zkClient,topicAndPartition.topic)).uncleanLeaderElectionEnable) {
                 // Log a fatal error and shutdown the broker to ensure that data loss does not unexpectedly occur.;
                 logger.error(String.format("Halting because log truncation is not allowed for topic %s,", topicAndPartition.topic) +
                         String.format(" Current leader %d's latest offset %d is less than replica %d's latest offset %d",

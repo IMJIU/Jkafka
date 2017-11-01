@@ -44,7 +44,7 @@ public class FetchResponseSend extends Send {
     public Send send;
 
     @Override
-    public Integer writeTo(GatheringByteChannel channel) {
+    public Integer writeTo(GatheringByteChannel channel) throws IOException {
         expectIncomplete();
         int written = 0;
         if (buffer.hasRemaining())

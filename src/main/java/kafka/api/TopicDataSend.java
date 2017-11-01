@@ -35,7 +35,7 @@ public class TopicDataSend extends Send {
         writeShortString(buffer, topicData.topic);
         buffer.putInt(topicData.partitionData.size());
         buffer.rewind();
-        sends = new MultiSend<PartitionDataSend>(Utils.map(topicData.partitionData, (partition,data) -> new PartitionDataSend(partition, data))) {
+        sends = new MultiSend<PartitionDataSend>(Utils.map(topicData.partitionData, (partition, data) -> new PartitionDataSend(partition, data))) {
             public Integer expectedBytesToWrite() {
                 return topicData.sizeInBytes() - topicData.headerSize;
             }
@@ -43,19 +43,15 @@ public class TopicDataSend extends Send {
     }
 
 
-    public Integer writeTo(GatheringByteChannel channel) {
+    public Integer writeTo(GatheringByteChannel channel) throws IOException {
         expectIncomplete();
         int written = 0;
-        try {
-            if (buffer.hasRemaining())
-                written += channel.write(buffer);
-            if (!buffer.hasRemaining() && !sends.complete()) {
-                written += sends.writeTo(channel);
-            }
-            sent += written;
-        } catch (IOException e) {
-            e.printStackTrace();
+        if (buffer.hasRemaining())
+            written += channel.write(buffer);
+        if (!buffer.hasRemaining() && !sends.complete()) {
+            written += sends.writeTo(channel);
         }
+        sent += written;
         return written;
     }
 }

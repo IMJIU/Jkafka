@@ -92,7 +92,7 @@ public class BlockingChannel extends Logging {
         return connected;
     }
 
-    public Integer send(RequestOrResponse request) throws ClosedChannelException {
+    public Integer send(RequestOrResponse request) throws IOException {
         if (!connected)
             throw new ClosedChannelException();
 

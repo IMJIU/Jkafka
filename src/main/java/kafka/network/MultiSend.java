@@ -1,5 +1,6 @@
 package kafka.network;
 
+import java.io.IOException;
 import java.nio.channels.GatheringByteChannel;
 import java.util.List;
 
@@ -22,7 +23,7 @@ public abstract class MultiSend<S extends Send> extends Send {
      * write happens. On an incomplete write, it returns to the caller to give it
      * a chance to schedule other work till the buffered write completes.
      */
-    public Integer writeTo(GatheringByteChannel channel) {
+    public Integer writeTo(GatheringByteChannel channel) throws IOException {
         expectIncomplete();
         int totalWrittenPerCall = 0;
         Boolean sendComplete = false;

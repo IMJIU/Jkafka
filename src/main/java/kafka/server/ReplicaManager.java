@@ -68,14 +68,24 @@ public class ReplicaManager extends KafkaMetricsGroup {
     public Map<File, OffsetCheckpoint> highWatermarkCheckpoints = null;
 
     public void init() {
-        highWatermarkCheckpoints = Utils.toMap(config.logDirs.stream().map(dir -> {
-            try {
-                return Tuple.of(new File(dir).getAbsolutePath(), new OffsetCheckpoint(new File(dir, ReplicaManager.HighWatermarkFilename)));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            return Tuple.EMPTY;
-        }).collect(Collectors.toList()));
+        highWatermarkCheckpoints = Sc.toMap(Sc.map(config.logDirs, dir -> {
+                    try {
+                        Tuple.of(new File(dir).getAbsolutePath(),
+                                new OffsetCheckpoint(new File(dir, ReplicaManager.HighWatermarkFilename)));
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    return null;
+                }
+        ));
+//        highWatermarkCheckpoints = Utils.toMap(config.logDirs.stream().map(dir -> {
+//            try {
+//                return Tuple.of(new File(dir).getAbsolutePath(), new OffsetCheckpoint(new File(dir, ReplicaManager.HighWatermarkFilename)));
+//            } catch (IOException e) {
+//                e.printStackTrace();
+//            }
+//            return Tuple.EMPTY;
+//        }).collect(Collectors.toList()));
         this.logIdent = "[Replica Manager on Broker " + localBrokerId + "]: ";
 
         newGauge("LeaderCount", new Gauge<Integer>() {
@@ -105,7 +115,7 @@ public class ReplicaManager extends KafkaMetricsGroup {
 
     //
     public Integer underReplicatedPartitionCount() {
-        return Sc.count(getLeaderPartitions(),p->p.isUnderReplicated());
+        return Sc.count(getLeaderPartitions(), p -> p.isUnderReplicated());
     }
 
     public void startHighWaterMarksCheckPointThread() {

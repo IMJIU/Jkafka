@@ -223,7 +223,7 @@ public class Processor extends AbstractServerThread {
     /*
      * Process writes to ready sockets
      */
-    public void write(SelectionKey key) {
+    public void write(SelectionKey key) throws IOException {
         SocketChannel socketChannel = channelFor(key);
         RequestChannel.Response response = (RequestChannel.Response) key.attachment();
         Send responseSend = response.responseSend;

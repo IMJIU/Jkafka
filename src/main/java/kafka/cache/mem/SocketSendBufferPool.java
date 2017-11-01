@@ -13,78 +13,65 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package kafka.cache;
+package kafka.cache.mem;
 
 import sun.nio.ch.DirectBuffer;
+
 import java.io.IOException;
+import java.io.OutputStream;
 import java.lang.ref.SoftReference;
 import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.DatagramChannel;
+import java.nio.channels.GatheringByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.Random;
-import java.util.Vector;
 import java.util.concurrent.atomic.AtomicInteger;
 
-final class SocketSendBufferPool {
+public class SocketSendBufferPool {
 
     private static final SendBuffer EMPTY_BUFFER = new EmptySendBuffer();
+    private static final SendBuffer NEED_BUFFER = new EmptySendBuffer();
 
-    private static final int DEFAULT_PREALLOCATION_SIZE = 1024 * 1024;
+    private static final int DEFAULT_PREALLOCATION_SIZE = 1024 * 1024;//1MB
     private static final int ALIGN_SHIFT = 4;
     private static final int ALIGN_MASK = 15;
 
     private PreAllocationRef poolHead;
     private PreAllocation current = new PreAllocation(DEFAULT_PREALLOCATION_SIZE);
-    private AtomicInteger totalCacheSize = new AtomicInteger();
-    private final int MAX_CACHE_SIZE = 1024 * 1024 * 30;//共30MB
+    private AtomicInteger totalCacheSize = new AtomicInteger(DEFAULT_PREALLOCATION_SIZE);
+    private final int MAX_CACHE_SIZE = 1024 * 1024 * 4;//共30MB
 
-    public static void main(String[] args) throws InterruptedException {
-        testUnit();
-    }
-
-    private static void testUnit() throws InterruptedException {
-        SocketSendBufferPool pool = new SocketSendBufferPool();
-        int i = 0;
-        Vector<SendBuffer> list = new Vector<>();
-        new Thread(() -> {
-            Random random = new Random();
-            while (true) {
-                try {
-                    Thread.sleep(random.nextInt(4000));
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-                while (list.size() > 0) {
-                    SendBuffer sb = list.remove(0);
-                    if (sb != null) sb.release();
-                }
-            }
-        }).start();
-        while (true) {
-            byte[] ch = new byte[DEFAULT_PREALLOCATION_SIZE / 15];  //  100/15~=6 MB一秒
-            SendBuffer sb = pool.acquire(ch);
-            list.add(sb);
-            if ((i++) % 100 == 0) {
-                pool.info();
-                Thread.sleep(1000);
-            }
-        }
-    }
-
-    private void info() {
+    public void info() {
         System.out.println("total:" + totalCacheSize + " Max:" + MAX_CACHE_SIZE);
     }
 
+    public static void main(String[] args) throws InterruptedException {
+        SocketSendBufferPool pool = new SocketSendBufferPool();
+        Random r = new Random();
+        while (true) {
+            int len = 1024 * 100 + r.nextInt(10);
+            System.out.print(len + "/t");
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < len; i++) {
+                sb.append(i);
+            }
+            pool.acquire(sb.toString().getBytes());
+            pool.info();
+            Thread.sleep(1000L);
+        }
+    }
 
     public SendBuffer acquire(byte[] src) {
         final int size = src.length;
+        System.out.println(size);
         if (size == 0) {
             return EMPTY_BUFFER;
         }
 
+        // TODO: 2017/10/31 大于块大小，用磁盘发送
         if (size > DEFAULT_PREALLOCATION_SIZE) {
-            return new UnpooledSendBuffer(src);
+            throw new LackMemException("lack mem");
         }
 
         PreAllocation current = this.current;
@@ -111,7 +98,7 @@ final class SocketSendBufferPool {
             this.current = getPreAllocation0();
             dst = new PooledSendBuffer(current, current.buffer);
         }
-
+        //放入数据
         ByteBuffer dstbuf = dst.buffer;
         dstbuf.mark();
         dstbuf.put(src);
@@ -140,6 +127,10 @@ final class SocketSendBufferPool {
                 }
             } while (ref != null);
             poolHead = ref;
+        }
+        System.out.println("total:" + totalCacheSize + " max:" + DEFAULT_PREALLOCATION_SIZE);
+        if (totalCacheSize.get() == DEFAULT_PREALLOCATION_SIZE) {
+            throw new LackMemException("lack mem");
         }
         totalCacheSize.addAndGet(DEFAULT_PREALLOCATION_SIZE);
         return new PreAllocation(DEFAULT_PREALLOCATION_SIZE);
@@ -227,8 +218,18 @@ final class SocketSendBufferPool {
             return buffer.limit() - initialPos;
         }
 
+        public final int transferTo(GatheringByteChannel ch) throws IOException {
+            return ch.write(buffer);
+        }
+
         public final long transferTo(WritableByteChannel ch) throws IOException {
             return ch.write(buffer);
+        }
+
+        public int transferTo(OutputStream outputStream) throws IOException {
+            byte[] b = buffer.array();
+            outputStream.write(b);
+            return b.length;
         }
 
         public final long transferTo(DatagramChannel ch, SocketAddress raddr) throws IOException {
@@ -240,79 +241,7 @@ final class SocketSendBufferPool {
         }
 
     }
-//    static class FileSendBuffer implements SendBuffer {
-//        public volatile File file;
-//        public FileChannel channel;
-//        public Integer start;
-//        public Integer end;
-//        public Boolean isSlice;
-//        /* the size of the message set in bytes */
-//        private AtomicInteger _size;
-//
-//        FileSendBuffer(byte[] buffer) throws FileNotFoundException {
-////            file = new File("d:/temp");
-////            channel = new RandomAccessFile(file,"rw").getChannel();
-////            // Ignore offset and size from input. We just want to write the whole buffer to the channel.
-////            buffer.mark();
-////            int written = 0;
-////            try {
-////                while (written < sizeInBytes()) {
-////                    written += channel.write(buffer);
-////                }
-////                buffer.reset();
-////            } catch (IOException e) {
-////                logger.error(e.getMessage(),e);
-////            }
-////            return written;
-//        }
-//
-//        public final boolean finished() {
-//            return !buffer.hasRemaining();
-//        }
-//
-//        public final long writtenBytes() {
-//            return buffer.position() - initialPos;
-//        }
-//
-//        public final long totalBytes() {
-//            return buffer.limit() - initialPos;
-//        }
-//
-//        public final long transferTo(WritableByteChannel ch) throws IOException {
-//            // Ignore offset and size from input. We just want to write the whole buffer to the channel.
-//            buffer.mark();
-//            int written = 0;
-//            try {
-//                while (written < sizeInBytes()) {
-//                    written += channel.write(buffer);
-//                }
-//                buffer.reset();
-//            } catch (IOException e) {
-//                logger.error(e.getMessage(),e);
-//            }
-//            return written;
-//        }
-//
-//        public final long transferTo(DatagramChannel ch, SocketAddress raddr) throws IOException {
-//            // Ignore offset and size from input. We just want to write the whole buffer to the channel.
-//            buffer.mark();
-//            int written = 0;
-//            try {
-//                while (written < sizeInBytes()) {
-//                    written += channel.write(buffer);
-//                }
-//                buffer.reset();
-//            } catch (IOException e) {
-//                logger.error(e.getMessage(),e);
-//            }
-//            return written;
-//        }
-//
-//        public void release() {
-//            // Unpooled.
-//        }
-//
-//    }
+
     static final class EmptySendBuffer implements SendBuffer {
 
         public boolean finished() {
@@ -330,6 +259,7 @@ final class SocketSendBufferPool {
         public long transferTo(WritableByteChannel ch) {
             return 0;
         }
+
 
         public long transferTo(DatagramChannel ch, SocketAddress raddr) {
             return 0;
@@ -350,17 +280,4 @@ final class SocketSendBufferPool {
         }
     }
 
-    interface SendBuffer {
-        boolean finished();
-
-        long writtenBytes();
-
-        long totalBytes();
-
-        long transferTo(WritableByteChannel ch) throws IOException;
-
-        long transferTo(DatagramChannel ch, SocketAddress raddr) throws IOException;
-
-        void release();
-    }
 }
