@@ -1,11 +1,14 @@
 package kafka.utils;
 
+import com.alibaba.fastjson.JSON;
 import kafka.api.LeaderAndIsr;
 import kafka.api.LeaderIsrAndControllerEpoch;
 import kafka.func.Tuple;
 import org.I0Itec.zkclient.ZkClient;
 import org.apache.zookeeper.data.Stat;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.logging.Logger;
 
@@ -25,7 +28,8 @@ public class ReplicationUtils {
 //        return ZkUtils.conditionalUpdatePersistentPath(zkClient, path, newLeaderData, zkVersion, Some(checkLeaderAndIsrZkData));
         return null;
     }
-//
+
+    //
 //    public Tuple<Boolean, Integer> checkLeaderAndIsrZkData(ZkClient zkClient, String path, String expectedLeaderAndIsrInfo) {
 //        try {
 //            Tuple<Optional<String>, Stat> writtenLeaderAndIsrInfo = ZkUtils.readDataMaybeNull(zkClient, path);
@@ -49,31 +53,34 @@ public class ReplicationUtils {
 //        return Tuple.of(false, -1);
 //    }
 //
-//    public Optional<LeaderIsrAndControllerEpoch> getLeaderIsrAndEpochForPartition(ZkClient zkClient, String topic, Int partition) {
-//        val leaderAndIsrPath = ZkUtils.getTopicPartitionLeaderAndIsrPath(topic, partition);
-//        val leaderAndIsrInfo = ZkUtils.readDataMaybeNull(zkClient, leaderAndIsrPath);
-//        val leaderAndIsrOpt = leaderAndIsrInfo._1;
-//        val stat = leaderAndIsrInfo._2;
-//        leaderAndIsrOpt match {
-//            case Some(leaderAndIsrStr) =>parseLeaderAndIsr(leaderAndIsrStr, leaderAndIsrPath, stat);
-//            case None =>None;
-//        }
-//    }
+    public static Optional<LeaderIsrAndControllerEpoch> getLeaderIsrAndEpochForPartition(ZkClient zkClient, String topic, Integer partition) throws Throwable {
+        String leaderAndIsrPath = ZkUtils.getTopicPartitionLeaderAndIsrPath(topic, partition);
+        Tuple<Optional<String>, Stat> leaderAndIsrInfo = ZkUtils.readDataMaybeNull(zkClient, leaderAndIsrPath);
+        Optional<String> leaderAndIsrOpt = leaderAndIsrInfo.v1;
+        Stat stat = leaderAndIsrInfo.v2;
+        if (leaderAndIsrOpt.isPresent()) {
+            return parseLeaderAndIsr(leaderAndIsrOpt.get(), leaderAndIsrPath, stat);
+        } else {
+            return Optional.empty();
+        }
+    }
 
-//    private Optional<LeaderIsrAndControllerEpoch> parseLeaderAndIsr(String leaderAndIsrStr, String path, Stat stat) {
-//        Json.parseFull(leaderAndIsrStr) match {
-//            case Some(m) =>
-//                val leaderIsrAndEpochInfo = m.asInstanceOf < Map < String, Any>>
-//                val leader = leaderIsrAndEpochInfo.get("leader").get.asInstanceOf < Integer >
-//                        val epoch = leaderIsrAndEpochInfo.get("leader_epoch").get.asInstanceOf < Integer >
-//                    val isr = leaderIsrAndEpochInfo.get("isr").get.asInstanceOf < List < Int >>
-//                    val controllerEpoch = leaderIsrAndEpochInfo.get("controller_epoch").get.asInstanceOf < Integer >
-//                    val zkPathVersion = stat.getVersion;
-//                debug(String.format("Leader %d, Epoch %d, Isr %s, Zk path version %d for leaderAndIsrPath %s", leader, epoch,
-//                        isr.toString(), zkPathVersion, path));
-//                Some(LeaderIsrAndControllerEpoch(LeaderAndIsr(leader, epoch, isr, zkPathVersion), controllerEpoch));
-//            case None =>None;
-//        }
-//    }
+    private static Optional<LeaderIsrAndControllerEpoch> parseLeaderAndIsr(String leaderAndIsrStr, String path, Stat stat) {
+        // TODO: 2017/11/1 json??  Json.parseFull(leaderAndIsrStr) match {case Some(m) =>
+        Object obj = JSON.parse(leaderAndIsrStr);
+        if (obj != null) {
+            Map<String, Object> leaderIsrAndEpochInfo = (Map<String, Object>) obj;
+            Integer leader = (Integer) leaderIsrAndEpochInfo.get("leader");
+            Integer epoch = (Integer) leaderIsrAndEpochInfo.get("leader_epoch");
+            List<Integer> isr = (List<Integer>) leaderIsrAndEpochInfo.get("isr");
+            Integer controllerEpoch = (Integer) leaderIsrAndEpochInfo.get("controller_epoch");
+            int zkPathVersion = stat.getVersion();
+            logger.debug(String.format("Leader %d, Epoch %d, Isr %s, Zk path version %d for leaderAndIsrPath %s", leader, epoch,
+                    isr.toString(), zkPathVersion, path));
+            return Optional.of(new LeaderIsrAndControllerEpoch(new LeaderAndIsr(leader, epoch, isr, zkPathVersion), controllerEpoch));
+        } else {
+            return Optional.empty();
+        }
+    }
 
 }

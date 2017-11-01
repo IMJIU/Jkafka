@@ -229,12 +229,12 @@ public class AdminUtils extends Logging {
 //        ZkUtils.updatePersistentPath(zkClient, ZkUtils.getTopicConfigPath(topic), Json.encode(map));
 //        }
 //
-//        /**
-//         * Read the topic config (if any) from zk
-//         */
-//       public static Properties   fetchTopicConfig(ZkClient zkClient, String topic) {
-//         String str = zkClient.readData(ZkUtils.getTopicConfigPath(topic), true);
-//           Properties props = new Properties();
+        /**
+         * Read the topic config (if any) from zk
+         */
+       public static Properties   fetchTopicConfig(ZkClient zkClient, String topic) {
+         String str = zkClient.readData(ZkUtils.getTopicConfigPath(topic), true);
+           Properties props = new Properties();
 //        if(str != null) {
 //
 //        Json.parseFull(str) match {
@@ -251,8 +251,8 @@ public class AdminUtils extends Logging {
 //        case o => throw new IllegalArgumentException("Unexpected value in config: "  + str);
 //        }
 //        }
-//        return props;
-//        }
+        return props;
+        }
 //
 //       public void fetchAllTopicConfigs(ZkClient zkClient): Map<String, Properties> =
 //        ZkUtils.getAllTopics(zkClient).map(topic => (topic, fetchTopicConfig(zkClient, topic))).toMap;

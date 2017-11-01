@@ -398,7 +398,7 @@ public class Sc {
         return result;
     }
 
-    public static <V, RET> RET match(Optional<V> opt, Handler<V, RET> handler, Fun<RET> fun) {
+    public static <T, V> V match(Optional<T> opt, Handler<T, V> handler, Fun<V> fun) {
         if (opt.isPresent()) {
             return handler.handle(opt.get());
         }
