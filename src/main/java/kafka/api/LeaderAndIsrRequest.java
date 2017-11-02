@@ -43,6 +43,11 @@ public class LeaderAndIsrRequest extends RequestOrResponse {
         this.leaders = leaders;
     }
 
+    public LeaderAndIsrRequest(Map<Tuple<String, Integer>, PartitionStateInfo> partitionStateInfos, Set<Broker> leaders,
+                               Integer controllerId, Integer controllerEpoch, Integer correlationId, String clientId) {
+        this(LeaderAndIsrRequest.CurrentVersion, correlationId, clientId, controllerId, controllerEpoch, partitionStateInfos, leaders);
+    }
+
     public static LeaderAndIsrRequest readFrom(ByteBuffer buffer) {
         short versionId = buffer.getShort();
         int correlationId = buffer.getInt();
@@ -68,12 +73,6 @@ public class LeaderAndIsrRequest extends RequestOrResponse {
         return new LeaderAndIsrRequest(versionId, correlationId, clientId, controllerId, controllerEpoch, partitionStateInfos, leaders);
     }
 
-
-    public LeaderAndIsrRequest(Map<Tuple<String, Integer>, PartitionStateInfo> partitionStateInfos, Set<Broker> leaders, Integer controllerId,
-                               Integer controllerEpoch, Integer correlationId, String clientId) {
-        this(LeaderAndIsrRequest.CurrentVersion, correlationId, clientId,
-                controllerId, controllerEpoch, partitionStateInfos, leaders);
-    }
 
     public void writeTo(ByteBuffer buffer) {
         buffer.putShort(versionId);

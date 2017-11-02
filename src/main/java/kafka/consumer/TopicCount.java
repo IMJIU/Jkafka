@@ -1,125 +1,143 @@
 package kafka.consumer;
 
-import kafka.utils.Logging;
-import org.I0Itec.zkclient.ZkClient;
+import com.alibaba.fastjson.JSON;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+import kafka.common.KafkaException;
+import kafka.func.Tuple;
+import kafka.utils.*;
+import org.I0Itec.zkclient.*;
 
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * @author zhoulf
  * @create 2017-11-01 59 17
  **/
 
-public abstract class TopicCount  extends Logging{
+public abstract class TopicCount extends Logging {
+    public static Logging logger = Logging.getLogger(TopicCount.class.getName());
 
-   public abstract Map<String, Set<ConsumerThreadId>> getConsumerThreadIdsPerTopic();
+    public abstract Map<String, Set<ConsumerThreadId>> getConsumerThreadIdsPerTopic();
 
-    public  abstract Map<String, Integer> getTopicCountMap();
+    public abstract Map<String, Integer> getTopicCountMap();
 
     public abstract String pattern();
 
 
-        String whiteListPattern="white_list";
-    String blackListPattern="black_list";
-    String staticPattern="static";
+    public static final String whiteListPattern = "white_list";
+    public static final String blackListPattern = "black_list";
+    public static final String staticPattern = "static";
 
-public String makeThreadId(String consumerIdString,Integer threadId){
-    return consumerIdString+"-"+threadId;
+    public String makeThreadId(String consumerIdString, Integer threadId) {
+        return consumerIdString + "-" + threadId;
+    }
+
+    public static Map<String, Set<ConsumerThreadId>> makeConsumerThreadIdsPerTopic(String consumerIdString,
+                                                                                   Map<String, Integer> topicCountMap) {
+        Map<String, Set<ConsumerThreadId>> consumerThreadIdsPerTopicMap = Maps.newHashMap();
+        topicCountMap.forEach((topic, nConsumers) -> {
+            Set<ConsumerThreadId> consumerSet = Sets.newHashSet();
+            assert (nConsumers >= 1);
+            for (int i = 0; i < nConsumers; i++)
+                consumerSet.add(new ConsumerThreadId(consumerIdString, i));
+            consumerThreadIdsPerTopicMap.put(topic, consumerSet);
+        });
+        return consumerThreadIdsPerTopicMap;
+    }
+
+    public static TopicCount constructTopicCount(String group, String consumerId, ZkClient zkClient, Boolean excludeInternalTopics) {
+        ZKGroupDirs dirs = new ZKGroupDirs(group);
+        String topicCountString = ZkUtils.readData(zkClient, dirs.consumerRegistryDir() + "/" + consumerId).v1;
+        String subscriptionPattern = null;
+        Map<String, Integer> topMap = null;
+        try {
+            Map<String, Object> consumerRegistrationMap = JSON.parseObject(topicCountString, Map.class);
+            if (consumerRegistrationMap != null) {
+                Object pattern = consumerRegistrationMap.get("pattern");
+                if (pattern != null) {
+                    subscriptionPattern = pattern.toString();
+                } else {
+                    new KafkaException("error constructing TopicCount : " + topicCountString);
+                }
+                Object sub = consumerRegistrationMap.get("subscription");
+                if (sub != null) {
+                    topMap = (Map<String, Integer>) sub;
+                } else {
+                    throw new KafkaException("error constructing TopicCount : " + topicCountString);
+                }
+            } else {
+                throw new KafkaException("error constructing TopicCount : " + topicCountString);
+            }
+        } catch (Throwable e) {
+            logger.error("error parsing consumer json string " + topicCountString, e);
+            throw e;
+        }
+
+        boolean hasWhiteList = whiteListPattern.equals(subscriptionPattern);
+        boolean hasBlackList = blackListPattern.equals(subscriptionPattern);
+
+        if (topMap.isEmpty() || !(hasWhiteList || hasBlackList)) {
+            return new StaticTopicCount(consumerId, topMap);
+        } else {
+            Tuple<String, Integer> head = Sc.head(topMap);
+            String regex = head.v1;
+            Integer numStreams = head.v2;
+            TopicFilter filter;
+            if (hasWhiteList)
+                filter = new Whitelist(regex);
+            else
+                filter = new Blacklist(regex);
+            return new WildcardTopicCount(zkClient, consumerId, filter, numStreams, excludeInternalTopics);
+        }
+    }
+
+    public TopicCount constructTopicCount(String consumerIdString, Map<String, Integer> topicCount) {
+        return new StaticTopicCount(consumerIdString, topicCount);
+    }
+
+
+    public TopicCount constructTopicCount(String consumerIdString, TopicFilter filter, Integer numStreams, ZkClient zkClient, Boolean excludeInternalTopics) {
+        return new WildcardTopicCount(zkClient, consumerIdString, filter, numStreams, excludeInternalTopics);
+    }
+
+
 }
 
-public void makeConsumerThreadIdsPerTopic(String consumerIdString,
-        Map<String, Integer> topicCountMap){
-        val consumerThreadIdsPerTopicMap=new mutable.HashMap<String, Set<ConsumerThreadId>>();
-        for((topic,nConsumers)<-topicCountMap){
-        val consumerSet=new mutable.HashSet<ConsumerThreadId>
-        assert(nConsumers>=1);
-                for(i<-0until nConsumers)
-        consumerSet+=ConsumerThreadId(consumerIdString,i);
-        consumerThreadIdsPerTopicMap.put(topic,consumerSet);
-        }
-        consumerThreadIdsPerTopicMap;
-        }
-
-public static TopicCount  constructTopicCount(String group, String consumerId, ZkClient zkClient, Boolean excludeInternalTopics){
-    ZKGroupDirs dirs=new ZKGroupDirs(group);
-        val topicCountString=ZkUtils.readData(zkClient,dirs.consumerRegistryDir+"/"+consumerId)._1;
-        var String subscriptionPattern=null;
-        var Map topMap<String, Integer> =null;
-        try{
-        Json.parseFull(topicCountString)match{
-        case Some(m)=>
-        val consumerRegistrationMap=m.asInstanceOf<Map<String, Any>>
-        consumerRegistrationMap.get("pattern")match{
-        case Some(pattern)=>subscriptionPattern=pattern.asInstanceOf<String>
-        case None=>throw new KafkaException("error constructing TopicCount : "+topicCountString);
-                }
-                consumerRegistrationMap.get("subscription")match{
-                case Some(sub)=>topMap=sub.asInstanceOf<Map<String, Int>>
-        case None=>throw new KafkaException("error constructing TopicCount : "+topicCountString);
-        }
-        case None=>throw new KafkaException("error constructing TopicCount : "+topicCountString);
-        }
-        }catch{
-        case Throwable e=>
-        error("error parsing consumer json string "+topicCountString,e);
-        throw e;
-        }
-
-        val hasWhiteList=whiteListPattern.equals(subscriptionPattern);
-        val hasBlackList=blackListPattern.equals(subscriptionPattern);
-
-        if(topMap.isEmpty||!(hasWhiteList||hasBlackList)){
-        new StaticTopicCount(consumerId,topMap);
-        }else{
-        val regex=topMap.head._1;
-        val numStreams=topMap.head._2;
-        val filter=
-        if(hasWhiteList)
-        new Whitelist(regex);
-        else;
-        new Blacklist(regex);
-        new WildcardTopicCount(zkClient,consumerId,filter,numStreams,excludeInternalTopics);
-        }
-        }
-
-public void constructTopicCount(String consumerIdString,Map topicCount<String, Integer>)=
-        new StaticTopicCount(consumerIdString,topicCount);
-
-public void constructTopicCount(String consumerIdString,TopicFilter filter,Int numStreams,ZkClient zkClient,Boolean excludeInternalTopics)=
-        new WildcardTopicCount(zkClient,consumerIdString,filter,numStreams,excludeInternalTopics);
-
-        }
-
-class StaticTopicCount extends TopicCount{
+class StaticTopicCount extends TopicCount {
     String consumerIdString;
-     Map <String, Integer>topicCountMap;
+    Map<String, Integer> topicCountMap;
 
     public StaticTopicCount(String consumerIdString, Map<String, Integer> topicCountMap) {
         this.consumerIdString = consumerIdString;
         this.topicCountMap = topicCountMap;
     }
 
-    public void getConsumerThreadIdsPerTopic(){
-        return TopicCount.makeConsumerThreadIdsPerTopic(consumerIdString,topicCountMap);
+    public Map<String, Set<ConsumerThreadId>> getConsumerThreadIdsPerTopic() {
+        return TopicCount.makeConsumerThreadIdsPerTopic(consumerIdString, topicCountMap);
     }
 
-@Override
-public Boolean  equals(Object obj){
-        obj match{
-        case null=>false;
-        case StaticTopicCount n=>consumerIdString==n.consumerIdString&&topicCountMap==n.topicCountMap;
-        case _=>false;
+    @Override
+    public boolean equals(Object obj) {
+        if (obj != null && obj instanceof StaticTopicCount) {
+            StaticTopicCount n = (StaticTopicCount) obj;
+            return consumerIdString == n.consumerIdString && topicCountMap == n.topicCountMap;
         }
-        }
+        return false;
+    }
 
-public void getTopicCountMap=topicCountMap;
+    public Map<String, Integer> getTopicCountMap() {
+        return topicCountMap;
+    }
 
-public void pattern=TopicCount.staticPattern;
-        }
+    public String pattern() {
+        return TopicCount.staticPattern;
+    }
+}
 
 
-class WildcardTopicCount extends TopicCount{
+class WildcardTopicCount extends TopicCount {
     ZkClient zkClient;
     String consumerIdString;
     TopicFilter topicFilter;
@@ -134,19 +152,23 @@ class WildcardTopicCount extends TopicCount{
         this.excludeInternalTopics = excludeInternalTopics;
     }
 
-    public void getConsumerThreadIdsPerTopic={
-        val wildcardTopics=ZkUtils.getChildrenParentMayNotExist(zkClient,ZkUtils.BrokerTopicsPath);
-        .filter(topic=>topicFilter.isTopicAllowed(topic,excludeInternalTopics));
-        TopicCount.makeConsumerThreadIdsPerTopic(consumerIdString,Map(wildcardTopics.map((_,numStreams)):_*));
-        }
+    public Map<String, Set<ConsumerThreadId>> getConsumerThreadIdsPerTopic() {
+        List<String> wildcardTopics = Sc.filter(ZkUtils.getChildrenParentMayNotExist(zkClient, ZkUtils.BrokerTopicsPath),
+                topic -> topicFilter.isTopicAllowed(topic, excludeInternalTopics));
+        return TopicCount.makeConsumerThreadIdsPerTopic(consumerIdString,
+                Sc.toMap(Sc.map(wildcardTopics, t -> Tuple.of(t, numStreams))));
+    }
 
-public void getTopicCountMap=Map(Utils.JSONEscapeString(topicFilter.regex)->numStreams);
+    public Map<String, Integer> getTopicCountMap() {
+        return ImmutableMap.of(Utils.JSONEscapeString(topicFilter.regex), numStreams);
+    }
 
-public void String pattern={
-        topicFilter match{
-        case Whitelist wl=>TopicCount.whiteListPattern;
-        case Blacklist bl=>TopicCount.blackListPattern;
+    public String pattern() {
+        if (topicFilter instanceof Whitelist) {
+            return TopicCount.whiteListPattern;
+        } else {
+            return TopicCount.blackListPattern;
         }
-        }
+    }
 
-        }
+}

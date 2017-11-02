@@ -753,25 +753,6 @@ class ZKStringSerializer implements ZkSerializer {
     }
 }
 
-class ZKGroupDirs {
-    public String group;
-
-    public ZKGroupDirs(String group) {
-        this.group = group;
-    }
-
-    public String consumerDir() {
-        return ZkUtils.ConsumersPath;
-    }
-
-    public String consumerGroupDir() {
-        return consumerDir() + "/" + group;
-    }
-
-    public String consumerRegistryDir() {
-        return consumerGroupDir() + "/ids";
-    }
-}
 
 class ZKGroupTopicDirs extends ZKGroupDirs {
     public String group;

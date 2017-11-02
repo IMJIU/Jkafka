@@ -14,7 +14,11 @@ public abstract class ShutdownableThread extends Thread {
     public Boolean isInterruptible = true;
     public Logging logger = new Logging();
 
-    public ShutdownableThread(java.lang.String name, java.lang.Boolean isInterruptible) {
+    public ShutdownableThread(String name) {
+        this(name, true);
+    }
+
+    public ShutdownableThread(String name, Boolean isInterruptible) {
         this.name = name;
         this.isInterruptible = isInterruptible;
         this.setDaemon(false);

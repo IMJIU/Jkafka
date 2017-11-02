@@ -648,35 +648,56 @@ public class Utils {
     public static <T> T inWriteLock(ReadWriteLock lock, Fun<T> fun) {
         return inLock(lock.writeLock(), fun);
     }
-//
-//
-//    //JSON strings need to be escaped based on ECMA-404 standard http://json.org;
-//    def JSONEscapeString(String s);
-//
-//    :String=
-//
-//    {
-//        s.map {
-//        case '"' =>"\\\"";
-//        case '\\' =>"\\\\";
-//        case '/' =>"\\/";
-//        case '\b' =>"\\b";
-//        case '\f' =>"\\f";
-//        case '\n' =>"\\n";
-//        case '\r' =>"\\r";
-//        case '\t' =>"\\t";
-//      /* We'll unicode escape any control characters. These include:
-//       * 0x0 -> 0x1f  : ASCII Control (C0 Control Codes)
-//       * 0x7f         : ASCII DELETE
-//       * 0x80 -> 0x9f : C1 Control Codes
-//       *
-//       * Per RFC4627, section 2.5, we're not technically required to
-//       * encode the C1 codes, but we do to be safe.
-//       */
-//        case c if ((c >= '\u0000' && c <= '\u001f') || (c >= '\u007f' && c <= '\u009f'))=>String.format("\\u%04x",Int c);
-//        case c =>c;
-//    }.mkString;
-//    }
+
+
+    //JSON strings need to be escaped based on ECMA-404 standard http://json.org;
+    public static String JSONEscapeString(String s) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < s.length(); i++) {
+            char ch = s.charAt(i);
+            switch (ch) {
+                case '"':
+                    sb.append("\\\"");
+                    break;
+                case '\\':
+                    sb.append("\\\\");
+                    break;
+                case '/':
+                    sb.append("\\/");
+                    break;
+                case '\b':
+                    sb.append("\\b");
+                    break;
+                case '\f':
+                    sb.append("\\f");
+                    break;
+                case '\n':
+                    sb.append("\\n");
+                    break;
+                case '\r':
+                    sb.append("\\r");
+                    break;
+                case '\t':
+                    sb.append("\\t");
+                    break;
+      /* We'll unicode escape any control characters. These include:
+       * 0x0 -> 0x1f  : ASCII Control (C0 Control Codes)
+       * 0x7f         : ASCII DELETE
+       * 0x80 -> 0x9f : C1 Control Codes
+       *
+       * Per RFC4627, section 2.5, we're not technically required to
+       * encode the C1 codes, but we do to be safe.
+       */
+                default:
+                    if ((ch >= '\u0000' && ch <= '\u001f') || (ch >= '\u007f' && ch <= '\u009f')) {
+                        sb.append(String.format("\\u%04x", ch));
+                    } else {
+                        sb.append(ch);
+                    }
+            }
+        }
+        return sb.toString();
+    }
 //
 //    /**
 //     * Returns a list of duplicated items

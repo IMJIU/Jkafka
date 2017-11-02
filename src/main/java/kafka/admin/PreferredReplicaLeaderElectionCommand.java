@@ -1,6 +1,7 @@
 package kafka.admin;
 
 import kafka.log.TopicAndPartition;
+import kafka.utils.Logging;
 
 import java.util.Set;
 
@@ -11,7 +12,7 @@ import java.util.Set;
 
 public class PreferredReplicaLeaderElectionCommand extends Logging {
 
-       public   void main(String[] args) {
+       public void main(String[] args) {
            OptionParser parser = new OptionParser;
         val jsonFileOpt = parser.accepts("path-to-json-file", "The JSON file with the list of partitions " +
         "for which preferred replica leader election should be done, in the following format - \n" +

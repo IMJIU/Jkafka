@@ -404,4 +404,13 @@ public class Sc {
         }
         return fun.invoke();
     }
+
+    public static <K, V> Tuple<K,V> head(Map<K, V> topMap) {
+        if (!topMap.isEmpty()) {
+            for (Map.Entry<K, V> e : topMap.entrySet()) {
+                return Tuple.of(e.getKey(),e.getValue());
+            }
+        }
+        return Tuple.EMPTY;
+    }
 }
