@@ -42,6 +42,12 @@ public class Sc {
         return list;
     }
 
+    public static <K, V> void foreach(Iterable<Tuple<K, V>> it, ActionP2<K, V> action) {
+        for (Tuple<K, V> tuple : it) {
+            action.invoke(tuple.v1, tuple.v2);
+        }
+    }
+
     public static <K, V> void foreach(Map<K, V> map, ActionP2<K, V> action) {
         for (Map.Entry<K, V> entry : map.entrySet()) {
             action.invoke(entry.getKey(), entry.getValue());
@@ -405,10 +411,10 @@ public class Sc {
         return fun.invoke();
     }
 
-    public static <K, V> Tuple<K,V> head(Map<K, V> topMap) {
+    public static <K, V> Tuple<K, V> head(Map<K, V> topMap) {
         if (!topMap.isEmpty()) {
             for (Map.Entry<K, V> e : topMap.entrySet()) {
-                return Tuple.of(e.getKey(),e.getValue());
+                return Tuple.of(e.getKey(), e.getValue());
             }
         }
         return Tuple.EMPTY;

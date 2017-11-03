@@ -301,118 +301,84 @@ class ControllerBrokerRequestBatch extends Logging {
             });
             controller.sendRequest(broker, leaderAndIsrRequest, null);
         });
-        val leaderIds = partitionStateInfos.map(_._2.leaderIsrAndControllerEpoch.leaderAndIsr.leader).toSet;
-        val leaders = controllerContext.liveOrShuttingDownBrokers.filter(b = > leaderIds.contains(b.id));
-        val leaderAndIsrRequest = new LeaderAndIsrRequest(partitionStateInfos, leaders, controllerId, controllerEpoch, correlationId, clientId);
-        for (p< -partitionStateInfos) {
-            val typeOfRequest = if (broker == p._2.leaderIsrAndControllerEpoch.leaderAndIsr.leader) "become-leader"
-            else "become-follower";
-            stateChangeLogger.trace(("Controller %d epoch %d sending %s LeaderAndIsr request %s with correlationId %d to broker %d " +
-                    "for partition <%s,%d>").format(controllerId, controllerEpoch, typeOfRequest,
-                    p._2.leaderIsrAndControllerEpoch, correlationId, broker,
-                    p._1._1, p._1._2));
-        }
-        controller.sendRequest(broker, leaderAndIsrRequest, null);
-    }
         leaderAndIsrRequestMap.clear();
-    updateMetadataRequestMap.foreach
-
-    {
-        m =>
-        val broker = m._1;
-        val partitionStateInfos = m._2.toMap;
-        val updateMetadataRequest = new UpdateMetadataRequest(controllerId, controllerEpoch, correlationId, clientId,
-                partitionStateInfos, controllerContext.liveOrShuttingDownBrokers);
-        partitionStateInfos.foreach(p = > stateChangeLogger.trace(("Controller %d epoch %d sending UpdateMetadata request %s with " +
-                "correlationId %d to broker %d for partition %s").format(controllerId, controllerEpoch, p._2.leaderIsrAndControllerEpoch,
-                correlationId, broker, p._1)));
-        controller.sendRequest(broker, updateMetadataRequest, null);
-    }
-        updateMetadataRequestMap.clear();
-    stopReplicaRequestMap foreach
-
-    {
-        case (broker,replicaInfoList)=>
-            val stopReplicaWithDelete = replicaInfoList.filter(p = > p.deletePartition == true).map(i = > i.replica).toSet;
-            val stopReplicaWithoutDelete = replicaInfoList.filter(p = > p.deletePartition == false).map(i = > i.replica).toSet;
-            debug("The stop replica request (delete = true) sent to broker %d is %s";
-        .format(broker, stopReplicaWithDelete.mkString(",")))
-            debug("The stop replica request (delete = false) sent to broker %d is %s";
-        .format(broker, stopReplicaWithoutDelete.mkString(",")))
-            replicaInfoList.foreach {
-            r =>
-            val stopReplicaRequest = new StopReplicaRequest(r.deletePartition,
-                    Set(TopicAndPartition(r.replica.topic, r.replica.partition)), controllerId, controllerEpoch, correlationId);
-            controller.sendRequest(broker, stopReplicaRequest, r.callback);
-        }
-    }
+        stopReplicaRequestMap.forEach((broker, replicaInfoList) -> {
+            Set<PartitionAndReplica> stopReplicaWithDelete = Sc.toSet(Sc.map(Sc.filter(replicaInfoList, p -> p.deletePartition == true), i -> i.replica));
+            Set<PartitionAndReplica> stopReplicaWithoutDelete = Sc.toSet(Sc.map(Sc.filter(replicaInfoList, p -> p.deletePartition == false), i -> i.replica));
+            debug(String.format("The stop replica request (delete = true) sent to broker %d is %s", broker, stopReplicaWithDelete));
+            debug(String.format("The stop replica request (delete = false) sent to broker %d is %s", broker, stopReplicaWithoutDelete));
+            replicaInfoList.forEach(r -> {
+                StopReplicaRequest stopReplicaRequest = new StopReplicaRequest(r.deletePartition,
+                        Sets.newHashSet(new TopicAndPartition(r.replica.topic, r.replica.partition)), controllerId, controllerEpoch, correlationId);
+                controller.sendRequest(broker, stopReplicaRequest, r.callback);
+            });
+        });
         stopReplicaRequestMap.clear();
-}
-}
-
-class ControllerBrokerStateInfo {
-    public BlockingChannel channel;
-    public Broker broker;
-    public BlockingQueue<Tuple<RequestOrResponse, ActionP<RequestOrResponse>>> messageQueue;
-    public RequestSendThread requestSendThread;
-
-    public ControllerBrokerStateInfo(BlockingChannel channel, Broker broker, BlockingQueue<Tuple<RequestOrResponse, ActionP<RequestOrResponse>>> messageQueue, RequestSendThread requestSendThread) {
-        this.channel = channel;
-        this.broker = broker;
-        this.messageQueue = messageQueue;
-        this.requestSendThread = requestSendThread;
-    }
-}
-
-class StopReplicaRequestInfo {
-    public PartitionAndReplica replica;
-    public Boolean deletePartition;
-    public ActionP<RequestOrResponse> callback;
-
-    public StopReplicaRequestInfo(PartitionAndReplica replica, Boolean deletePartition) {
-        this(replica, deletePartition, null);
     }
 
-    public StopReplicaRequestInfo(PartitionAndReplica replica, Boolean deletePartition, ActionP<RequestOrResponse> callback) {
-        this.replica = replica;
-        this.deletePartition = deletePartition;
-        this.callback = callback;
-    }
-}
+    class ControllerBrokerStateInfo {
+        public BlockingChannel channel;
+        public Broker broker;
+        public BlockingQueue<Tuple<RequestOrResponse, ActionP<RequestOrResponse>>> messageQueue;
+        public RequestSendThread requestSendThread;
 
-class Callbacks {
-    public ActionP<RequestOrResponse> leaderAndIsrResponseCallback;
-    public ActionP<RequestOrResponse> updateMetadataResponseCallback;
-    public ActionP<RequestOrResponse> stopReplicaResponseCallback;
-
-    public Callbacks(ActionP<RequestOrResponse> leaderAndIsrResponseCallback, ActionP<RequestOrResponse> updateMetadataResponseCallback, ActionP<RequestOrResponse> stopReplicaResponseCallback) {
-        this.leaderAndIsrResponseCallback = leaderAndIsrResponseCallback;
-        this.updateMetadataResponseCallback = updateMetadataResponseCallback;
-        this.stopReplicaResponseCallback = stopReplicaResponseCallback;
-    }
-
-    class CallbackBuilder {
-        ActionP<RequestOrResponse> leaderAndIsrResponseCbk;
-        ActionP<RequestOrResponse> updateMetadataResponseCbk;
-        ActionP<RequestOrResponse> stopReplicaResponseCbk;
-
-        public CallbackBuilder leaderAndIsrCallback(ActionP<RequestOrResponse> cbk) {
-            leaderAndIsrResponseCbk = cbk;
-            return this;
-        }
-
-        public CallbackBuilder updateMetadataCallback(ActionP<RequestOrResponse> cbk) {
-            updateMetadataResponseCbk = cbk;
-            return this;
-        }
-
-        public CallbackBuilder stopReplicaCallback(ActionP<RequestOrResponse> cbk) {
-            stopReplicaResponseCbk = cbk;
-            return this;
-        }
-
-        public Callbacks build() {
-            return new Callbacks(leaderAndIsrResponseCbk, updateMetadataResponseCbk, stopReplicaResponseCbk);
+        public ControllerBrokerStateInfo(BlockingChannel channel, Broker broker, BlockingQueue<Tuple<RequestOrResponse, ActionP<RequestOrResponse>>> messageQueue, RequestSendThread requestSendThread) {
+            this.channel = channel;
+            this.broker = broker;
+            this.messageQueue = messageQueue;
+            this.requestSendThread = requestSendThread;
         }
     }
-}
+
+    class StopReplicaRequestInfo {
+        public PartitionAndReplica replica;
+        public Boolean deletePartition;
+        public ActionP<RequestOrResponse> callback;
+
+        public StopReplicaRequestInfo(PartitionAndReplica replica, Boolean deletePartition) {
+            this(replica, deletePartition, null);
+        }
+
+        public StopReplicaRequestInfo(PartitionAndReplica replica, Boolean deletePartition, ActionP<RequestOrResponse> callback) {
+            this.replica = replica;
+            this.deletePartition = deletePartition;
+            this.callback = callback;
+        }
+    }
+
+    class Callbacks {
+        public ActionP<RequestOrResponse> leaderAndIsrResponseCallback;
+        public ActionP<RequestOrResponse> updateMetadataResponseCallback;
+        public ActionP<RequestOrResponse> stopReplicaResponseCallback;
+
+        public Callbacks(ActionP<RequestOrResponse> leaderAndIsrResponseCallback, ActionP<RequestOrResponse> updateMetadataResponseCallback, ActionP<RequestOrResponse> stopReplicaResponseCallback) {
+            this.leaderAndIsrResponseCallback = leaderAndIsrResponseCallback;
+            this.updateMetadataResponseCallback = updateMetadataResponseCallback;
+            this.stopReplicaResponseCallback = stopReplicaResponseCallback;
+        }
+
+        class CallbackBuilder {
+            ActionP<RequestOrResponse> leaderAndIsrResponseCbk;
+            ActionP<RequestOrResponse> updateMetadataResponseCbk;
+            ActionP<RequestOrResponse> stopReplicaResponseCbk;
+
+            public CallbackBuilder leaderAndIsrCallback(ActionP<RequestOrResponse> cbk) {
+                leaderAndIsrResponseCbk = cbk;
+                return this;
+            }
+
+            public CallbackBuilder updateMetadataCallback(ActionP<RequestOrResponse> cbk) {
+                updateMetadataResponseCbk = cbk;
+                return this;
+            }
+
+            public CallbackBuilder stopReplicaCallback(ActionP<RequestOrResponse> cbk) {
+                stopReplicaResponseCbk = cbk;
+                return this;
+            }
+
+            public Callbacks build() {
+                return new Callbacks(leaderAndIsrResponseCbk, updateMetadataResponseCbk, stopReplicaResponseCbk);
+            }
+        }
+    }
