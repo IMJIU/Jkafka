@@ -340,7 +340,7 @@ public class KafkaController extends KafkaMetricsGroup {
      * partitions coming online.
      */
     public void onBrokerFailure(List<Integer> deadBrokers) {
-        info(String.format("Broker failure callback for %s", deadBrokers.mkString(",")))
+        info(String.format("Broker failure callback for %s", deadBrokers));
         val deadBrokersThatWereShuttingDown =
                 deadBrokers.filter(id = > controllerContext.shuttingDownBrokerIds.remove(id));
         info(String.format("Removed %s from list of shutting down brokers.", deadBrokersThatWereShuttingDown))
