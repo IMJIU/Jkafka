@@ -149,7 +149,7 @@ public class ZkUtils {
     /**
      * Gets the assigned replicas (AR) for a specific topic and partition
      */
-    public static List<Integer> getReplicasForPartition(ZkClient zkClient, String topic, Integer partition) throws Throwable {
+    public static List<Integer> getReplicasForPartition(ZkClient zkClient, String topic, Integer partition) {
         Optional<String> jsonPartitionMapOpt = readDataMaybeNull(zkClient, getTopicPath(topic)).v1;
         if (jsonPartitionMapOpt.isPresent()) {
             String leaderAndIsr = jsonPartitionMapOpt.get();

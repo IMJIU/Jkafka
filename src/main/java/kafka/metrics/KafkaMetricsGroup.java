@@ -1,5 +1,6 @@
 package kafka.metrics;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.*;
@@ -58,11 +59,11 @@ public class KafkaMetricsGroup extends Logging {
         return Metrics.defaultRegistry().newGauge(metricName(name, tags), metric);
     }
 
-    public Meter newMeter(String name, String eventType, TimeUnit timeUnit) {
+    public static Meter newMeter(String name, String eventType, TimeUnit timeUnit) {
         return Metrics.defaultRegistry().newMeter(metricName(name, Maps.newHashMap()), eventType, timeUnit);
     }
 
-    public Meter newMeter(String name, String eventType, TimeUnit timeUnit, Map<String, String> tags) {
+    public  static Meter newMeter(String name, String eventType, TimeUnit timeUnit, Map<String, String> tags) {
         return Metrics.defaultRegistry().newMeter(metricName(name, tags), eventType, timeUnit);
     }
 
@@ -73,7 +74,9 @@ public class KafkaMetricsGroup extends Logging {
         }
         return Metrics.defaultRegistry().newHistogram(metricName(name, tags), biased);
     }
-
+    public static Timer newTimer(String name, TimeUnit durationUnit, TimeUnit rateUnit){
+        return newTimer(name,durationUnit,rateUnit, ImmutableMap.of());
+    }
     public static Timer newTimer(String name, TimeUnit durationUnit, TimeUnit rateUnit, Map<String, String> tags) {
         return Metrics.defaultRegistry().newTimer(metricName(name, tags), durationUnit, rateUnit);
     }

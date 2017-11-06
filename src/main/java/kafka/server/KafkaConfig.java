@@ -10,7 +10,7 @@ import kafka.utils.*;
 import java.util.*;
 
 public class KafkaConfig extends ZKConfig {
-    VerifiableProperties props;
+    public VerifiableProperties props;
 
     /**
      * Configuration settings for the kafka server

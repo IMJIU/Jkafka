@@ -90,7 +90,7 @@ public class ControllerChannelManager extends Logging {
                 config.controllerSocketTimeoutMs);
         RequestSendThread requestThread = new RequestSendThread(config.brokerId, controllerContext, broker, messageQueue, channel);
         requestThread.setDaemon(false);
-        brokerStateInfo.put(broker.id, new ControllerBrokerStateInfo(channel, broker, messageQueue, requestThread));
+        brokerStateInfo.put(broker.id, new ControllerBrokerRequestBatch.ControllerBrokerStateInfo(channel, broker, messageQueue, requestThread));
     }
 
     private void removeExistingBroker(Integer brokerId) {
@@ -345,40 +345,5 @@ class ControllerBrokerRequestBatch extends Logging {
             this.callback = callback;
         }
     }
+}
 
-    class Callbacks {
-        public ActionP<RequestOrResponse> leaderAndIsrResponseCallback;
-        public ActionP<RequestOrResponse> updateMetadataResponseCallback;
-        public ActionP<RequestOrResponse> stopReplicaResponseCallback;
-
-        public Callbacks(ActionP<RequestOrResponse> leaderAndIsrResponseCallback, ActionP<RequestOrResponse> updateMetadataResponseCallback, ActionP<RequestOrResponse> stopReplicaResponseCallback) {
-            this.leaderAndIsrResponseCallback = leaderAndIsrResponseCallback;
-            this.updateMetadataResponseCallback = updateMetadataResponseCallback;
-            this.stopReplicaResponseCallback = stopReplicaResponseCallback;
-        }
-
-        class CallbackBuilder {
-            ActionP<RequestOrResponse> leaderAndIsrResponseCbk;
-            ActionP<RequestOrResponse> updateMetadataResponseCbk;
-            ActionP<RequestOrResponse> stopReplicaResponseCbk;
-
-            public CallbackBuilder leaderAndIsrCallback(ActionP<RequestOrResponse> cbk) {
-                leaderAndIsrResponseCbk = cbk;
-                return this;
-            }
-
-            public CallbackBuilder updateMetadataCallback(ActionP<RequestOrResponse> cbk) {
-                updateMetadataResponseCbk = cbk;
-                return this;
-            }
-
-            public CallbackBuilder stopReplicaCallback(ActionP<RequestOrResponse> cbk) {
-                stopReplicaResponseCbk = cbk;
-                return this;
-            }
-
-            public Callbacks build() {
-                return new Callbacks(leaderAndIsrResponseCbk, updateMetadataResponseCbk, stopReplicaResponseCbk);
-            }
-        }
-    }

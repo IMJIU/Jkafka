@@ -419,4 +419,12 @@ public class Sc {
         }
         return Tuple.EMPTY;
     }
+
+    public static <T> T head(Iterable<T> iterable){
+        Iterator<T> it = iterable.iterator();
+        while (it.hasNext()) {
+            return it.next();
+        }
+        return null;
+    }
 }

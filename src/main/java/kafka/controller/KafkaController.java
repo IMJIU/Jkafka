@@ -5,7 +5,7 @@ package kafka.controller;
  * @create 2017-11-02 19 14
  **/
 
-
+import static kafka.controller.partition.PartitionState.*;
 import com.alibaba.fastjson.JSON;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -21,10 +21,9 @@ import kafka.log.TopicAndPartition;
 import kafka.metrics.KafkaMetricsGroup;
 import kafka.server.BrokerState;
 import kafka.server.KafkaConfig;
-import kafka.utils.KafkaScheduler;
-import kafka.utils.Logging;
-import kafka.utils.Sc;
-import kafka.utils.Utils;
+import kafka.server.ZookeeperLeaderElector;
+import kafka.utils.*;
+import org.I0Itec.zkclient.IZkDataListener;
 import org.I0Itec.zkclient.ZkClient;
 
 import java.util.List;
@@ -65,7 +64,7 @@ public class KafkaController extends KafkaMetricsGroup {
         stateChangeLogger = KafkaController.stateChangeLogger;
         newGauge("ActiveControllerCount", new Gauge<Object>() {
                     public Object value() {
-                        if (isActive) return 1;
+                        if (isActive()) return 1;
                         else return 0;
                     }
                 }
@@ -170,7 +169,7 @@ public class KafkaController extends KafkaMetricsGroup {
                             if (currLeaderIsrAndControllerEpoch.leaderAndIsr.leader == id) {
                                 // If the broker leads the topic partition, transition the leader and update isr. Updates zk and;
                                 // notifies all affected brokers;
-                                partitionStateMachine.handleStateChanges(Set(topicAndPartition), OnlinePartition, controlledShutdownPartitionLeaderSelector);
+                                partitionStateMachine.handleStateChanges(Sets.newHashSet(topicAndPartition), OnlinePartition, controlledShutdownPartitionLeaderSelector);
                             } else {
                                 // Stop the replica first. The state change below initiates ZK changes which should take some time;
                                 // before which the stop replica request should be completed (in most cases)
@@ -1107,10 +1106,17 @@ public void handleNewSession(){
  * If any of the above conditions are satisfied, it logs an error and removes the partition from list of reassigned
  * partitions.
  */
-class PartitionsReassignedListener (KafkaController controller)extends IZkDataListener with Logging{
+class PartitionsReassignedListener extends Logging implements IZkDataListener {
+    public KafkaController controller;
+    public ZkClient zkClient;
+    public ControllerContext controllerContext;
+    public PartitionsReassignedListener(KafkaController controller) {
+        this.controller = controller;
         this.logIdent="<PartitionsReassignedListener on "+controller.config.brokerId+">: ";
-        val zkClient=controller.controllerContext.zkClient;
-        val controllerContext=controller.controllerContext;
+         zkClient=controller.controllerContext.zkClient;
+         controllerContext=controller.controllerContext;
+
+    }
 
         /**
          * Invoked when some partitions are reassigned by the admin command
@@ -1259,7 +1265,8 @@ class LeaderIsrAndControllerEpoch(
         Int controllerEpoch)
 
         {
-@Overridepublic String void toString(){
+@Override
+public String  toString(){
         val leaderAndIsrInfo=new StringBuilder;
         leaderAndIsrInfo.append("(Leader:"+leaderAndIsr.leader);
         leaderAndIsrInfo.append(",ISR:"+leaderAndIsr.isr.mkString(","));
@@ -1269,13 +1276,7 @@ class LeaderIsrAndControllerEpoch(
         }
         }
 
-        object ControllerStats extends KafkaMetricsGroup
 
-        {
-        val uncleanLeaderElectionRate=newMeter("UncleanLeaderElectionsPerSec","elections",TimeUnit.SECONDS);
-        val leaderElectionTimer=new KafkaTimer(newTimer("LeaderElectionRateAndTimeMs",TimeUnit.MILLISECONDS,TimeUnit.SECONDS));
-        }
-        }
 
 class StateChangeLogger extends Logging {
     // TODO: 2017/11/2
