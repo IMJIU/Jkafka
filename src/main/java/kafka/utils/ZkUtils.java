@@ -7,7 +7,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import kafka.admin.PreferredReplicaLeaderElectionCommand;
 import kafka.api.LeaderAndIsr;
-import kafka.api.LeaderIsrAndControllerEpoch;
+import kafka.controller.ctrl.LeaderIsrAndControllerEpoch;
 import kafka.cluster.Broker;
 import kafka.cluster.Cluster;
 import kafka.common.AdminOperationException;
@@ -518,7 +518,7 @@ public class ZkUtils {
         return ret;
     }
 
-    public Map<TopicAndPartition, List<Integer>> getReplicaAssignmentForTopics(ZkClient zkClient, List<String> topics) {
+    public static Map<TopicAndPartition, List<Integer>> getReplicaAssignmentForTopics(ZkClient zkClient, List<String> topics) {
         Map<TopicAndPartition, List<Integer>> ret = Maps.newHashMap();
         topics.forEach(topic -> {
             Optional<String> jsonPartitionMapOpt = null;

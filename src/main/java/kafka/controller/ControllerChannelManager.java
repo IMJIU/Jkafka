@@ -7,6 +7,7 @@ import kafka.api.*;
 import kafka.cluster.Broker;
 import kafka.cluster.Replica;
 import kafka.controller.ctrl.ControllerContext;
+import kafka.controller.ctrl.LeaderIsrAndControllerEpoch;
 import kafka.controller.ctrl.PartitionAndReplica;
 import kafka.func.*;
 import kafka.log.TopicAndPartition;
@@ -221,6 +222,11 @@ class ControllerBrokerRequestBatch extends Logging {
             throw new IllegalStateException("Controller to broker state change requests batch is not empty while creating a " +
                     String.format("new one. Some UpdateMetadata state changes %s might be lost ", updateMetadataRequestMap.toString()))
     }
+    public Set<TopicAndPartition> addLeaderAndIsrRequestForBrokers(List<Integer> brokerIds, String topic, Integer partition,
+                                                                   LeaderIsrAndControllerEpoch leaderIsrAndControllerEpoch,
+                                                                   List<Integer> replicas) {
+        return addLeaderAndIsrRequestForBrokers(brokerIds,topic,partition,leaderIsrAndControllerEpoch,replicas,null);
+    }
 
     public Set<TopicAndPartition> addLeaderAndIsrRequestForBrokers(List<Integer> brokerIds, String topic, Integer partition,
                                                                    LeaderIsrAndControllerEpoch leaderIsrAndControllerEpoch,
@@ -232,7 +238,7 @@ class ControllerBrokerRequestBatch extends Logging {
                     new PartitionStateInfo(leaderIsrAndControllerEpoch, Sc.toSet(replicas)));
         });
 
-        addUpdateMetadataRequestForBrokers(controllerContext.liveOrShuttingDownBrokerIds())
+        addUpdateMetadataRequestForBrokers(controllerContext.liveOrShuttingDownBrokerIds());
         return Sets.newHashSet(topicAndPartition);
     }
 

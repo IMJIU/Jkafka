@@ -2,6 +2,7 @@ package kafka.api;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import kafka.controller.ctrl.LeaderIsrAndControllerEpoch;
 
 import java.nio.ByteBuffer;
 import java.util.List;

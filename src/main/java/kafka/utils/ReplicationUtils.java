@@ -2,7 +2,7 @@ package kafka.utils;
 
 import com.alibaba.fastjson.JSON;
 import kafka.api.LeaderAndIsr;
-import kafka.api.LeaderIsrAndControllerEpoch;
+import kafka.controller.ctrl.LeaderIsrAndControllerEpoch;
 import kafka.func.Tuple;
 import org.I0Itec.zkclient.ZkClient;
 import org.apache.zookeeper.data.Stat;
@@ -10,7 +10,6 @@ import org.apache.zookeeper.data.Stat;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.logging.Logger;
 
 /**
  * @author zhoulf
@@ -53,7 +52,7 @@ public class ReplicationUtils {
 //        return Tuple.of(false, -1);
 //    }
 //
-    public static Optional<LeaderIsrAndControllerEpoch> getLeaderIsrAndEpochForPartition(ZkClient zkClient, String topic, Integer partition) throws Throwable {
+    public static Optional<LeaderIsrAndControllerEpoch> getLeaderIsrAndEpochForPartition(ZkClient zkClient, String topic, Integer partition)  {
         String leaderAndIsrPath = ZkUtils.getTopicPartitionLeaderAndIsrPath(topic, partition);
         Tuple<Optional<String>, Stat> leaderAndIsrInfo = ZkUtils.readDataMaybeNull(zkClient, leaderAndIsrPath);
         Optional<String> leaderAndIsrOpt = leaderAndIsrInfo.v1;

@@ -10,7 +10,7 @@ import com.alibaba.fastjson.JSON;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.yammer.metrics.core.Gauge;
-import kafka.cluster.Broker;
+import kafka.api.LeaderAndIsr;
 import kafka.common.BrokerNotAvailableException;
 import kafka.common.ControllerMovedException;
 import kafka.common.KafkaException;
@@ -163,7 +163,7 @@ public class KafkaController extends KafkaMetricsGroup {
             Sc.foreach(allPartitionsAndReplicationFactorOnBroker,(topicAndPartition, replicationFactor) -> {
                 // Move leadership serially to relinquish lock.;
                 Utils.inLock(controllerContext.controllerLock, () -> {
-                   kafka.api.LeaderIsrAndControllerEpoch currLeaderIsrAndControllerEpoch= controllerContext.partitionLeadershipInfo.get(topicAndPartition);
+                   kafka.controller.ctrl.LeaderIsrAndControllerEpoch currLeaderIsrAndControllerEpoch= controllerContext.partitionLeadershipInfo.get(topicAndPartition);
                    if(currLeaderIsrAndControllerEpoch!=null){
                         if (replicationFactor > 1) {
                             if (currLeaderIsrAndControllerEpoch.leaderAndIsr.leader == id) {
@@ -1258,23 +1258,6 @@ public void handleDataDeleted(String dataPath){
         case
 
 
-
-class LeaderIsrAndControllerEpoch(
-        val LeaderAndIsr
-        leaderAndIsr,
-        Int controllerEpoch)
-
-        {
-@Override
-public String  toString(){
-        val leaderAndIsrInfo=new StringBuilder;
-        leaderAndIsrInfo.append("(Leader:"+leaderAndIsr.leader);
-        leaderAndIsrInfo.append(",ISR:"+leaderAndIsr.isr.mkString(","));
-        leaderAndIsrInfo.append(",LeaderEpoch:"+leaderAndIsr.leaderEpoch);
-        leaderAndIsrInfo.append(",ControllerEpoch:"+controllerEpoch+")");
-        leaderAndIsrInfo.toString();
-        }
-        }
 
 
 

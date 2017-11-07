@@ -1,4 +1,6 @@
-package kafka.api;
+package kafka.controller.ctrl;
+
+import kafka.api.LeaderAndIsr;
 
 /**
  * @author zhoulf

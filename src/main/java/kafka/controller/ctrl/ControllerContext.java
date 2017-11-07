@@ -2,7 +2,6 @@ package kafka.controller.ctrl;
 
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import kafka.api.LeaderIsrAndControllerEpoch;
 import kafka.cluster.Broker;
 import kafka.controller.ControllerChannelManager;
 import kafka.controller.ReassignedPartitionsContext;

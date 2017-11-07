@@ -1,7 +1,18 @@
 package kafka.controller;
 
 
+import com.google.common.collect.Maps;
+import kafka.common.StateChangeFailedException;
+import kafka.controller.channel.CallbackBuilder;
+import kafka.controller.channel.Callbacks;
+import kafka.controller.ctrl.*;
+import kafka.log.TopicAndPartition;
 import kafka.utils.Logging;
+import kafka.utils.ReplicationUtils;
+import org.I0Itec.zkclient.ZkClient;
+import static kafka.controller.ReplicaState.*;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * This class represents the state machine for replicas. It defines the states that a replica can be in, and
@@ -23,21 +34,25 @@ import kafka.utils.Logging;
  */
 public class ReplicaStateMachine extends Logging {
        KafkaController controller;
-
+    private ControllerContext controllerContext ;
+    private Integer controllerId ;
+    private ZkClient zkClient ;
+    private Map<PartitionAndReplica, ReplicaState>replicaState = Maps.newHashMap();
+    private BrokerChangeListener brokerChangeListener = new BrokerChangeListener();
+    private ControllerBrokerRequestBatch brokerRequestBatch ;
+    private AtomicBoolean hasStarted = new AtomicBoolean(false);
+    private StateChangeLogger stateChangeLogger = KafkaController.stateChangeLogger;
        public ReplicaStateMachine(KafkaController controller) {
               this.controller = controller;
+           this.logIdent = "<Replica state machine on controller " + controller.config.brokerId + ">: ";
+            controllerContext = controller.controllerContext;
+            controllerId = controller.config.brokerId;
+            zkClient = controllerContext.zkClient;
+           brokerRequestBatch = new ControllerBrokerRequestBatch(controller);
        }
 
-       private val controllerContext = controller.controllerContext;
-private val controllerId = controller.config.brokerId;
-private val zkClient = controllerContext.zkClient;
-private val mutable replicaState.Map<PartitionAndReplica, ReplicaState> = mutable.Map.empty;
-private val brokerChangeListener = new BrokerChangeListener();
-private val brokerRequestBatch = new ControllerBrokerRequestBatch(controller);
-private val hasStarted = new AtomicBoolean(false);
-private val stateChangeLogger = KafkaController.stateChangeLogger;
 
-        this.logIdent = "<Replica state machine on controller " + controller.config.brokerId + ">: ";
+
 
 
         /**
@@ -88,16 +103,18 @@ private val stateChangeLogger = KafkaController.stateChangeLogger;
          * @param targetState  The state that the replicas should be moved to
          * The controller's allLeaders cache should have been updated before this
          */
-       public void handleStateChanges(Set replicas<PartitionAndReplica>, ReplicaState targetState,
-        Callbacks callbacks = (new CallbackBuilder).build) {
-        if(replicas.size > 0) {
-        info(String.format("Invoking state change to %s for replicas %s",targetState, replicas.mkString(",")))
+        public void handleStateChanges(Set<PartitionAndReplica> replicas, ReplicaState targetState) {
+            this.handleStateChanges(replicas,targetState,(new CallbackBuilder()).build());
+    }
+       public void handleStateChanges(Set<PartitionAndReplica> replicas, ReplicaState targetState, Callbacks callbacks) {
+        if(replicas.size() > 0) {
+        info(String.format("Invoking state change to %s for replicas %s",targetState, replicas));
         try {
         brokerRequestBatch.newBatch();
-        replicas.foreach(r -> handleStateChange(r, targetState, callbacks))
-        brokerRequestBatch.sendRequestsToBrokers(controller.epoch, controllerContext.correlationId.getAndIncrement);
-        }catch {
-        case Throwable e -> error(String.format("Error while moving some replicas to %s state",targetState), e)
+        replicas.forEach(r -> handleStateChange(r, targetState, callbacks));
+        brokerRequestBatch.sendRequestsToBrokers(controller.epoch(), controllerContext.correlationId.getAndIncrement());
+        }catch ( Throwable e){
+            error(String.format("Error while moving some replicas to %s state",targetState), e);
         }
         }
         }
@@ -137,24 +154,23 @@ private val stateChangeLogger = KafkaController.stateChangeLogger;
          * @param partitionAndReplica The replica for which the state transition is invoked
          * @param targetState The end state that the replica should be moved to
          */
-       public void handleStateChange(PartitionAndReplica partitionAndReplica, ReplicaState targetState,
-        Callbacks callbacks) {
-        val topic = partitionAndReplica.topic;
-        val partition = partitionAndReplica.partition;
-        val replicaId = partitionAndReplica.replica;
-        val topicAndPartition = TopicAndPartition(topic, partition);
-        if (!hasStarted.get)
-        throw new StateChangeFailedException(("Controller %d epoch %d initiated state change of replica %d for partition %s " +
-        "to %s failed because replica state machine has not started");
-        .format(controllerId, controller.epoch, replicaId, topicAndPartition, targetState))
-        val currState = replicaState.getOrElseUpdate(partitionAndReplica, NonExistentReplica);
+       public void handleStateChange(PartitionAndReplica partitionAndReplica, ReplicaState targetState,Callbacks callbacks) {
+        String  topic = partitionAndReplica.topic;
+        Integer partition = partitionAndReplica.partition;
+           Integer replicaId = partitionAndReplica.replica;
+           TopicAndPartition topicAndPartition =new TopicAndPartition(topic, partition);
+        if (!hasStarted.get())
+        throw new StateChangeFailedException(String.format("Controller %d epoch %d initiated state change of replica %d for partition %s " +
+        "to %s failed because replica state machine has not started",
+        controllerId, controller.epoch(), replicaId, topicAndPartition, targetState));
+        ReplicaState currState = replicaState.getOrDefault(partitionAndReplica, NonExistentReplica);
         try {
-        val replicaAssignment = controllerContext.partitionReplicaAssignment(topicAndPartition);
-        targetState match {
-        case NewReplica ->
+        List<Integer> replicaAssignment = controllerContext.partitionReplicaAssignment.get(topicAndPartition);
+        switch (targetState) {
+            case NewReplica :
         assertValidPreviousStates(partitionAndReplica, List(NonExistentReplica), targetState);
         // start replica as a follower to the current leader for its partition;
-        val leaderIsrAndControllerEpochOpt = ReplicationUtils.getLeaderIsrAndEpochForPartition(zkClient, topic, partition);
+                Optional<LeaderIsrAndControllerEpoch> leaderIsrAndControllerEpochOpt = ReplicationUtils.getLeaderIsrAndEpochForPartition(zkClient, topic, partition);
         leaderIsrAndControllerEpochOpt match {
         case Some(leaderIsrAndControllerEpoch) ->
         if(leaderIsrAndControllerEpoch.leaderAndIsr.leader == replicaId)
@@ -364,11 +380,4 @@ class BrokerChangeListener() extends IZkChildListener with Logging {
         }
         }
 
-        sealed trait ReplicaState {public void Byte state }
-        case object NewReplica extends ReplicaState { val Byte state = 1 }
-        case object OnlineReplica extends ReplicaState { val Byte state = 2 }
-        case object OfflineReplica extends ReplicaState { val Byte state = 3 }
-        case object ReplicaDeletionStarted extends ReplicaState { val Byte state = 4}
-        case object ReplicaDeletionSuccessful extends ReplicaState { val Byte state = 5}
-        case object ReplicaDeletionIneligible extends ReplicaState { val Byte state = 6}
-        case object NonExistentReplica extends ReplicaState { val Byte state = 7 }
+

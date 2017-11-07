@@ -11,6 +11,7 @@ import kafka.api.*;
 import kafka.cluster.Broker;
 import kafka.common.ErrorMapping;
 import kafka.common.ReplicaNotAvailableException;
+import kafka.controller.ctrl.LeaderIsrAndControllerEpoch;
 import kafka.func.Tuple;
 import kafka.log.TopicAndPartition;
 import kafka.utils.Logging;
