@@ -15,6 +15,7 @@ import kafka.common.BrokerNotAvailableException;
 import kafka.common.ControllerMovedException;
 import kafka.common.KafkaException;
 import kafka.controller.ctrl.ControllerContext;
+import kafka.controller.ctrl.LeaderIsrAndControllerEpoch;
 import kafka.controller.ctrl.PartitionAndReplica;
 import kafka.func.Tuple;
 import kafka.log.TopicAndPartition;
@@ -28,6 +29,7 @@ import org.I0Itec.zkclient.ZkClient;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -913,9 +915,8 @@ public void sendUpdateMetadataRequest(Seq brokers<Int],Set partitions<
  * @return the new leaderAndIsr (with the replica removed if it was present),
  *         or None if leaderAndIsr is empty.
  */
-public void removeReplicaFromIsr(String topic,Int partition,Int replicaId):
-        Option<LeaderIsrAndControllerEpoch> ={
-        val topicAndPartition=TopicAndPartition(topic,partition);
+public Optional<LeaderIsrAndControllerEpoch> removeReplicaFromIsr(String topic, Integer partition, Integer replicaId){
+    TopicAndPartition topicAndPartition=new TopicAndPartition(topic,partition);
         debug(String.format("Removing replica %d from ISR %s for partition %s.",replicaId,
         controllerContext.partitionLeadershipInfo(topicAndPartition).leaderAndIsr.isr.mkString(","),topicAndPartition));
         var Option finalLeaderIsrAndControllerEpoch<LeaderIsrAndControllerEpoch> =None;

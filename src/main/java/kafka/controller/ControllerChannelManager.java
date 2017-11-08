@@ -242,7 +242,7 @@ class ControllerBrokerRequestBatch extends Logging {
         return Sets.newHashSet(topicAndPartition);
     }
 
-    public void addStopReplicaRequestForBrokers(List<Integer> brokerIds, String topic, Integer partition, Boolean deletePartition, ActionP2<RequestOrResponse, Integer> callback) {
+    public void addStopReplicaRequestForBrokers(List<Integer> brokerIds, String topic, Integer partition, Boolean deletePartition, ActionP2<RequestOrResponse, Object> callback) {
         Sc.filter(brokerIds, b -> b >= 0).forEach(brokerId -> {
             stopReplicaRequestMap.getOrDefault(brokerId, Lists.newArrayList());
             List<StopReplicaRequestInfo> v = stopReplicaRequestMap.get(brokerId);

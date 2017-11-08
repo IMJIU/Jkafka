@@ -1,6 +1,7 @@
 package kafka.controller;
 
 
+import kafka.log.TopicAndPartition;
 import kafka.utils.Logging;
 
 import java.util.Set;
@@ -176,7 +177,7 @@ public class TopicDeletionManager extends Logging {
         false;
         }
 
-       public void isPartitionToBeDeleted(TopicAndPartition topicAndPartition) = {
+       public boolean isPartitionToBeDeleted(TopicAndPartition topicAndPartition) {
         if(isDeleteTopicEnabled) {
         partitionsToBeDeleted.contains(topicAndPartition);
         } else;
