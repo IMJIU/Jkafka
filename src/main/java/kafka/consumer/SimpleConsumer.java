@@ -14,6 +14,7 @@ import kafka.network.BlockingChannel;
 import kafka.network.Receive;
 import kafka.utils.Logging;
 
+import java.io.IOException;
 import java.nio.channels.ClosedChannelException;
 
 import static org.apache.kafka.common.utils.Utils.*;
@@ -69,7 +70,7 @@ public class SimpleConsumer extends Logging {
         }
     }
 
-    private Receive sendRequest(RequestOrResponse request) throws ClosedChannelException {
+    private Receive sendRequest(RequestOrResponse request) throws IOException {
         synchronized (lock) {
             Receive response = null;
             try {
@@ -92,12 +93,12 @@ public class SimpleConsumer extends Logging {
         }
     }
 
-    public TopicMetadataResponse send(TopicMetadataRequest request) throws ClosedChannelException {
+    public TopicMetadataResponse send(TopicMetadataRequest request) throws IOException {
         Receive response = sendRequest(request);
         return TopicMetadataResponse.readFrom(response.buffer());
     }
 
-    public ConsumerMetadataResponse send(ConsumerMetadataRequest request) throws ClosedChannelException {
+    public ConsumerMetadataResponse send(ConsumerMetadataRequest request) throws IOException {
         Receive response = null;
         response = sendRequest(request);
         return ConsumerMetadataResponse.readFrom(response.buffer());
@@ -117,7 +118,7 @@ public class SimpleConsumer extends Logging {
                 specificTimer.time(() -> {
                     try {
                         return sendRequest(request);
-                    } catch (ClosedChannelException e) {
+                    } catch (IOException e) {
                         e.printStackTrace();
                     }
                     return null;
@@ -136,7 +137,7 @@ public class SimpleConsumer extends Logging {
      * @param request a <<kafka.api.OffsetRequest>> object.
      * @return a <<kafka.api.OffsetResponse>> object.
      */
-    public OffsetResponse getOffsetsBefore(OffsetRequest request) throws ClosedChannelException {
+    public OffsetResponse getOffsetsBefore(OffsetRequest request) throws IOException {
         return OffsetResponse.readFrom(sendRequest(request).buffer());
     }
 
@@ -147,7 +148,7 @@ public class SimpleConsumer extends Logging {
      * @param request a <<kafka.api.OffsetCommitRequest>> object.
      * @return a <<kafka.api.OffsetCommitResponse>> object.
      */
-    public OffsetCommitResponse commitOffsets(OffsetCommitRequest request) throws ClosedChannelException {
+    public OffsetCommitResponse commitOffsets(OffsetCommitRequest request) throws IOException {
         // With TODO KAFKA-1012, we have to first issue a ConsumerMetadataRequest and connect to the coordinator before;
         // we can commit offsets.;
         return OffsetCommitResponse.readFrom(sendRequest(request).buffer());
@@ -160,7 +161,7 @@ public class SimpleConsumer extends Logging {
      * @param request a <<kafka.api.OffsetFetchRequest>> object.
      * @return a <<kafka.api.OffsetFetchResponse>> object.
      */
-    public OffsetFetchResponse fetchOffsets(OffsetFetchRequest request) throws ClosedChannelException {
+    public OffsetFetchResponse fetchOffsets(OffsetFetchRequest request) throws IOException {
         return OffsetFetchResponse.readFrom(sendRequest(request).buffer());
     }
 
@@ -178,7 +179,7 @@ public class SimpleConsumer extends Logging {
      * @param consumerId        Id of the consumer which could be a consumer client, SimpleConsumerShell or a follower broker.
      * @return Requested offset.
      */
-    public Long earliestOrLatestOffset(TopicAndPartition topicAndPartition, Long earliestOrLatest, Integer consumerId) throws Exception {
+    public Long earliestOrLatestOffset(TopicAndPartition topicAndPartition, Long earliestOrLatest, Integer consumerId) throws Throwable{
         OffsetRequest request = new OffsetRequest(ImmutableMap.of(topicAndPartition, new PartitionOffsetRequestInfo(earliestOrLatest, 1)),
                 clientId, consumerId);
         PartitionOffsetsResponse partitionErrorAndOffset = getOffsetsBefore(request).partitionErrorAndOffsets.get(topicAndPartition);

@@ -25,6 +25,16 @@ public class Sc {
         return count;
     }
 
+    public static <K, V> int count(Map<K, V> map, Handler2<K, V, Boolean> handler) {
+        int count = 0;
+        for (Map.Entry<K, V> entry : map.entrySet()) {
+            if (handler.handle(entry.getKey(), entry.getValue())) {
+                count++;
+            }
+        }
+        return count;
+    }
+
     public static <T> void loop(Iterator<T> it, ActionP<T> action) {
         while (it.hasNext()) {
             action.invoke(it.next());
@@ -420,7 +430,7 @@ public class Sc {
         return Tuple.EMPTY;
     }
 
-    public static <T> T head(Iterable<T> iterable){
+    public static <T> T head(Iterable<T> iterable) {
         Iterator<T> it = iterable.iterator();
         while (it.hasNext()) {
             return it.next();

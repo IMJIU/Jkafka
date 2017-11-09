@@ -20,13 +20,10 @@ import kafka.log.TopicAndPartition;
 import kafka.message.ByteBufferMessageSet;
 import kafka.message.InvalidMessageException;
 import kafka.message.MessageAndOffset;
-import kafka.message.MessageSet;
 import kafka.metrics.KafkaMetricsGroup;
-import kafka.utils.Logging;
 import kafka.utils.Pool;
 import kafka.utils.ShutdownableThread;
 import kafka.utils.Utils;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -83,7 +80,7 @@ public abstract class AbstractFetcherThread extends ShutdownableThread {
     public abstract void processPartitionData(TopicAndPartition topicAndPartition, Long fetchOffset, FetchResponsePartitionData partitionData);
 
     // handle a partition whose offset is out of range and return a new fetch offset;
-    public abstract Long handleOffsetOutOfRange(TopicAndPartition topicAndPartition) throws Exception;
+    public abstract Long handleOffsetOutOfRange(TopicAndPartition topicAndPartition) throws Throwable;
 
     // deal with partitions with errors, potentially due to leadership changes;
     public abstract void handlePartitionsWithErrors(Iterable<TopicAndPartition> partitions);
@@ -206,11 +203,9 @@ public abstract class AbstractFetcherThread extends ShutdownableThread {
                     partitionMap.put(topicAndPartition, PartitionTopicInfo.isOffsetInvalid(offset) ? handleOffsetOutOfRange(topicAndPartition) : offset);
             }
             partitionMapCond.signalAll();
-        } catch (InterruptedException e) {
+        } catch (Throwable e) {
             e.printStackTrace();
-        } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
+        }finally {
             partitionMapLock.unlock();
         }
     }

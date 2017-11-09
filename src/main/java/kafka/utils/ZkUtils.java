@@ -494,11 +494,11 @@ public class ZkUtils {
     /**
      * Check if the given path exists
      */
-    public Boolean pathExists(ZkClient client, String path) {
+    public static Boolean pathExists(ZkClient client, String path) {
         return client.exists(path);
     }
 
-    public Cluster getCluster(ZkClient zkClient) throws Throwable {
+    public static  Cluster getCluster(ZkClient zkClient) throws Throwable {
         Cluster cluster = new Cluster();
         List<String> nodes = getChildrenParentMayNotExist(zkClient, BrokerIdsPath);
         for (String node : nodes) {
@@ -508,7 +508,7 @@ public class ZkUtils {
         return cluster;
     }
 
-    public Map<TopicAndPartition, LeaderIsrAndControllerEpoch> getPartitionLeaderAndIsrForTopics(ZkClient zkClient, Set<TopicAndPartition> topicAndPartitions) throws Throwable {
+    public static Map<TopicAndPartition, LeaderIsrAndControllerEpoch> getPartitionLeaderAndIsrForTopics(ZkClient zkClient, Set<TopicAndPartition> topicAndPartitions) throws Throwable {
         HashMap<TopicAndPartition, LeaderIsrAndControllerEpoch> ret = Maps.newHashMap();
         for (TopicAndPartition topicAndPartition : topicAndPartitions) {
             Optional<LeaderIsrAndControllerEpoch> leaderIsrAndControllerEpoch = ReplicationUtils.getLeaderIsrAndEpochForPartition(zkClient, topicAndPartition.topic, topicAndPartition.partition);
@@ -540,7 +540,7 @@ public class ZkUtils {
         return ret;
     }
 
-    public Map<String, Map<Integer, List<Integer>>> getPartitionAssignmentForTopics(ZkClient zkClient, List<String> topics) {
+    public static Map<String, Map<Integer, List<Integer>>> getPartitionAssignmentForTopics(ZkClient zkClient, List<String> topics) {
         Map<String, Map<Integer, List<Integer>>> ret = Maps.newHashMap();
         topics.forEach(topic -> {
             Map partitionMap = null;
@@ -565,7 +565,7 @@ public class ZkUtils {
         return ret;
     }
 
-    public Map<String, List<Integer>> getPartitionsForTopics(ZkClient zkClient, List<String> topics) {
+    public static Map<String, List<Integer>> getPartitionsForTopics(ZkClient zkClient, List<String> topics) {
         Map<String, List<Integer>> result = Maps.newHashMap();
         getPartitionAssignmentForTopics(zkClient, topics).forEach((topic, partitionMap) -> {
             log.debug(String.format("partition assignment of /brokers/topics/%s is %s", topic, partitionMap));
@@ -575,7 +575,7 @@ public class ZkUtils {
         return result;
     }
 
-    public Map<TopicAndPartition, ReassignedPartitionsContext> getPartitionsBeingReassigned(ZkClient zkClient) {
+    public static Map<TopicAndPartition, ReassignedPartitionsContext> getPartitionsBeingReassigned(ZkClient zkClient) {
         // read the partitions and their new replica list;
         Optional<String> jsonPartitionMapOpt = readDataMaybeNull(zkClient, ReassignPartitionsPath).v1;
         if (jsonPartitionMapOpt.isPresent()) {
@@ -587,7 +587,7 @@ public class ZkUtils {
     }
 
     // Parses without deduplicating keys so the the data can be checked before allowing reassignment to proceed;
-    public List<Tuple<TopicAndPartition, List<Integer>>> parsePartitionReassignmentDataWithoutDedup(String jsonData) {
+    public static List<Tuple<TopicAndPartition, List<Integer>>> parsePartitionReassignmentDataWithoutDedup(String jsonData) {
         Map<String, Object> m = JSON.parseObject(jsonData, Map.class);
         if (m != null) {
             Object partitions = m.get("partitions");
@@ -604,11 +604,11 @@ public class ZkUtils {
         return Collections.emptyList();
     }
 
-    public Map<TopicAndPartition, List<Integer>> parsePartitionReassignmentData(String jsonData) {
+    public static Map<TopicAndPartition, List<Integer>> parsePartitionReassignmentData(String jsonData) {
         return Sc.toMap(parsePartitionReassignmentDataWithoutDedup(jsonData));
     }
 
-    public List<String> parseTopicsData(String jsonData) {
+    public static List<String> parseTopicsData(String jsonData) {
         List<String> topics = Lists.newArrayList();
         Map<String, Object> m = JSON.parseObject(jsonData, Map.class);
         Object partitionsSeq = m.get("topics");
@@ -622,13 +622,13 @@ public class ZkUtils {
         return topics;
     }
 
-    public String getPartitionReassignmentZkData(Map<TopicAndPartition, List<Integer>> partitionsToBeReassigned) {
+    public static String getPartitionReassignmentZkData(Map<TopicAndPartition, List<Integer>> partitionsToBeReassigned) {
         return JSON.toJSONString(ImmutableMap.of("version", 1, "partitions",
                 Sc.map(partitionsToBeReassigned,
                         e -> ImmutableMap.of("topic", e.getKey().topic, "partition", e.getKey().partition, "replicas", e.getValue()))));
     }
 
-    public void updatePartitionReassignmentData(ZkClient zkClient, Map<TopicAndPartition, List<Integer>> partitionsToBeReassigned) {
+    public static void updatePartitionReassignmentData(ZkClient zkClient, Map<TopicAndPartition, List<Integer>> partitionsToBeReassigned) {
         String zkPath = ZkUtils.ReassignPartitionsPath;
         int len = partitionsToBeReassigned.size();
         if (len == 0) {
@@ -648,7 +648,7 @@ public class ZkUtils {
         }
     }
 
-    public Set<TopicAndPartition> getPartitionsUndergoingPreferredReplicaElection(ZkClient zkClient) {
+    public static Set<TopicAndPartition> getPartitionsUndergoingPreferredReplicaElection(ZkClient zkClient) {
         // read the partitions and their new replica list;v
         Optional<String> jsonPartitionListOpt = readDataMaybeNull(zkClient, PreferredReplicaLeaderElectionPath).v1;
         if (jsonPartitionListOpt.isPresent()) {
@@ -657,19 +657,19 @@ public class ZkUtils {
         return Sets.newHashSet();
     }
 
-    public void deletePartition(ZkClient zkClient, Integer brokerId, String topic) {
+    public static void deletePartition(ZkClient zkClient, Integer brokerId, String topic) {
         String brokerIdPath = BrokerIdsPath + "/" + brokerId;
         zkClient.delete(brokerIdPath);
         String brokerPartTopicPath = BrokerTopicsPath + "/" + topic + "/" + brokerId;
         zkClient.delete(brokerPartTopicPath);
     }
 
-    public List<String> getConsumersInGroup(ZkClient zkClient, String group) {
+    public static List<String> getConsumersInGroup(ZkClient zkClient, String group) {
         ZKGroupDirs dirs = new ZKGroupDirs(group);
         return getChildren(zkClient, dirs.consumerRegistryDir());
     }
 
-    public Map<String, List<ConsumerThreadId>> getConsumersPerTopic(ZkClient zkClient, String group, Boolean excludeInternalTopics) {
+    public static Map<String, List<ConsumerThreadId>> getConsumersPerTopic(ZkClient zkClient, String group, Boolean excludeInternalTopics) {
         ZKGroupDirs dirs = new ZKGroupDirs(group);
         List<String> consumers = getChildrenParentMayNotExist(zkClient, dirs.consumerRegistryDir());
         Map<String, List<ConsumerThreadId>> consumersPerTopicMap = Maps.newHashMap();
@@ -699,7 +699,7 @@ public class ZkUtils {
      * @param zkClient The zookeeper client connection
      * @return An optional Broker object encapsulating the broker metadata
      */
-    public Optional<Broker> getBrokerInfo(ZkClient zkClient, Integer brokerId) {
+    public static Optional<Broker> getBrokerInfo(ZkClient zkClient, Integer brokerId) {
         Optional<String> brokerInfoOpt = ZkUtils.readDataMaybeNull(zkClient, ZkUtils.BrokerIdsPath + "/" + brokerId).v1;
         if (brokerInfoOpt.isPresent()) {
             return Optional.of(Broker.createBroker(brokerId, brokerInfoOpt.get()));
@@ -707,7 +707,7 @@ public class ZkUtils {
         return Optional.empty();
     }
 
-    public List<String> getAllTopics(ZkClient zkClient) throws Throwable {
+    public static List<String> getAllTopics(ZkClient zkClient) throws Throwable {
         List<String> topics = ZkUtils.getChildrenParentMayNotExist(zkClient, BrokerTopicsPath);
         if (topics == null)
             return Collections.emptyList();
@@ -715,7 +715,7 @@ public class ZkUtils {
             return topics;
     }
 
-    public Set<TopicAndPartition> getAllPartitions(ZkClient zkClient) {
+    public static Set<TopicAndPartition> getAllPartitions(ZkClient zkClient) {
         List<String> topics = ZkUtils.getChildrenParentMayNotExist(zkClient, BrokerTopicsPath);
         if (topics == null) {
             return Sets.newHashSet();

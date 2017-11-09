@@ -1,9 +1,10 @@
 package kafka.server;
 
-/**
- * @author zhoulf
- * @create 2017-11-06 13:48
- **/
+
+import kafka.controller.ctrl.ControllerContext;
+import kafka.func.Action;
+import kafka.utils.Logging;
+import org.I0Itec.zkclient.IZkDataListener;
 
 /**
  * This class handles zookeeper based leader election based on an ephemeral path. The election module does not handle
@@ -11,97 +12,106 @@ package kafka.server;
  * leader is dead, this class will handle automatic re-election and if it succeeds, it invokes the leader state change
  * callback
  */
-public class ZookeeperLeaderElector(controllerContext: ControllerContext,
-        electionPath: String,
-        onBecomingLeader: () => Unit,
-        onResigningAsLeader: () => Unit,
-        brokerId: Int)
-        extends LeaderElector with Logging {
-        var leaderId = -1
-        // create the election path in ZK, if one does not exist
-        val index = electionPath.lastIndexOf("/")
+public class ZookeeperLeaderElector extends Logging implements LeaderElector {
+    public ControllerContext controllerContext;
+    public String electionPath;
+    public Action onBecomingLeader;
+    public Action onResigningAsLeader;
+    public  Integer brokerId;
+
+    public ZookeeperLeaderElector(ControllerContext controllerContext, String electionPath, Action onBecomingLeader, Action onResigningAsLeader, java.lang.Integer brokerId) {
+        this.controllerContext = controllerContext;
+        this.electionPath = electionPath;
+        this.onBecomingLeader = onBecomingLeader;
+        this.onResigningAsLeader = onResigningAsLeader;
+        this.brokerId = brokerId;
+    }
+
+    var leaderId = -1;
+        // create the election path in ZK; if one does not exist;
+        val index = electionPath.lastIndexOf("/");
         if (index > 0)
-        makeSurePersistentPathExists(controllerContext.zkClient, electionPath.substring(0, index))
-        val leaderChangeListener = new LeaderChangeListener
+        makeSurePersistentPathExists(controllerContext.zkClient, electionPath.substring(0, index));
+        val leaderChangeListener = new LeaderChangeListener;
 
-        def startup {
+       public void startup {
         inLock(controllerContext.controllerLock) {
-        controllerContext.zkClient.subscribeDataChanges(electionPath, leaderChangeListener)
-        elect
+        controllerContext.zkClient.subscribeDataChanges(electionPath, leaderChangeListener);
+        elect;
         }
         }
 
-private def getControllerID(): Int = {
+privatepublic Integer  void getControllerID() {
         readDataMaybeNull(controllerContext.zkClient, electionPath)._1 match {
-        case Some(controller) => KafkaController.parseControllerId(controller)
-        case None => -1
+        case Some(controller) -> KafkaController.parseControllerId(controller);
+        case None -> -1;
         }
         }
 
-        def elect: Boolean = {
-        val timestamp = SystemTime.milliseconds.toString
-        val electString = Json.encode(Map("version" -> 1, "brokerid" -> brokerId, "timestamp" -> timestamp))
+       public void Boolean elect = {
+        val timestamp = SystemTime.milliseconds.toString;
+        val electString = Json.encode(Map("version" -> 1, "brokerid" -> brokerId, "timestamp" -> timestamp));
 
-        leaderId = getControllerID
+        leaderId = getControllerID;
     /*
      * We can get here during the initial startup and the handleDeleted ZK callback. Because of the potential race condition,
      * it's possible that the controller has already been elected when we get here. This check will prevent the following
      * createEphemeralPath method from getting into an infinite loop if this broker is already the controller.
      */
         if(leaderId != -1) {
-        debug("Broker %d has been elected as leader, so stopping the election process.".format(leaderId))
-        return amILeader
+        debug(String.format("Broker %d has been elected as leader, so stopping the election process.",leaderId))
+        return amILeader;
         }
 
         try {
         createEphemeralPathExpectConflictHandleZKBug(controllerContext.zkClient, electionPath, electString, brokerId,
-        (controllerString : String, leaderId : Any) => KafkaController.parseControllerId(controllerString) == leaderId.asInstanceOf[Int],
-        controllerContext.zkSessionTimeout)
-        info(brokerId + " successfully elected as leader")
-        leaderId = brokerId
-        onBecomingLeader()
+        (controllerString : String, leaderId : Object) -> KafkaController.parseControllerId(controllerString) == leaderId.asInstanceOf<Integer>,
+        controllerContext.zkSessionTimeout);
+        info(brokerId + " successfully elected as leader");
+        leaderId = brokerId;
+        onBecomingLeader();
         } catch {
-        case e: ZkNodeExistsException =>
-        // If someone else has written the path, then
-        leaderId = getControllerID
+        case ZkNodeExistsException e ->
+        // If someone else has written the path, then;
+        leaderId = getControllerID;
 
         if (leaderId != -1)
-        debug("Broker %d was elected as leader instead of broker %d".format(leaderId, brokerId))
-        else
-        warn("A leader has been elected but just resigned, this will result in another round of election")
+        debug(String.format("Broker %d was elected as leader instead of broker %d",leaderId, brokerId))
+        else;
+        warn("A leader has been elected but just resigned, this will result in another round of election");
 
-        case e2: Throwable =>
-        error("Error while electing or becoming leader on broker %d".format(brokerId), e2)
-        resign()
+        case Throwable e2 ->
+        error(String.format("Error while electing or becoming leader on broker %d",brokerId), e2)
+        resign();
         }
-        amILeader
-        }
-
-        def close = {
-        leaderId = -1
+        amILeader;
         }
 
-        def amILeader : Boolean = leaderId == brokerId
+       public void close = {
+        leaderId = -1;
+        }
 
-        def resign() = {
-        leaderId = -1
-        deletePath(controllerContext.zkClient, electionPath)
+       public Boolean  void amILeader  leaderId == brokerId;
+
+       public void resign() = {
+        leaderId = -1;
+        deletePath(controllerContext.zkClient, electionPath);
         }
 
 /**
  * We do not have session expiration listen in the ZkElection, but assuming the caller who uses this module will
  * have its own session expiration listener and handler
  */
-class LeaderChangeListener extends IZkDataListener with Logging {
+class LeaderChangeListener extends   Logging implements IZkDataListener{
     /**
      * Called when the leader information stored in zookeeper has changed. Record the new leader in memory
      * @throws Exception On any error.
      */
-    @throws(classOf[Exception])
-    def handleDataChange(dataPath: String, data: Object) {
+    @throws(classOf<Exception>)
+   public void handleDataChange(String dataPath, Object data) {
         inLock(controllerContext.controllerLock) {
-            leaderId = KafkaController.parseControllerId(data.toString)
-            info("New leader is %d".format(leaderId))
+            leaderId = KafkaController.parseControllerId(data.toString);
+            info(String.format("New leader is %d",leaderId))
         }
     }
 
@@ -110,14 +120,14 @@ class LeaderChangeListener extends IZkDataListener with Logging {
      * @throws Exception
      *             On any error.
      */
-    @throws(classOf[Exception])
-    def handleDataDeleted(dataPath: String) {
+    @throws(classOf<Exception>)
+   public void handleDataDeleted(String dataPath) {
         inLock(controllerContext.controllerLock) {
-            debug("%s leader change listener fired for path %s to handle data deleted: trying to elect as a leader"
+            debug("%s leader change listener fired for path %s to handle data trying deleted to elect as a leader";
                     .format(brokerId, dataPath))
             if(amILeader)
-                onResigningAsLeader()
-            elect
+                onResigningAsLeader();
+            elect;
         }
     }
 }

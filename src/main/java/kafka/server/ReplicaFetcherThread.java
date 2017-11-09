@@ -68,7 +68,7 @@ public class ReplicaFetcherThread extends AbstractFetcherThread {
     /**
      * Handle a partition whose offset is out of range and return a new fetch offset.
      */
-    public Long handleOffsetOutOfRange(TopicAndPartition topicAndPartition) throws Exception{
+    public Long handleOffsetOutOfRange(TopicAndPartition topicAndPartition) throws Throwable {
         Replica replica = replicaMgr.getReplica(topicAndPartition.topic, topicAndPartition.partition).get();
 
         /**

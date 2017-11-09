@@ -4,6 +4,7 @@ package kafka.controller;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import kafka.cluster.Broker;
 import kafka.common.StateChangeFailedException;
 import kafka.controller.channel.CallbackBuilder;
 import kafka.controller.channel.Callbacks;
@@ -215,7 +216,7 @@ public class ReplicaStateMachine extends Logging {
                     assertValidPreviousStates(partitionAndReplica, Lists.newArrayList(ReplicaDeletionSuccessful), targetState);
                     // remove this replica from the assigned replicas list for its partition;
                     List<Integer> currentAssignedReplicas = controllerContext.partitionReplicaAssignment.get(topicAndPartition);
-                    controllerContext.partitionReplicaAssignment.put(topicAndPartition, currentAssignedReplicas.filterNot(_ == replicaId));
+                    controllerContext.partitionReplicaAssignment.put(topicAndPartition, Sc.filterNot(currentAssignedReplicas, r -> r == replicaId));
                     replicaState.remove(partitionAndReplica);
                     stateChangeLogger.trace(String.format("Controller %d epoch %d changed state of replica %d for partition %s from %s to %s",
                             controllerId, controller.epoch(), replicaId, topicAndPartition, currState, targetState));
@@ -226,9 +227,11 @@ public class ReplicaStateMachine extends Logging {
                     switch (replicaState.get(partitionAndReplica)) {
                         case NewReplica:
                             // add this replica to the assigned replicas list for its partition;
-                            List<Integer> currentAssignedReplicas = controllerContext.partitionReplicaAssignment.get(topicAndPartition);
-                            if (!currentAssignedReplicas.contains(replicaId))
-                                controllerContext.partitionReplicaAssignment.put(topicAndPartition, currentAssignedReplicas :+replicaId);
+                            List<Integer> currentAssignedReplicas1 = controllerContext.partitionReplicaAssignment.get(topicAndPartition);
+                            if (!currentAssignedReplicas1.contains(replicaId)) {
+                                currentAssignedReplicas1.add(replicaId);
+                                controllerContext.partitionReplicaAssignment.put(topicAndPartition, currentAssignedReplicas1);
+                            }
                             stateChangeLogger.trace(String.format("Controller %d epoch %d changed state of replica %d for partition %s from %s to %s",
                                     controllerId, controller.epoch(), replicaId, topicAndPartition, currState,
                                     targetState));
@@ -260,9 +263,9 @@ public class ReplicaStateMachine extends Logging {
                         if (updatedLeaderIsrAndControllerEpochOpt.isPresent()) {
                             LeaderIsrAndControllerEpoch updatedLeaderIsrAndControllerEpoch = updatedLeaderIsrAndControllerEpochOpt.get();
                             // send the shrunk ISR state change request to all the remaining alive replicas of the partition.;
-                            List<Integer> currentAssignedReplicas = controllerContext.partitionReplicaAssignment.get(topicAndPartition);
+                            List<Integer> currentAssignedReplicas2 = controllerContext.partitionReplicaAssignment.get(topicAndPartition);
                             if (!controller.deleteTopicManager.isPartitionToBeDeleted(topicAndPartition)) {
-                                brokerRequestBatch.addLeaderAndIsrRequestForBrokers(currentAssignedReplicas.filterNot(_ == replicaId),
+                                brokerRequestBatch.addLeaderAndIsrRequestForBrokers(Sc.filterNot(currentAssignedReplicas2, r -> r == replicaId),
                                         topic, partition, updatedLeaderIsrAndControllerEpoch, replicaAssignment);
                             }
                             replicaState.put(partitionAndReplica, OfflineReplica);
@@ -288,35 +291,45 @@ public class ReplicaStateMachine extends Logging {
 
     public Boolean areAllReplicasForTopicDeleted(String topic) {
         Set<PartitionAndReplica> replicasForTopic = controller.controllerContext.replicasForTopic(topic);
-        Map<PartitionAndReplica,ReplicaState> replicaStatesForTopic =  Sc.toMap(Sc.map(replicasForTopic,r -> Tuple.of(r, replicaState.get(r))));
+        Map<PartitionAndReplica, ReplicaState> replicaStatesForTopic = Sc.toMap(Sc.map(replicasForTopic, r -> Tuple.of(r, replicaState.get(r))));
         debug(String.format("Are all replicas for topic %s deleted %s", topic, replicaStatesForTopic));
-        replicaStatesForTopic.foldLeft(true) ((deletionState, r) -> deletionState && r._2 == ReplicaDeletionSuccessful);
+        for (Map.Entry<PartitionAndReplica, ReplicaState> entry : replicaStatesForTopic.entrySet()) {
+            if (entry.getValue() != ReplicaDeletionSuccessful) {
+                return false;
+            }
+        }
+        return true;
     }
 
-    public Boolean  isAtLeastOneReplicaInDeletionStartedState(String topic) {
+    public Boolean isAtLeastOneReplicaInDeletionStartedState(String topic) {
         Set<PartitionAndReplica> replicasForTopic = controller.controllerContext.replicasForTopic(topic);
-        Map<PartitionAndReplica,ReplicaState> replicaStatesForTopic = Sc.toMap(Sc.map(replicasForTopic, r -> Tuple.of(r, replicaState.get(r))));
-        replicaStatesForTopic.foldLeft(false) ((deletionState, r) -> deletionState || r._2 == ReplicaDeletionStarted);
+        Map<PartitionAndReplica, ReplicaState> replicaStatesForTopic = Sc.toMap(Sc.map(replicasForTopic, r -> Tuple.of(r, replicaState.get(r))));
+        for (Map.Entry<PartitionAndReplica, ReplicaState> entry : replicaStatesForTopic.entrySet()) {
+            if (entry.getValue() == ReplicaDeletionStarted) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public Set<PartitionAndReplica> replicasInState(String topic, ReplicaState state) {
-        return Sc.filter(replicaState,(r,s) -> r.topic.equals(topic) && s == state).keySet();
+        return Sc.filter(replicaState, (r, s) -> r.topic.equals(topic) && s == state).keySet();
     }
 
-    public Boolean   isObjectReplicaInState(String topic, ReplicaState state) {
-        return Sc.exists(replicaState,(r,s) -> r.topic.equals(topic) && s == state);
+    public Boolean isObjectReplicaInState(String topic, ReplicaState state) {
+        return Sc.exists(replicaState, (r, s) -> r.topic.equals(topic) && s == state);
     }
 
-    public Set<PartitionAndReplica> replicasInDeletionStates(String topic){
+    public Set<PartitionAndReplica> replicasInDeletionStates(String topic) {
         Set<ReplicaState> deletionStates = Sets.newHashSet(ReplicaDeletionStarted, ReplicaDeletionSuccessful, ReplicaDeletionIneligible);
-        return Sc.filter(replicaState,(r,s) -> r.topic.equals(topic) && deletionStates.contains(s)).keySet();
+        return Sc.filter(replicaState, (r, s) -> r.topic.equals(topic) && deletionStates.contains(s)).keySet();
     }
 
     private void assertValidPreviousStates(PartitionAndReplica partitionAndReplica, List<ReplicaState> fromStates, ReplicaState targetState) {
         Prediction.Assert(fromStates.contains(replicaState.get(partitionAndReplica)),
-        String.format("Replica %s should be in the %s states before moving to %s state",
-        partitionAndReplica, fromStates, targetState) +
-                String.format(". Instead it is in %s state", replicaState.get(partitionAndReplica)));
+                String.format("Replica %s should be in the %s states before moving to %s state",
+                        partitionAndReplica, fromStates, targetState) +
+                        String.format(". Instead it is in %s state", replicaState.get(partitionAndReplica)));
     }
 
     private void registerBrokerChangeListener() {
@@ -332,64 +345,79 @@ public class ReplicaStateMachine extends Logging {
      * in zookeeper
      */
     private void initializeReplicaState() {
-        for ((topicPartition, assignedReplicas) <-controllerContext.partitionReplicaAssignment){
-            val topic = topicPartition.topic;
-            val partition = topicPartition.partition;
-            assignedReplicas.foreach {
-                replicaId ->
-                        val partitionAndReplica = PartitionAndReplica(topic, partition, replicaId);
-                controllerContext.liveBrokerIds.contains(replicaId) match {
-                    case true ->replicaState.put(partitionAndReplica, OnlineReplica);
-                    case false ->
-                        // mark replicas on dead brokers as failed for topic deletion, if they belong to a topic to be deleted.;
-                        // This is required during controller failover since during controller failover a broker can go down,
-                        // so the replicas on that broker should be moved to ReplicaDeletionIneligible to be on the safer side.;
-                        replicaState.put(partitionAndReplica, ReplicaDeletionIneligible);
+        controllerContext.partitionReplicaAssignment.forEach((topicPartition, assignedReplicas) -> {
+            String topic = topicPartition.topic;
+            Integer partition = topicPartition.partition;
+            assignedReplicas.forEach(replicaId -> {
+                PartitionAndReplica partitionAndReplica = new PartitionAndReplica(topic, partition, replicaId);
+                if (controllerContext.liveBrokerIds().contains(replicaId)) {
+                    replicaState.put(partitionAndReplica, OnlineReplica);
+                } else {
+                    // mark replicas on dead brokers as failed for topic deletion, if they belong to a topic to be deleted.;
+                    // This is required during controller failover since during controller failover a broker can go down,
+                    // so the replicas on that broker should be moved to ReplicaDeletionIneligible to be on the safer side.;
+                    replicaState.put(partitionAndReplica, ReplicaDeletionIneligible);
                 }
-            }
-        }
+            });
+        });
     }
 
-    public void partitionsAssignedToBroker(Seq topics<String], Int brokerId):Seq[TopicAndPartition>=
-
-    {
-        controllerContext.partitionReplicaAssignment.filter(_._2.contains(brokerId)).keySet.toSeq;
+    public List<TopicAndPartition> partitionsAssignedToBroker(List<String> topics, Integer brokerId) {
+        return Sc.toList(Sc.filter(controllerContext.partitionReplicaAssignment, (p, r) -> r.contains(brokerId)).keySet());
     }
 
     /**
      * This is the zookeeper listener that triggers all the state transitions for a replica
      */
     class BrokerChangeListener extends Logging implements IZkChildListener {
-        this.logIdent = "<BrokerChangeListener on Controller " + controller.config.brokerId + ">: ";
+        public BrokerChangeListener() {
+            this.logIdent = "<BrokerChangeListener on Controller " + controller.config.brokerId + ">: ";
+        }
 
-    public void handleChildChange(parentPath :String, currentBrokerList :java.util.List<String>) {
-        info(String.format("Broker change listener fired for path %s with children %s", parentPath, currentBrokerList.mkString(",")))
-        inLock(controllerContext.controllerLock) {
-            if (hasStarted.get) {
-                ControllerStats.leaderElectionTimer.time {
-                    try {
-                        val curBrokerIds = currentBrokerList.map(_.toInt).toSet;
-                        val newBrokerIds = curBrokerIds-- controllerContext.liveOrShuttingDownBrokerIds;
-                        val newBrokerInfo = newBrokerIds.map(ZkUtils.getBrokerInfo(zkClient, _));
-                        val newBrokers = newBrokerInfo.filter(_.isDefined).map(_.get);
-                        val deadBrokerIds = controllerContext.liveOrShuttingDownBrokerIds-- curBrokerIds;
-                        controllerContext.liveBrokers = curBrokerIds.map(ZkUtils.getBrokerInfo(zkClient, _)).filter(_.isDefined).map(_.get);
-                        info("Newly added brokers: %s, deleted brokers: %s, all live brokers: %s";
-        .format(newBrokerIds.mkString(","), deadBrokerIds.mkString(","), controllerContext.liveBrokerIds.mkString(",")))
-                        newBrokers.foreach(controllerContext.controllerChannelManager.addBroker(_))
-                        deadBrokerIds.foreach(controllerContext.controllerChannelManager.removeBroker(_))
-                        if (newBrokerIds.size > 0)
-                            controller.onBrokerStartup(newBrokerIds.toSeq);
-                        if (deadBrokerIds.size > 0)
-                            controller.onBrokerFailure(deadBrokerIds.toSeq);
-                    } catch {
-                        case Throwable e -> error("Error while handling broker changes", e);
-                    }
+        public void handleChildChange(String parentPath, java.util.List<String> currentBrokerList) {
+            info(String.format("Broker change listener fired for path %s with children %s", parentPath, currentBrokerList));
+            Utils.inLock(controllerContext.controllerLock, () -> {
+                if (hasStarted.get()) {
+                    ControllerStats.leaderElectionTimer.time(() -> {
+                        try {
+                            List<Integer> curBrokerIds = Sc.map(currentBrokerList, b -> Integer.parseInt(b.toString()));
+                            List<Integer> newBrokerIds = Lists.newArrayList();
+                            curBrokerIds.forEach(b -> {
+                                if (!controllerContext.liveOrShuttingDownBrokerIds().contains(b)) {
+                                    newBrokerIds.add(b);
+                                }
+                            });
+                            List<Optional<Broker>> newBrokerInfo = Sc.map(newBrokerIds, b -> ZkUtils.getBrokerInfo(zkClient, b));
+                            List<Broker> newBrokers = Sc.map(Sc.filter(newBrokerInfo, b -> b.isPresent()), b2 -> b2.get());
+                            Set<Integer> deadBrokerIds = Sets.newHashSet();
+                            controllerContext.liveOrShuttingDownBrokerIds().forEach(b -> {
+                                if (!curBrokerIds.contains(b)) {
+                                    deadBrokerIds.add(b);
+                                }
+                            });
+                            controllerContext.liveBrokers_(
+                                    Sc.toSet(Sc.map(
+                                            Sc.filter(
+                                                    Sc.map(curBrokerIds, b -> ZkUtils.getBrokerInfo(zkClient, b))
+                                                    , b2 -> b2.isPresent())
+                                            , b3 -> b3.get())));
+                            info(String.format("Newly added brokers: %s, deleted brokers: %s, all live brokers: %s",
+                                    newBrokerIds, deadBrokerIds, controllerContext.liveBrokerIds()));
+                            newBrokers.forEach(b -> controllerContext.controllerChannelManager.addBroker(b));
+                            deadBrokerIds.forEach(b -> controllerContext.controllerChannelManager.removeBroker(b));
+                            if (newBrokerIds.size() > 0)
+                                controller.onBrokerStartup(newBrokerIds);
+                            if (deadBrokerIds.size() > 0)
+                                controller.onBrokerFailure(Sc.toList(deadBrokerIds));
+                        } catch (Throwable e) {
+                            error("Error while handling broker changes", e);
+                        }
+                        return null;
+                    });
                 }
-            }
+            });
         }
     }
 }
-        }
 
 

@@ -352,7 +352,7 @@ public class LogManager extends Logging {
      *
      * @param partitionAndOffsets Partition logs that need to be truncated
      */
-    public void truncateTo(Map<TopicAndPartition, Long> partitionAndOffsets) throws IOException {
+    public void truncateTo(Map<TopicAndPartition, Long> partitionAndOffsets) throws Throwable {
         for (TopicAndPartition topicAndPartition : partitionAndOffsets.keySet()) {
             Long truncateOffset = partitionAndOffsets.get(topicAndPartition);
             Log log = logs.get(topicAndPartition);
@@ -375,7 +375,7 @@ public class LogManager extends Logging {
      *
      * @param newOffset The new offset to start the log with
      */
-    public void truncateFullyAndStartAt(TopicAndPartition topicAndPartition, Long newOffset) throws IOException {
+    public void truncateFullyAndStartAt(TopicAndPartition topicAndPartition, Long newOffset) throws Throwable {
         Log log = logs.get(topicAndPartition);
         // If the log does not exist, skip it;
         if (log != null) {
