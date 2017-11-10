@@ -161,7 +161,11 @@ public class PartitionStateMachine extends Logging {
         handleStateChanges(partitions, targetState, noOpPartitionLeaderSelector, new CallbackBuilder().build());
     }
 
-    public void handleStateChanges(Set<TopicAndPartition> partitions, PartitionState targetState, PartitionLeaderSelector leaderSelector,Callbacks callbacks) {
+    public void handleStateChanges(Set<TopicAndPartition> partitions, PartitionState targetState, PartitionLeaderSelector leaderSelector) {
+        this.handleStateChanges(partitions, targetState, leaderSelector, null);
+    }
+
+    public void handleStateChanges(Set<TopicAndPartition> partitions, PartitionState targetState, PartitionLeaderSelector leaderSelector, Callbacks callbacks) {
         info(String.format("Invoking state change to %s for partitions %s", targetState, partitions));
         try {
             brokerRequestBatch.newBatch();

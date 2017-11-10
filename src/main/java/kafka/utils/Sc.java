@@ -437,4 +437,46 @@ public class Sc {
         }
         return null;
     }
+
+    public static <T> Set<T> subtract(Set<T> s1, Set<T> s2) {
+        Set<T> result = Sets.newHashSet(s1);
+        for (T t : s1) {
+            if (s2.contains(t)) {
+                result.remove(t);
+            }
+        }
+        return result;
+    }
+
+    public static <T> Set<T> add(Set<T> newReplicas, Collection<T> c) {
+        Set<T> result = Sets.newHashSet(newReplicas);
+        for (T t : c) {
+            result.add(t);
+        }
+        return result;
+    }
+
+    public static boolean equals(List<Integer> aliveNewReplicas, List<Integer> newReplicas) {
+        if (aliveNewReplicas.size() != newReplicas.size()) {
+            return false;
+        }
+        for (int i = 0; i < aliveNewReplicas.size(); i++) {
+            if (!aliveNewReplicas.get(i).equals(newReplicas.get(i))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public static <T> Set<T> add(Set<T>... sets) {
+        int size = 0;
+        for (Set<T> t : sets) {
+            size += t.size();
+        }
+        Set<T> result = new HashSet<T>(size);
+        for (Set<T> t : sets) {
+            result.addAll(t);
+        }
+        return result;
+    }
 }

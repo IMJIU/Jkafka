@@ -33,6 +33,7 @@ import org.apache.zookeeper.data.Stat;
 import java.io.UnsupportedEncodingException;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class ZkUtils {
     private static final Logging log = Logging.getLogger(ZkUtils.class.getName());
@@ -87,14 +88,14 @@ public class ZkUtils {
     }
 
 
-//    public List<Broker> getAllBrokersInCluster(ZkClient zkClient) throws Throwable {
-//        Stream<String> brokerIds = ZkUtils.getChildrenParentMayNotExist(zkClient, ZkUtils.BrokerIdsPath).stream().sorted();
-//        return brokerIds.map(i -> Integer.parseInt(i)).map(i -> getBrokerInfo(zkClient, i)).filter(i -> i.isPresent()).map(i -> i.get()).collect(Collectors.toList());
-//    }
+    public static List<Broker> getAllBrokersInCluster(ZkClient zkClient) throws Throwable {
+        Stream<String> brokerIds = ZkUtils.getChildrenParentMayNotExist(zkClient, ZkUtils.BrokerIdsPath).stream().sorted();
+        return brokerIds.map(i -> Integer.parseInt(i)).map(i -> getBrokerInfo(zkClient, i)).filter(i -> i.isPresent()).map(i -> i.get()).collect(Collectors.toList());
+    }
 
-//    public Optional<LeaderAndIsr> getLeaderAndIsrForPartition(ZkClient zkClient, String topic, Integer partition) {
-//        return ReplicationUtils.getLeaderIsrAndEpochForPartition(zkClient, topic, partition).map(_.leaderAndIsr);
-//    }
+    public static Optional<LeaderAndIsr> getLeaderAndIsrForPartition(ZkClient zkClient, String topic, Integer partition) {
+        return Sc.map(ReplicationUtils.getLeaderIsrAndEpochForPartition(zkClient, topic, partition),l->l.leaderAndIsr);
+    }
 
     public static void setupCommonPaths(ZkClient zkClient) {
         for (String path : Lists.newArrayList(ConsumersPath, BrokerIdsPath, BrokerTopicsPath, TopicConfigChangesPath, TopicConfigPath, DeleteTopicsPath))
