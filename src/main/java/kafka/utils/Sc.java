@@ -420,7 +420,13 @@ public class Sc {
         }
         return fun.invoke();
     }
-
+    public static <T> void match(Optional<T> opt, ActionP<T> handler, Action action) {
+        if (opt.isPresent()) {
+            handler.invoke(opt.get());
+        }else{
+            action.invoke();
+        }
+    }
     public static <K, V> Tuple<K, V> head(Map<K, V> topMap) {
         if (!topMap.isEmpty()) {
             for (Map.Entry<K, V> e : topMap.entrySet()) {
