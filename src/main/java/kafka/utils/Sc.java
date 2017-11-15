@@ -236,6 +236,46 @@ public class Sc {
         return stream.collect(Collectors.toList());
     }
 
+    //    public static <T> List<T> flatMap(Iterable<T> it, Handler<T, Stream<T>> handler) {
+//        Stream<T> stream = null;
+//        Iterator<T> iterator = it.iterator();
+//        while (iterator.hasNext()) {
+//            T t = iterator.next();
+//            Stream<T> s = handler.handle(t);
+//            if (stream == null) {
+//                stream = s;
+//            } else {
+//                Stream.concat(stream, s);
+//            }
+//        }
+//        return stream.collect(Collectors.toList());
+//    }
+    public static <T> List<T> flatMap(List<T> it, Handler<T, Collection<T>> handler) {
+        List<T> list = Lists.newArrayList();
+        Iterator<T> iterator = it.iterator();
+        while (iterator.hasNext()) {
+            T t = iterator.next();
+            Collection<T> collection = handler.handle(t);
+            if (collection.size() > 0) {
+                list.addAll(collection);
+            }
+        }
+        return list;
+    }
+
+    public static <T, V> Set<V> flatMap(Set<T> it, Handler<T, Collection<V>> handler) {
+        Set<V> set = Sets.newHashSet();
+        Iterator<T> iterator = it.iterator();
+        while (iterator.hasNext()) {
+            T t = iterator.next();
+            Collection<V> collection = handler.handle(t);
+            if (collection.size() > 0) {
+                set.addAll(collection);
+            }
+        }
+        return set;
+    }
+
     public static <K, V> Map<K, V> toMap(Collection<Tuple<K, V>> list) {
         Map<K, V> map = Maps.newHashMap();
         for (Tuple<K, V> kv : list) {
@@ -427,7 +467,6 @@ public class Sc {
         list.forEach(t -> size.add(handler.handle(t)));
         return size.get();
     }
-
 
 
     public static <T, V> V match(Optional<T> opt, Handler<T, V> handler, Fun<V> fun) {

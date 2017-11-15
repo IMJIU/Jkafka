@@ -236,7 +236,7 @@ public class LogCleaner extends KafkaMetricsGroup {
         }
 
         @Override
-        public void shutdown() throws InterruptedException {
+        public void shutdown()  {
             initiateShutdown();
             backOffWaitLatch.countDown();
             awaitShutdown();

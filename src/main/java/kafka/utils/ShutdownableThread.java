@@ -29,7 +29,7 @@ public abstract class ShutdownableThread extends Thread {
     public AtomicBoolean isRunning = new AtomicBoolean(true);
     private CountDownLatch shutdownLatch = new CountDownLatch(1);
 
-    public void shutdown() throws InterruptedException {
+    public void shutdown()  {
         initiateShutdown();
         awaitShutdown();
     }
@@ -48,8 +48,12 @@ public abstract class ShutdownableThread extends Thread {
     /**
      * After calling initiateShutdown(), use this API to wait until the shutdown is complete
      */
-    public void awaitShutdown() throws InterruptedException {
-        shutdownLatch.await();
+    public void awaitShutdown()  {
+        try {
+            shutdownLatch.await();
+        } catch (InterruptedException e) {
+            logger.error(e.getMessage(),e);
+        }
         logger.info("Shutdown completed");
     }
 
