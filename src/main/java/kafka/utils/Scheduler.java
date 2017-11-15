@@ -22,7 +22,7 @@ public interface Scheduler {
      * Shutdown this scheduler. When this method is complete no more executions of background tasks will occur.
      * This includes tasks scheduled with a delayed execution.
      */
-    void shutdown() throws InterruptedException;
+    void shutdown();
 
     /**
      * Schedule a task

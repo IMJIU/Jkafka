@@ -27,7 +27,7 @@ public class SchedulerTest {
     }
 
     @After
-    public void teardown() throws InterruptedException {
+    public void teardown() {
         scheduler.shutdown();
     }
 

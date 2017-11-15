@@ -16,6 +16,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.yammer.metrics.core.Gauge;
 import kafka.admin.AdminUtils;
+import kafka.admin.PreferredReplicaLeaderElectionCommand;
 import kafka.api.LeaderAndIsr;
 import kafka.api.RequestOrResponse;
 import kafka.common.BrokerNotAvailableException;
@@ -25,9 +26,7 @@ import kafka.common.StateChangeFailedException;
 import kafka.controller.ctrl.ControllerContext;
 import kafka.controller.ctrl.LeaderIsrAndControllerEpoch;
 import kafka.controller.ctrl.PartitionAndReplica;
-import kafka.func.Action;
-import kafka.func.ActionP;
-import kafka.func.Tuple;
+import kafka.func.*;
 import kafka.log.LogConfig;
 import kafka.log.TopicAndPartition;
 import kafka.metrics.KafkaMetricsGroup;
@@ -221,7 +220,7 @@ public class KafkaController extends KafkaMetricsGroup {
      * If it encounters any unexpected exception/error while becoming controller, it resigns as the current controller.
      * This ensures another controller election will be triggered and there will always be an actively serving controller
      */
-    public Action onControllerFailover = () -> {
+    public ActionWithThrow onControllerFailover = () -> {
         if (isRunning) {
             info(String.format("Broker %d starting become controller state transition", config.brokerId))
             //read controller epoch from zk;
@@ -247,8 +246,52 @@ public class KafkaController extends KafkaMetricsGroup {
             if (config.autoLeaderRebalanceEnable) {
                 info("starting the partition rebalance scheduler");
                 autoRebalanceScheduler.startup();
-                autoRebalanceScheduler.schedule("partition-rebalance-thread", checkAndTriggerPartitionRebalance,
-                        5, config.leaderImbalanceCheckIntervalSeconds, TimeUnit.SECONDS);
+                autoRebalanceScheduler.schedule("partition-rebalance-thread", () -> {
+                            if (isActive()) {
+                                trace("checking need to trigger partition rebalance");
+                                // get all the active brokers;
+                                Map<Integer, Map<TopicAndPartition, List<Integer>>> preferredReplicasForTopicsByBrokers = Utils.inLock(controllerContext.controllerLock, () -> {
+                                    Map<TopicAndPartition, List<Integer>> t = Sc.filterNot(controllerContext.partitionReplicaAssignment,
+                                            (k, v) -> deleteTopicManager.isTopicQueuedUpForDeletion(k.topic));
+                                    return Sc.groupByValue(t, assignedReplicas -> Sc.head(assignedReplicas));
+                                });
+                                debug("preferred replicas by broker " + preferredReplicasForTopicsByBrokers);
+                                // for each broker, check if a preferred replica election needs to be triggered;
+                                preferredReplicasForTopicsByBrokers.forEach((leaderBroker, topicAndPartitionsForBroker) -> {
+                                    NumCount<Double> imbalanceRatio = NumCount.of(0D);
+                                    Map<TopicAndPartition, List<Integer>> topicsNotInPreferredReplica = Utils.inLock(controllerContext.controllerLock, () -> {
+                                        Map<TopicAndPartition, List<Integer>> topicsNotInPreferredReplica2 =
+                                                Sc.filter(topicAndPartitionsForBroker, (topicPartition, replicas) ->
+                                                        controllerContext.partitionLeadershipInfo.containsKey(topicPartition) &&
+                                                                controllerContext.partitionLeadershipInfo.get(topicPartition).leaderAndIsr.leader != leaderBroker);
+                                        debug("topics not in preferred replica " + topicsNotInPreferredReplica2);
+                                        int totalTopicPartitionsForBroker = topicAndPartitionsForBroker.size();
+                                        int totalTopicPartitionsNotLedByBroker = topicsNotInPreferredReplica2.size();
+                                        imbalanceRatio.set((double) totalTopicPartitionsNotLedByBroker / totalTopicPartitionsForBroker);
+                                        trace(String.format("leader imbalance ratio for broker %d is %f", leaderBroker, imbalanceRatio.get()));
+                                        return topicsNotInPreferredReplica2;
+                                    });
+                                    // check ratio and if greater than desired ratio, trigger a rebalance for the topic partitions;
+                                    // that need to be on this broker;
+                                    if (imbalanceRatio.get() > ((double) config.leaderImbalancePerBrokerPercentage / 100)) {
+                                        topicsNotInPreferredReplica.forEach((topicPartition, replicas) -> {
+                                            Utils.inLock(controllerContext.controllerLock, () -> {
+                                                // do this check only if the broker is live and there are no partitions being reassigned currently;
+                                                // and preferred replica election is not in progress;
+                                                if (controllerContext.liveBrokerIds().contains(leaderBroker) &&
+                                                        controllerContext.partitionsBeingReassigned.size() == 0 &&
+                                                        controllerContext.partitionsUndergoingPreferredReplicaElection.size() == 0 &&
+                                                        !deleteTopicManager.isTopicQueuedUpForDeletion(topicPartition.topic) &&
+                                                        controllerContext.allTopics.contains(topicPartition.topic)) {
+                                                    onPreferredReplicaElection(Sets.newHashSet(topicPartition), true);
+                                                }
+                                            });
+                                        });
+                                    }
+                                });
+                            }
+                        },
+                        5L, config.leaderImbalanceCheckIntervalSeconds.longValue(), TimeUnit.SECONDS);
             }
             deleteTopicManager.start();
         } else
@@ -335,7 +378,7 @@ public class KafkaController extends KafkaMetricsGroup {
             info(("Some replicas %s for topics scheduled for deletion %s are on the newly restarted brokers %s. " +
                     "Signaling restart of topic deletion for these topics").format(replicasForTopicsToBeDeleted,
                     deleteTopicManager.topicsToBeDeleted, newBrokers));
-            deleteTopicManager.resumeDeletionForTopics(replicasForTopicsToBeDeleted.map(_.topic));
+            deleteTopicManager.resumeDeletionForTopics(Sc.map(replicasForTopicsToBeDeleted, r -> r.topic));
         }
     }
 
@@ -480,7 +523,7 @@ public class KafkaController extends KafkaMetricsGroup {
             updateAssignedReplicasForPartition(topicAndPartition, reassignedReplicas);
             //11. Update the /admin/reassign_partitions path in ZK to remove this partition.;
             removePartitionFromReassignedPartitions(topicAndPartition);
-            info(String.format("Removed partition %s from the list of reassigned partitions in zookeeper", topicAndPartition))
+            info(String.format("Removed partition %s from the list of reassigned partitions in zookeeper", topicAndPartition));
             controllerContext.partitionsBeingReassigned.remove(topicAndPartition);
             //12. After electing leader, the replicas and isr information changes, so resend the update metadata request to every broker;
             sendUpdateMetadataRequest(Sc.toList(controllerContext.liveOrShuttingDownBrokerIds()), Sets.newHashSet(topicAndPartition));
@@ -831,7 +874,7 @@ public class KafkaController extends KafkaMetricsGroup {
             Tuple<String, Stat> epochData = ZkUtils.readData(controllerContext.zkClient, ZkUtils.ControllerEpochPath);
             controllerContext.epoch = Integer.parseInt(epochData.v1);
             controllerContext.epochZkVersion = epochData.v2.getVersion();
-            info(String.format("Initialized controller epoch to %d and zk version %d", controllerContext.epoch, controllerContext.epochZkVersion))
+            info(String.format("Initialized controller epoch to %d and zk version %d", controllerContext.epoch, controllerContext.epochZkVersion));
         }
     }
 
@@ -935,7 +978,7 @@ public class KafkaController extends KafkaMetricsGroup {
                     // eventually be restored as the leader.;
                     if (newIsr.isEmpty() && !LogConfig.fromProps(config.props.props, AdminUtils.fetchTopicConfig(zkClient,
                             topicAndPartition.topic)).uncleanLeaderElectionEnable) {
-                        info(String.format("Retaining last ISR %d of partition %s since unclean leader election is disabled", replicaId, topicAndPartition))
+                        info(String.format("Retaining last ISR %d of partition %s since unclean leader election is disabled", replicaId, topicAndPartition));
                         newIsr = leaderAndIsr.isr;
                     }
 
@@ -976,49 +1019,98 @@ public class KafkaController extends KafkaMetricsGroup {
      * @return the new leaderAndIsr with an incremented leader epoch, or None if leaderAndIsr is empty.
      */
     private Optional<LeaderIsrAndControllerEpoch> updateLeaderEpoch(String topic, Integer partition) {
-        val topicAndPartition = TopicAndPartition(topic, partition);
-        debug(String.format("Updating leader epoch for partition %s.", topicAndPartition))
-        var Option finalLeaderIsrAndControllerEpoch<LeaderIsrAndControllerEpoch> =None;
-        var zkWriteCompleteOrUnnecessary = false;
+        TopicAndPartition topicAndPartition = new TopicAndPartition(topic, partition);
+        debug(String.format("Updating leader epoch for partition %s.", topicAndPartition));
+        Optional<LeaderIsrAndControllerEpoch> finalLeaderIsrAndControllerEpoch = Optional.empty();
+        boolean zkWriteCompleteOrUnnecessary = false;
         while (!zkWriteCompleteOrUnnecessary) {
             // refresh leader and isr from zookeeper again;
-            val leaderIsrAndEpochOpt = ReplicationUtils.getLeaderIsrAndEpochForPartition(zkClient, topic, partition);
-            zkWriteCompleteOrUnnecessary = leaderIsrAndEpochOpt match {
-                case Some(leaderIsrAndEpoch) =>
-                    val leaderAndIsr = leaderIsrAndEpoch.leaderAndIsr;
-                    val controllerEpoch = leaderIsrAndEpoch.controllerEpoch;
-                    if (controllerEpoch > epoch)
-                        throw new StateChangeFailedException("Leader and isr path written by another controller. This probably" +
-                                String.format("means the current controller with epoch %d went through a soft failure and another ", epoch) +
-                                String.format("controller was elected with epoch %d. Aborting state change by this controller", controllerEpoch))
-                    // increment the leader epoch even if there are no leader or isr changes to allow the leader to cache the expanded;
-                    // assigned replica list;
-                    val newLeaderAndIsr = new LeaderAndIsr(leaderAndIsr.leader, leaderAndIsr.leaderEpoch + 1,
-                            leaderAndIsr.isr, leaderAndIsr.zkVersion + 1);
-                    // update the new leadership decision in zookeeper or retry;
-                    val(updateSucceeded, newVersion) = ReplicationUtils.updateLeaderAndIsr(zkClient, topic,
-                            partition, newLeaderAndIsr, epoch, leaderAndIsr.zkVersion);
+            Optional<LeaderIsrAndControllerEpoch> leaderIsrAndEpochOpt = ReplicationUtils.getLeaderIsrAndEpochForPartition(zkClient, topic, partition);
+            LeaderIsrAndControllerEpoch leaderIsrAndEpoch = leaderIsrAndEpochOpt.get();
+            if (leaderIsrAndEpochOpt.isPresent()) {
+                LeaderAndIsr leaderAndIsr = leaderIsrAndEpoch.leaderAndIsr;
+                Integer controllerEpoch = leaderIsrAndEpoch.controllerEpoch;
+                if (controllerEpoch > epoch())
+                    throw new StateChangeFailedException("Leader and isr path written by another controller. This probably" +
+                            String.format("means the current controller with epoch %d went through a soft failure and another ", epoch()) +
+                            String.format("controller was elected with epoch %d. Aborting state change by this controller", controllerEpoch));
+                // increment the leader epoch even if there are no leader or isr changes to allow the leader to cache the expanded;
+                // assigned replica list;
+                LeaderAndIsr newLeaderAndIsr = new LeaderAndIsr(leaderAndIsr.leader, leaderAndIsr.leaderEpoch + 1,
+                        leaderAndIsr.isr, leaderAndIsr.zkVersion + 1);
+                // update the new leadership decision in zookeeper or retry;
 
-                    newLeaderAndIsr.zkVersion = newVersion;
-                    finalLeaderIsrAndControllerEpoch = Some(LeaderIsrAndControllerEpoch(newLeaderAndIsr, epoch));
-                    if (updateSucceeded)
-                        info(String.format("Updated leader epoch for partition %s to %d", topicAndPartition, newLeaderAndIsr.leaderEpoch))
-                    updateSucceeded;
-                case None =>
-                    throw new IllegalStateException(("Cannot update leader epoch for partition %s as leaderAndIsr path is empty. " +
-                            "This could mean we somehow tried to reassign a partition that doesn't exist").format(topicAndPartition))
-                    true;
+                Tuple<Boolean, Integer> tuple = ReplicationUtils.updateLeaderAndIsr(zkClient, topic,
+                        partition, newLeaderAndIsr, epoch(), leaderAndIsr.zkVersion);
+                boolean updateSucceeded = tuple.v1;
+                Integer newVersion = tuple.v2;
+                newLeaderAndIsr.zkVersion = newVersion;
+                finalLeaderIsrAndControllerEpoch = Optional.of(new LeaderIsrAndControllerEpoch(newLeaderAndIsr, epoch()));
+                if (updateSucceeded)
+                    info(String.format("Updated leader epoch for partition %s to %d", topicAndPartition, newLeaderAndIsr.leaderEpoch));
+                zkWriteCompleteOrUnnecessary = updateSucceeded;
+            } else {
+                throw new IllegalStateException(String.format("Cannot update leader epoch for partition %s as leaderAndIsr path is empty. " +
+                        "This could mean we somehow tried to reassign a partition that doesn't exist", topicAndPartition));
             }
+
         }
-        finalLeaderIsrAndControllerEpoch;
+        return finalLeaderIsrAndControllerEpoch;
     }
 
-    class SessionExpirationListener extends Logging implements IZkStateListener
+    // TODO: 2017/11/15 是否没用？？？
+    public Action checkAndTriggerPartitionRebalance = () -> {
+        if (isActive()) {
+            trace("checking need to trigger partition rebalance");
+            // get all the active brokers;
+            Map<Integer, Map<TopicAndPartition, List<Integer>>> preferredReplicasForTopicsByBrokers = Utils.inLock(controllerContext.controllerLock, () -> {
+                Map<TopicAndPartition, List<Integer>> t = Sc.filterNot(controllerContext.partitionReplicaAssignment,
+                        (k, v) -> deleteTopicManager.isTopicQueuedUpForDeletion(k.topic));
+                return Sc.groupByValue(t, assignedReplicas -> Sc.head(assignedReplicas));
+            });
+            debug("preferred replicas by broker " + preferredReplicasForTopicsByBrokers);
+            // for each broker, check if a preferred replica election needs to be triggered;
+            preferredReplicasForTopicsByBrokers.forEach((leaderBroker, topicAndPartitionsForBroker) -> {
+                NumCount<Double> imbalanceRatio = NumCount.of(0D);
+                Map<TopicAndPartition, List<Integer>> topicsNotInPreferredReplica = Utils.inLock(controllerContext.controllerLock, () -> {
+                    Map<TopicAndPartition, List<Integer>> topicsNotInPreferredReplica2 =
+                            Sc.filter(topicAndPartitionsForBroker, (topicPartition, replicas) ->
+                                    controllerContext.partitionLeadershipInfo.containsKey(topicPartition) &&
+                                            controllerContext.partitionLeadershipInfo.get(topicPartition).leaderAndIsr.leader != leaderBroker);
+                    debug("topics not in preferred replica " + topicsNotInPreferredReplica2);
+                    int totalTopicPartitionsForBroker = topicAndPartitionsForBroker.size();
+                    int totalTopicPartitionsNotLedByBroker = topicsNotInPreferredReplica2.size();
+                    imbalanceRatio.set((double) totalTopicPartitionsNotLedByBroker / totalTopicPartitionsForBroker);
+                    trace(String.format("leader imbalance ratio for broker %d is %f", leaderBroker, imbalanceRatio.get()));
+                    return topicsNotInPreferredReplica2;
+                });
+                // check ratio and if greater than desired ratio, trigger a rebalance for the topic partitions;
+                // that need to be on this broker;
+                if (imbalanceRatio.get() > ((double) config.leaderImbalancePerBrokerPercentage / 100)) {
+                    topicsNotInPreferredReplica.forEach((topicPartition, replicas) -> {
+                        Utils.inLock(controllerContext.controllerLock, () -> {
+                            // do this check only if the broker is live and there are no partitions being reassigned currently;
+                            // and preferred replica election is not in progress;
+                            if (controllerContext.liveBrokerIds().contains(leaderBroker) &&
+                                    controllerContext.partitionsBeingReassigned.size() == 0 &&
+                                    controllerContext.partitionsUndergoingPreferredReplicaElection.size() == 0 &&
+                                    !deleteTopicManager.isTopicQueuedUpForDeletion(topicPartition.topic) &&
+                                    controllerContext.allTopics.contains(topicPartition.topic)) {
+                                onPreferredReplicaElection(Sets.newHashSet(topicPartition), true);
+                            }
+                        });
+                    });
+                }
+            });
+        }
+    };
 
-    {
-        this.logIdent ="<SessionExpirationListener on "+config.brokerId +">, ";
-        @throws(classOf<Exception>)
+    class SessionExpirationListener extends Logging implements IZkStateListener {
+        public SessionExpirationListener() {
+            this.logIdent = "<SessionExpirationListener on " + config.brokerId + ">, ";
+        }
 
+        //        @throws(classOf<Exception>)
         public void handleStateChanged(Watcher.Event.KeeperState state) {
             // do nothing, since zkclient will do reconnect for us.;
         }
@@ -1027,75 +1119,19 @@ public class KafkaController extends KafkaMetricsGroup {
          * Called after the zookeeper session has expired and a new session has been created. You would have to re-create
          * any ephemeral nodes here.
          *
-         * @throws Exception
-         *             On any error.
+         * @throws Exception On any error.
          */
-        @throws(classOf<Exception>)
-
+//        @throws(classOf<Exception>)
         public void handleNewSession() {
             info("ZK expired; shut down all controller components and try to re-elect");
-            inLock(controllerContext.controllerLock) {
-                onControllerResignation();
-                controllerElector.elect;
-            }
+            Utils.inLock(controllerContext.controllerLock, () -> {
+                onControllerResignation.invoke();
+                controllerElector.elect();
+            });
         }
     }
 
-    private Action checkAndTriggerPartitionRebalance = () -> {
-        if (isActive()) {
-            trace("checking need to trigger partition rebalance");
-            // get all the active brokers;
-            var Map preferredReplicasForTopicsByBrokers<Integer, Map<TopicAndPartition, Seq[Int]>>=null;
-            inLock(controllerContext.controllerLock) {
-                preferredReplicasForTopicsByBrokers =
-                        controllerContext.partitionReplicaAssignment.filterNot(p = > deleteTopicManager.isTopicQueuedUpForDeletion(p._1.topic)).
-                groupBy {
-                    case (topicAndPartition,assignedReplicas)=>assignedReplicas.head;
-                }
-            }
-            debug("preferred replicas by broker " + preferredReplicasForTopicsByBrokers);
-            // for each broker, check if a preferred replica election needs to be triggered;
-            preferredReplicasForTopicsByBrokers.foreach {
-                case (leaderBroker,topicAndPartitionsForBroker)=>{
-                    var Double imbalanceRatio = 0;
-                    var Map topicsNotInPreferredReplica<TopicAndPartition, Seq<Int>>=null;
-                    inLock(controllerContext.controllerLock) {
-                        topicsNotInPreferredReplica =
-                                topicAndPartitionsForBroker.filter {
-                            case (topicPartition,replicas)=>{
-                                controllerContext.partitionLeadershipInfo.contains(topicPartition) &&;
-                                controllerContext.partitionLeadershipInfo(topicPartition).leaderAndIsr.leader != leaderBroker;
-                            }
-                        }
-                        debug("topics not in preferred replica " + topicsNotInPreferredReplica);
-                        val totalTopicPartitionsForBroker = topicAndPartitionsForBroker.size;
-                        val totalTopicPartitionsNotLedByBroker = topicsNotInPreferredReplica.size;
-                        imbalanceRatio = totalTopicPartitionsNotLedByBroker.toDouble / totalTopicPartitionsForBroker;
-                        trace(String.format("leader imbalance ratio for broker %d is %f", leaderBroker, imbalanceRatio))
-                    }
-                    // check ratio and if greater than desired ratio, trigger a rebalance for the topic partitions;
-                    // that need to be on this broker;
-                    if (imbalanceRatio > (config.leaderImbalancePerBrokerPercentage.toDouble / 100)) {
-                        topicsNotInPreferredReplica.foreach {
-                            case (topicPartition,replicas)=>{
-                                inLock(controllerContext.controllerLock) {
-                                    // do this check only if the broker is live and there are no partitions being reassigned currently;
-                                    // and preferred replica election is not in progress;
-                                    if ( controllerContext.liveBrokerIds.contains(leaderBroker) &&;
-                                    controllerContext.partitionsBeingReassigned.size == 0 &&;
-                                    controllerContext.partitionsUndergoingPreferredReplicaElection.size == 0 &&;
-                                    !deleteTopicManager.isTopicQueuedUpForDeletion(topicPartition.topic) &&;
-                                    controllerContext.allTopics.contains(topicPartition.topic)){
-                                        onPreferredReplicaElection(Set(topicPartition), true);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
+
 }
 
 /**
@@ -1121,27 +1157,25 @@ class PartitionsReassignedListener extends Logging implements IZkDataListener {
 
     /**
      * Invoked when some partitions are reassigned by the admin command
+     *
      * @throws Exception On any error.
      */
-        @throws(classOf<Exception>)
-
+//        @throws(classOf<Exception>)
     public void handleDataChange(String dataPath, Object data) {
-        debug("Partitions reassigned listener fired for path %s. Record partitions to be reassigned %s";
-        .format(dataPath, data))
-        val partitionsReassignmentData = ZkUtils.parsePartitionReassignmentData(data.toString);
-        val partitionsToBeReassigned = inLock(controllerContext.controllerLock) {
-            partitionsReassignmentData.filterNot(p = > controllerContext.partitionsBeingReassigned.contains(p._1))
-            ;
-        }
+        debug(String.format("Partitions reassigned listener fired for path %s. Record partitions to be reassigned %s", dataPath, data));
+        Map<TopicAndPartition, List<Integer>> partitionsReassignmentData = ZkUtils.parsePartitionReassignmentData(data.toString());
+        Map<TopicAndPartition, List<Integer>> partitionsToBeReassigned = Utils.inLock(controllerContext.controllerLock, () ->
+                Sc.filterNot(partitionsReassignmentData, (k, v) -> controllerContext.partitionsBeingReassigned.containsKey(k))
+        );
         partitionsToBeReassigned.foreach {
             partitionToBeReassigned =>
             inLock(controllerContext.controllerLock) {
                 if (controller.deleteTopicManager.isTopicQueuedUpForDeletion(partitionToBeReassigned._1.topic)) {
-                    error("Skipping reassignment of partition %s for topic %s since it is currently being deleted";
-        .format(partitionToBeReassigned._1, partitionToBeReassigned._1.topic))
+                    error(String.format("Skipping reassignment of partition %s for topic %s since it is currently being deleted",
+                            partitionToBeReassigned._1, partitionToBeReassigned._1.topic));
                     controller.removePartitionFromReassignedPartitions(partitionToBeReassigned._1);
                 } else {
-                    val context = new ReassignedPartitionsContext(partitionToBeReassigned._2);
+                    ReassignedPartitionsContext context = new ReassignedPartitionsContext(partitionToBeReassigned._2);
                     controller.initiateReassignReplicasForTopicPartition(partitionToBeReassigned._1, context);
                 }
             }
@@ -1150,135 +1184,61 @@ class PartitionsReassignedListener extends Logging implements IZkDataListener {
 
     /**
      * Called when the leader information stored in zookeeper has been delete. Try to elect as the leader
-     * @throws Exception
-     *             On any error.
-     */
-        @throws(classOf<Exception>)
-
-    public void handleDataDeleted(String dataPath) {
-    }
-}
-
-class ReassignedPartitionsIsrChangeListener extends Logging implements IZkDataListener {
-    KafkaController controller;
-    String topic;
-    Integer partition;
-    Set<Integer> reassignedReplicas;
-
-    public ReassignedPartitionsIsrChangeListener(KafkaController controller, String topic, Integer partition, Set<Integer> reassignedReplicas) {
-        this.controller = controller;
-        this.topic = topic;
-        this.partition = partition;
-        this.reassignedReplicas = reassignedReplicas;
-        this.logIdent = "<ReassignedPartitionsIsrChangeListener on controller " + controller.config.brokerId + ">: ";
-    }
-
-    val zkClient = controller.controllerContext.zkClient;
-    val controllerContext = controller.controllerContext;
-
-    /**
-     * Invoked when some partitions need to move leader to preferred replica
+     *
      * @throws Exception On any error.
      */
-        @throws(classOf<Exception>)
-
-    public void handleDataChange(String dataPath, Object data) {
-        inLock(controllerContext.controllerLock) {
-            debug(String.format("Reassigned partitions isr change listener fired for path %s with children %s", dataPath, data))
-            val topicAndPartition = TopicAndPartition(topic, partition);
-            try {
-                // check if this partition is still being reassigned or not;
-                controllerContext.partitionsBeingReassigned.get(topicAndPartition) match {
-                    case Some(reassignedPartitionContext) =>
-                        // need to re-read leader and isr from zookeeper since the zkclient callback doesn't return the Stat object;
-                        val newLeaderAndIsrOpt = getLeaderAndIsrForPartition(zkClient, topic, partition);
-                        newLeaderAndIsrOpt match {
-                        case Some(leaderAndIsr) => // check if new replicas have joined ISR;
-                            val caughtUpReplicas = reassignedReplicas & leaderAndIsr.isr.toSet;
-                            if (caughtUpReplicas == reassignedReplicas) {
-                                // resume the partition reassignment process;
-                                info("%d/%d replicas have caught up with the leader for partition %s being reassigned.";
-        .format(caughtUpReplicas.size, reassignedReplicas.size, topicAndPartition) +
-                                        "Resuming partition reassignment");
-                                controller.onPartitionReassignment(topicAndPartition, reassignedPartitionContext);
-                            } else {
-                                info("%d/%d replicas have caught up with the leader for partition %s being reassigned.";
-        .format(caughtUpReplicas.size, reassignedReplicas.size, topicAndPartition) +
-                                        String.format("Replica(s) %s still need to catch up", (reassignedReplicas--leaderAndIsr.isr.toSet).mkString(",")))
-                            }
-                        case None =>error("Error handling reassignment of partition %s to replicas %s as it was never created";
-        .format(topicAndPartition, reassignedReplicas.mkString(",")))
-                    }
-                    case None =>
-                }
-            } catch {
-                case Throwable e =>error("Error while handling partition reassignment", e);
-            }
-        }
-    }
-
-    /**
-     * @throws Exception
-     *             On any error.
-     */
-        @throws(classOf<Exception>)
-
+//        @throws(classOf<Exception>)
     public void handleDataDeleted(String dataPath) {
     }
 }
+
 
 /**
  * Starts the preferred replica leader election for the list of partitions specified under
  * /admin/preferred_replica_election -
  */
 class PreferredReplicaElectionListener extends Logging implements IZkDataListener {
-    KafkaController controller;
+    public KafkaController controller;
+    public ZkClient zkClient;
+    public ControllerContext controllerContext;
 
     public PreferredReplicaElectionListener(KafkaController controller) {
         this.controller = controller;
         this.logIdent = "<PreferredReplicaElectionListener on " + controller.config.brokerId + ">: ";
+        zkClient = controller.controllerContext.zkClient;
+        controllerContext = controller.controllerContext;
     }
 
-    val zkClient = controller.controllerContext.zkClient;
-    val controllerContext = controller.controllerContext;
 
     /**
      * Invoked when some partitions are reassigned by the admin command
+     *
      * @throws Exception On any error.
      */
-        @throws(classOf<Exception>)
-
+//        @throws(classOf<Exception>)
     public void handleDataChange(String dataPath, Object data) {
-        debug("Preferred replica election listener fired for path %s. Record partitions to undergo preferred replica election %s";
-        .format(dataPath, data.toString))
-        inLock(controllerContext.controllerLock) {
-            val partitionsForPreferredReplicaElection = PreferredReplicaLeaderElectionCommand.parsePreferredReplicaElectionData(data.toString);
-            if (controllerContext.partitionsUndergoingPreferredReplicaElection.size > 0)
-                info("These partitions are already undergoing preferred replica election: %s";
-        .format(controllerContext.partitionsUndergoingPreferredReplicaElection.mkString(",")))
-            val partitions = partitionsForPreferredReplicaElection--
-            controllerContext.partitionsUndergoingPreferredReplicaElection;
-            val partitionsForTopicsToBeDeleted = partitions.filter(p = > controller.deleteTopicManager.isTopicQueuedUpForDeletion(p.topic))
-            ;
-            if (partitionsForTopicsToBeDeleted.size > 0) {
-                error("Skipping preferred replica election for partitions %s since the respective topics are being deleted";
-        .format(partitionsForTopicsToBeDeleted))
+        debug(String.format("Preferred replica election listener fired for path %s. Record partitions to undergo preferred replica election %s", dataPath, data));
+        Utils.inLock(controllerContext.controllerLock, () -> {
+            Set<TopicAndPartition> partitionsForPreferredReplicaElection = PreferredReplicaLeaderElectionCommand.parsePreferredReplicaElectionData(data.toString());
+            if (controllerContext.partitionsUndergoingPreferredReplicaElection.size() > 0)
+                info(String.format("These partitions are already undergoing preferred replica election: %s", controllerContext.partitionsUndergoingPreferredReplicaElection));
+            Set<TopicAndPartition> partitions = Sc.subtract(partitionsForPreferredReplicaElection, controllerContext.partitionsUndergoingPreferredReplicaElection);
+            Set<TopicAndPartition> partitionsForTopicsToBeDeleted = Sc.filter(partitions, p -> controller.deleteTopicManager.isTopicQueuedUpForDeletion(p.topic));
+            if (partitionsForTopicsToBeDeleted.size() > 0) {
+                error(String.format("Skipping preferred replica election for partitions %s since the respective topics are being deleted",
+                        partitionsForTopicsToBeDeleted));
             }
-            controller.onPreferredReplicaElection(partitions--partitionsForTopicsToBeDeleted);
-        }
+            controller.onPreferredReplicaElection(Sc.subtract(partitions,partitionsForTopicsToBeDeleted));
+        });
     }
 
     /**
-     * @throws Exception
-     *             On any error.
+     * @throws Exception On any error.
      */
-        @throws(classOf<Exception>)
-
+//        @throws(classOf<Exception>)
     public void handleDataDeleted(String dataPath) {
     }
 }
-
-        case
 
 
 class StateChangeLogger extends Logging {

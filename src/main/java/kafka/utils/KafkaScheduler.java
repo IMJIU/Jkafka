@@ -54,11 +54,15 @@ public class KafkaScheduler extends Logging implements Scheduler {
     }
 
     @Override
-    public void shutdown() throws InterruptedException {
+    public void shutdown() {
         debug("Shutting down task scheduler.");
         ensureStarted();
         executor.shutdown();
-        executor.awaitTermination(1, TimeUnit.DAYS);
+        try {
+            executor.awaitTermination(1, TimeUnit.DAYS);
+        } catch (InterruptedException e) {
+            error(e.getMessage(),e);
+        }
         this.executor = null;
     }
 

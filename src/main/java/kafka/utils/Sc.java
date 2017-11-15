@@ -4,6 +4,8 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import kafka.func.*;
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections.map.HashedMap;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -255,6 +257,18 @@ public class Sc {
         return set;
     }
 
+    public static <K, V> Map<K, V> filterNot(Map<K, V> map, Handler2<K, V, Boolean> handler2) {
+        Map<K, V> result = Maps.newHashMap();
+        for (Map.Entry<K, V> en : map.entrySet()) {
+            K k = en.getKey();
+            V v = en.getValue();
+            if (!handler2.handle(k, v)) {
+                result.put(k, v);
+            }
+        }
+        return result;
+    }
+
     public static <T> List<T> filterNot(Iterable<T> it, Handler<T, Boolean> handler) {
         Iterator<T> iterator = it.iterator();
         List<T> list = Lists.newArrayList();
@@ -265,6 +279,18 @@ public class Sc {
             }
         }
         return list;
+    }
+
+    public static <K, V> Map<K, V> filter(Map<K, V> map, Handler2<K, V, Boolean> handler2) {
+        Map<K, V> result = Maps.newHashMap();
+        for (Map.Entry<K, V> en : map.entrySet()) {
+            K k = en.getKey();
+            V v = en.getValue();
+            if (handler2.handle(k, v)) {
+                result.put(k, v);
+            }
+        }
+        return result;
     }
 
     public static <T> List<T> filter(Iterable<T> it, Handler<T, Boolean> handler) {
@@ -402,17 +428,7 @@ public class Sc {
         return size.get();
     }
 
-    public static <K, V> Map<K, V> filter(Map<K, V> map, Handler2<K, V, Boolean> handler2) {
-        Map<K, V> result = Maps.newHashMap();
-        for (Map.Entry<K, V> en : map.entrySet()) {
-            K k = en.getKey();
-            V v = en.getValue();
-            if (handler2.handle(k, v)) {
-                result.put(k, v);
-            }
-        }
-        return result;
-    }
+
 
     public static <T, V> V match(Optional<T> opt, Handler<T, V> handler, Fun<V> fun) {
         if (opt.isPresent()) {
@@ -420,13 +436,15 @@ public class Sc {
         }
         return fun.invoke();
     }
+
     public static <T> void match(Optional<T> opt, ActionP<T> handler, Action action) {
         if (opt.isPresent()) {
             handler.invoke(opt.get());
-        }else{
+        } else {
             action.invoke();
         }
     }
+
     public static <K, V> Tuple<K, V> head(Map<K, V> topMap) {
         if (!topMap.isEmpty()) {
             for (Map.Entry<K, V> e : topMap.entrySet()) {
@@ -448,6 +466,21 @@ public class Sc {
         Set<T> result = Sets.newHashSet(s1);
         for (T t : s1) {
             if (s2.contains(t)) {
+                result.remove(t);
+            }
+        }
+        return result;
+    }
+
+    public static <T> Set<T> and(Set<T> s1, Set<T> s2) {
+        Set<T> result = Sets.newHashSet(s1);
+        for (T t : s1) {
+            if (!s2.contains(t)) {
+                result.remove(t);
+            }
+        }
+        for (T t : result) {
+            if (!s2.contains(t)) {
                 result.remove(t);
             }
         }

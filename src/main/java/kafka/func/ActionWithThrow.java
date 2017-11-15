@@ -8,5 +8,5 @@ package kafka.func;/**
  **/
 @FunctionalInterface
 public interface ActionWithThrow {
-    void invoke() throws Exception;
+    void invoke() throws Throwable;
 }
