@@ -355,7 +355,7 @@ public class ReplicaManager extends KafkaMetricsGroup {
         }
     }
 
-    public Tuple<Map<Tuple<String, Integer>, Short>, Short> becomeLeaderOrFollower(LeaderAndIsrRequest leaderAndISRRequest, OffsetManager offsetManager) {
+    public Tuple<Map<Tuple<String, Integer>, Short>, Short> becomeLeaderOrFollower(LeaderAndIsrRequest leaderAndISRRequest, OffsetManager offsetManager) throws Throwable {
         Utils.foreach(leaderAndISRRequest.partitionStateInfos, (topicPartition, stateInfo) -> {
             stateChangeLogger.trace(String.format("Broker %d received LeaderAndIsr request %s correlation id %d from controller %d epoch %d for partition <%s,%d>",
                     localBrokerId, stateInfo, leaderAndISRRequest.correlationId,
@@ -498,7 +498,7 @@ public class ReplicaManager extends KafkaMetricsGroup {
      */
     private void makeFollowers(Integer controllerId, Integer epoch, Map<Partition, PartitionStateInfo> partitionState,
                                Set<Broker> leaders, Integer correlationId,
-                               Map<Tuple<String, Integer>, Short> responseMap, OffsetManager offsetManager) {
+                               Map<Tuple<String, Integer>, Short> responseMap, OffsetManager offsetManager) throws Throwable {
         partitionState.forEach((state, v) ->
                 stateChangeLogger.trace(String.format("Broker %d handling LeaderAndIsr request correlationId %d from controller %d epoch %d " +
                                 "starting the become-follower transition for partition %s",
