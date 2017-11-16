@@ -2,6 +2,7 @@ package kafka.api;
 
 import kafka.common.ErrorMapping;
 import kafka.consumer.ConsumerConfig;
+import kafka.func.Handler;
 import kafka.func.IntCount;
 import kafka.func.Tuple;
 import kafka.log.TopicAndPartition;
@@ -38,7 +39,8 @@ public class FetchRequest extends RequestOrResponse {
      */
     public Map<String, Map<TopicAndPartition, PartitionFetchInfo>> requestInfoGroupedByTopic;
 
-    public FetchRequest readFrom(ByteBuffer buffer) {
+
+    public final static Handler<ByteBuffer, FetchRequest> readFrom = (buffer) -> {
         short versionId = buffer.getShort();
         int correlationId = buffer.getInt();
         String clientId = ApiUtils.readShortString(buffer);
@@ -57,7 +59,7 @@ public class FetchRequest extends RequestOrResponse {
             });
         }).collect(Collectors.toList());
         return new FetchRequest(versionId, correlationId, clientId, replicaId, maxWait, minBytes, Utils.toMap(pairs));
-    }
+    };
 
     public FetchRequest(Short versionId,
                         Integer correlationId,

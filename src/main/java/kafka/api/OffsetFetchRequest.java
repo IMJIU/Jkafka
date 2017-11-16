@@ -3,6 +3,7 @@ package kafka.api;
 import kafka.common.ErrorMapping;
 import kafka.common.OffsetAndMetadata;
 import kafka.common.OffsetMetadataAndError;
+import kafka.func.Handler;
 import kafka.func.IntCount;
 import kafka.func.Tuple;
 import kafka.log.TopicAndPartition;
@@ -49,7 +50,7 @@ public class OffsetFetchRequest extends RequestOrResponse {//(Some(RequestKeys.O
         this.clientId = clientId;
     }
 
-    public static OffsetFetchRequest readFrom(ByteBuffer buffer) {
+    public final static Handler<ByteBuffer, OffsetFetchRequest> readFrom = (buffer) -> {
         // Read values from the envelope;
         short versionId = buffer.getShort();
         int correlationId = buffer.getInt();
@@ -67,7 +68,7 @@ public class OffsetFetchRequest extends RequestOrResponse {//(Some(RequestKeys.O
             }).stream();
         });
         return new OffsetFetchRequest(consumerGroupId, pairs, versionId, correlationId, clientId);
-    }
+    };
 
 
     public void writeTo(ByteBuffer buffer) {
@@ -104,9 +105,9 @@ public class OffsetFetchRequest extends RequestOrResponse {//(Some(RequestKeys.O
 
     @Override
     public void handleError(Throwable e, RequestChannel requestChannel, RequestChannel.Request request) {
-        Map<TopicAndPartition,OffsetMetadataAndError> responseMap = Sc.toMap(Sc.map(requestInfo, topicAndPartition ->
+        Map<TopicAndPartition, OffsetMetadataAndError> responseMap = Sc.toMap(Sc.map(requestInfo, topicAndPartition ->
                 Tuple.of(topicAndPartition,
-                        new OffsetMetadataAndError(OffsetAndMetadata.InvalidOffset,ErrorMapping.codeFor(e.getClass())))));
+                        new OffsetMetadataAndError(OffsetAndMetadata.InvalidOffset, ErrorMapping.codeFor(e.getClass())))));
         OffsetFetchResponse errorResponse = new OffsetFetchResponse(responseMap, correlationId = correlationId);
         requestChannel.sendResponse(new RequestChannel.Response(request, new BoundedByteBufferSend(errorResponse)));
     }

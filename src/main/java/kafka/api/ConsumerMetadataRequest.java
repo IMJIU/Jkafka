@@ -1,6 +1,7 @@
 package kafka.api;
 
 import kafka.common.ErrorMapping;
+import kafka.func.Handler;
 import kafka.network.BoundedByteBufferSend;
 import kafka.network.RequestChannel;
 
@@ -28,7 +29,7 @@ public class ConsumerMetadataRequest extends RequestOrResponse {
         this.clientId = clientId;
     }
 
-    public ConsumerMetadataRequest readFrom(ByteBuffer buffer) {
+    public final static Handler<ByteBuffer, ConsumerMetadataRequest> readFrom = (buffer) -> {
         // envelope;
         short versionId = buffer.getShort();
         int correlationId = buffer.getInt();
@@ -37,7 +38,7 @@ public class ConsumerMetadataRequest extends RequestOrResponse {
         // request;
         String group = ApiUtils.readShortString(buffer);
         return new ConsumerMetadataRequest(group, versionId, correlationId, clientId);
-    }
+    };
 
 
     public Integer sizeInBytes() {

@@ -1,6 +1,7 @@
 package kafka.api;
 
 import kafka.common.ErrorMapping;
+import kafka.func.Handler;
 import kafka.func.IntCount;
 import kafka.func.Tuple;
 import kafka.log.TopicAndPartition;
@@ -47,7 +48,8 @@ public class OffsetRequest extends RequestOrResponse {//RequestOrResponse(Some(R
         this(requestInfo, OffsetRequest.CurrentVersion, correlationId, OffsetRequest.DefaultClientId, replicaId);
     }
 
-    public OffsetRequest readFrom(ByteBuffer buffer) {
+
+    public final static Handler<ByteBuffer, OffsetRequest> readFrom = (buffer) -> {
         short versionId = buffer.getShort();
         int correlationId = buffer.getInt();
         String clientId = readShortString(buffer);
@@ -64,7 +66,7 @@ public class OffsetRequest extends RequestOrResponse {//RequestOrResponse(Some(R
             }).stream();
         });
         return new OffsetRequest(Sc.toMap(pairs), versionId, correlationId, clientId, replicaId);
-    }
+    };
 
 
     public void writeTo(ByteBuffer buffer) {

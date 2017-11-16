@@ -16,9 +16,9 @@ import static kafka.api.ApiUtils.*;
  **/
 
 public class StopReplicaResponse extends RequestOrResponse {
-    Integer correlationId;
-    Map<TopicAndPartition, Short> responseMap;
-    Short errorCode = ErrorMapping.NoError;
+    public Integer correlationId;
+    public Map<TopicAndPartition, Short> responseMap;
+    public Short errorCode = ErrorMapping.NoError;
 
     public StopReplicaResponse(Integer correlationId, Map<TopicAndPartition, Short> responseMap, Short errorCode) {
         this.correlationId = correlationId;

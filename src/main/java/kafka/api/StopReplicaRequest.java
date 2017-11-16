@@ -2,6 +2,7 @@ package kafka.api;
 
 import com.google.common.collect.Sets;
 import kafka.common.ErrorMapping;
+import kafka.func.Handler;
 import kafka.func.IntCount;
 import kafka.func.Tuple;
 import kafka.log.TopicAndPartition;
@@ -44,7 +45,7 @@ public class StopReplicaRequest extends RequestOrResponse {
         this.partitions = partitions;
     }
 
-    public StopReplicaRequest readFrom(ByteBuffer buffer) {
+    public final static Handler<ByteBuffer, StopReplicaRequest> readFrom = (buffer) -> {
         short versionId = buffer.getShort();
         int correlationId = buffer.getInt();
         String clientId = readShortString(buffer);
@@ -63,7 +64,7 @@ public class StopReplicaRequest extends RequestOrResponse {
         Utils.it(1, topicPartitionPairCount, m ->
                 topicPartitionPairSet.add(new TopicAndPartition(readShortString(buffer), buffer.getInt())));
         return new StopReplicaRequest(versionId, correlationId, clientId, controllerId, controllerEpoch, deletePartitions, topicPartitionPairSet);
-    }
+    };
 
 
     public StopReplicaRequest(Boolean deletePartitions, Set<TopicAndPartition> partitions, Integer controllerId, Integer controllerEpoch, Integer correlationId) {

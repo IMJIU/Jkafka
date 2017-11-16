@@ -53,23 +53,40 @@ public class KafkaController extends KafkaMetricsGroup {
     public ZkClient zkClient;
     public BrokerState brokerState;
     private boolean isRunning = true;
-    public ControllerContext controllerContext = new ControllerContext(zkClient, config.zkSessionTimeoutMs);
-    public PartitionStateMachine partitionStateMachine = new PartitionStateMachine(this);
-    public ReplicaStateMachine replicaStateMachine = new ReplicaStateMachine(this);
-    private ZookeeperLeaderElector controllerElector = new ZookeeperLeaderElector(controllerContext, ZkUtils.ControllerPath, onControllerFailover,
-            onControllerResignation, config.brokerId);
+    public ControllerContext controllerContext;
+    public PartitionStateMachine partitionStateMachine;
+    public ReplicaStateMachine replicaStateMachine;
+    private ZookeeperLeaderElector controllerElector;
     // have a separate scheduler for the controller to be able to start and stop independently of the;
 // kafka server;
     private KafkaScheduler autoRebalanceScheduler = new KafkaScheduler(1);
     public TopicDeletionManager deleteTopicManager = null;
-    public OfflinePartitionLeaderSelector offlinePartitionSelector = new OfflinePartitionLeaderSelector(controllerContext, config);
-    private ReassignedPartitionLeaderSelector reassignedPartitionLeaderSelector = new ReassignedPartitionLeaderSelector(controllerContext);
-    private PreferredReplicaPartitionLeaderSelector preferredReplicaPartitionLeaderSelector = new PreferredReplicaPartitionLeaderSelector(controllerContext);
-    private ControlledShutdownLeaderSelector controlledShutdownPartitionLeaderSelector = new ControlledShutdownLeaderSelector(controllerContext);
-    private ControllerBrokerRequestBatch brokerRequestBatch = new ControllerBrokerRequestBatch(this);
+    public OfflinePartitionLeaderSelector offlinePartitionSelector;
+    private ReassignedPartitionLeaderSelector reassignedPartitionLeaderSelector;
+    private PreferredReplicaPartitionLeaderSelector preferredReplicaPartitionLeaderSelector;
+    private ControlledShutdownLeaderSelector controlledShutdownPartitionLeaderSelector;
+    private ControllerBrokerRequestBatch brokerRequestBatch;
 
-    private PartitionsReassignedListener partitionReassignedListener = new PartitionsReassignedListener(this);
-    private PreferredReplicaElectionListener preferredReplicaElectionListener = new PreferredReplicaElectionListener(this);
+    private PartitionsReassignedListener partitionReassignedListener;
+    private PreferredReplicaElectionListener preferredReplicaElectionListener;
+
+    public void init() {
+        controllerContext = new ControllerContext(zkClient, config.zkSessionTimeoutMs);
+        partitionStateMachine = new PartitionStateMachine(this);
+        replicaStateMachine = new ReplicaStateMachine(this);
+        controllerElector = new ZookeeperLeaderElector(controllerContext, ZkUtils.ControllerPath, onControllerFailover,
+                onControllerResignation, config.brokerId);
+        // have a separate scheduler for the controller to be able to start and stop independently of the;
+// kafka server;
+        offlinePartitionSelector = new OfflinePartitionLeaderSelector(controllerContext, config);
+        reassignedPartitionLeaderSelector = new ReassignedPartitionLeaderSelector(controllerContext);
+        preferredReplicaPartitionLeaderSelector = new PreferredReplicaPartitionLeaderSelector(controllerContext);
+        controlledShutdownPartitionLeaderSelector = new ControlledShutdownLeaderSelector(controllerContext);
+        brokerRequestBatch = new ControllerBrokerRequestBatch(this);
+
+        partitionReassignedListener = new PartitionsReassignedListener(this);
+        preferredReplicaElectionListener = new PreferredReplicaElectionListener(this);
+    }
 
     public KafkaController(KafkaConfig config, ZkClient zkClient, BrokerState brokerState) throws StateChangeFailedException {
         this.config = config;
@@ -107,6 +124,7 @@ public class KafkaController extends KafkaMetricsGroup {
                     }
                 }
         );
+        init();
     }
 
 
@@ -116,7 +134,7 @@ public class KafkaController extends KafkaMetricsGroup {
             if (controllerInfo != null) {
                 return Integer.parseInt(controllerInfo.get("brokerid").toString());
             } else {
-                throw new KafkaException(String.format("Failed to parse the controller info json <%s>.", controllerInfoString))
+                throw new KafkaException(String.format("Failed to parse the controller info json <%s>.", controllerInfoString));
             }
         } catch (Throwable t) {
             // It may be due to an incompatible controller register version;
@@ -222,7 +240,7 @@ public class KafkaController extends KafkaMetricsGroup {
      */
     public ActionWithThrow onControllerFailover = () -> {
         if (isRunning) {
-            info(String.format("Broker %d starting become controller state transition", config.brokerId))
+            info(String.format("Broker %d starting become controller state transition", config.brokerId));
             //read controller epoch from zk;
             readControllerEpochFromZookeeper();
             // increment the controller epoch;
@@ -375,8 +393,8 @@ public class KafkaController extends KafkaMetricsGroup {
         // on the newly restarted brokers, there is a chance that topic deletion can resume;
         Set<PartitionAndReplica> replicasForTopicsToBeDeleted = Sc.filter(allReplicasOnNewBrokers, p -> deleteTopicManager.isTopicQueuedUpForDeletion(p.topic));
         if (replicasForTopicsToBeDeleted.size() > 0) {
-            info(("Some replicas %s for topics scheduled for deletion %s are on the newly restarted brokers %s. " +
-                    "Signaling restart of topic deletion for these topics").format(replicasForTopicsToBeDeleted,
+            info(String.format("Some replicas %s for topics scheduled for deletion %s are on the newly restarted brokers %s. " +
+                            "Signaling restart of topic deletion for these topics", replicasForTopicsToBeDeleted,
                     deleteTopicManager.topicsToBeDeleted, newBrokers));
             deleteTopicManager.resumeDeletionForTopics(Sc.map(replicasForTopicsToBeDeleted, r -> r.topic));
         }
@@ -1167,19 +1185,18 @@ class PartitionsReassignedListener extends Logging implements IZkDataListener {
         Map<TopicAndPartition, List<Integer>> partitionsToBeReassigned = Utils.inLock(controllerContext.controllerLock, () ->
                 Sc.filterNot(partitionsReassignmentData, (k, v) -> controllerContext.partitionsBeingReassigned.containsKey(k))
         );
-        partitionsToBeReassigned.foreach {
-            partitionToBeReassigned =>
-            inLock(controllerContext.controllerLock) {
-                if (controller.deleteTopicManager.isTopicQueuedUpForDeletion(partitionToBeReassigned._1.topic)) {
-                    error(String.format("Skipping reassignment of partition %s for topic %s since it is currently being deleted",
-                            partitionToBeReassigned._1, partitionToBeReassigned._1.topic));
-                    controller.removePartitionFromReassignedPartitions(partitionToBeReassigned._1);
-                } else {
-                    ReassignedPartitionsContext context = new ReassignedPartitionsContext(partitionToBeReassigned._2);
-                    controller.initiateReassignReplicasForTopicPartition(partitionToBeReassigned._1, context);
-                }
-            }
-        }
+        partitionsToBeReassigned.forEach(
+                (k, v) ->
+                        Utils.inLock(controllerContext.controllerLock, () -> {
+                            if (controller.deleteTopicManager.isTopicQueuedUpForDeletion(k.topic)) {
+                                error(String.format("Skipping reassignment of partition %s for topic %s since it is currently being deleted",
+                                        k, k.topic));
+                                controller.removePartitionFromReassignedPartitions(k);
+                            } else {
+                                ReassignedPartitionsContext context = new ReassignedPartitionsContext(v);
+                                controller.initiateReassignReplicasForTopicPartition(k, context);
+                            }
+                        }));
     }
 
     /**
@@ -1228,7 +1245,7 @@ class PreferredReplicaElectionListener extends Logging implements IZkDataListene
                 error(String.format("Skipping preferred replica election for partitions %s since the respective topics are being deleted",
                         partitionsForTopicsToBeDeleted));
             }
-            controller.onPreferredReplicaElection(Sc.subtract(partitions,partitionsForTopicsToBeDeleted));
+            controller.onPreferredReplicaElection(Sc.subtract(partitions, partitionsForTopicsToBeDeleted));
         });
     }
 

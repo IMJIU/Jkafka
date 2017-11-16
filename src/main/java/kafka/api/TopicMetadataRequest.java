@@ -2,6 +2,7 @@ package kafka.api;
 
 import com.google.common.collect.Lists;
 import kafka.common.ErrorMapping;
+import kafka.func.Handler;
 import kafka.func.IntCount;
 import kafka.func.Tuple;
 import kafka.network.BoundedByteBufferSend;
@@ -40,8 +41,7 @@ public class TopicMetadataRequest extends RequestOrResponse {// (Some(RequestKey
      * TopicMetadataRequest has the following format -
      * number of topics (4 bytes) list of topics (2 bytes + topic.length per topic) detailedMetadata (2 bytes) timestamp (8 bytes) count (4 bytes)
      */
-
-    public static TopicMetadataRequest readFrom(ByteBuffer buffer) {
+    public final static Handler<ByteBuffer, TopicMetadataRequest> readFrom = (buffer) -> {
         short versionId = buffer.getShort();
         int correlationId = buffer.getInt();
         String clientId = readShortString(buffer);
@@ -49,7 +49,7 @@ public class TopicMetadataRequest extends RequestOrResponse {// (Some(RequestKey
         List<String> topics = Lists.newArrayList();
         Sc.it(0, numTopics, n -> topics.add(readShortString(buffer)));
         return new TopicMetadataRequest(versionId, correlationId, clientId, topics);
-    }
+    };
 
 
     public TopicMetadataRequest(List<String> topics, Integer correlationId) {

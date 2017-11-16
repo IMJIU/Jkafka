@@ -4,6 +4,7 @@ package kafka.api;/**
 
 import kafka.common.ErrorMapping;
 import kafka.common.OffsetAndMetadata;
+import kafka.func.Handler;
 import kafka.func.IntCount;
 import kafka.func.Tuple;
 import kafka.log.TopicAndPartition;
@@ -47,8 +48,7 @@ public class OffsetCommitRequest extends RequestOrResponse {
         this.consumerId = consumerId;
         requestInfoGroupedByTopic = Utils.groupByKey(requestInfo, t -> t.topic);
     }
-
-    public static OffsetCommitRequest readFrom(ByteBuffer buffer) {
+    public final static Handler<ByteBuffer, OffsetCommitRequest> readFrom = (buffer) -> {
         // Read values from the envelope;
         Short versionId = buffer.getShort();
         Prediction.Assert(versionId == 0 || versionId == 1,
@@ -87,7 +87,7 @@ public class OffsetCommitRequest extends RequestOrResponse {
             });
         }).collect(Collectors.toList());
         return new OffsetCommitRequest(consumerGroupId, Utils.toMap(pairs), versionId, correlationId, clientId, groupGenerationId, consumerId);
-    }
+    };
 
     public static void changeInvalidTimeToCurrentTime(OffsetCommitRequest offsetCommitRequest) {
         Long now = Time.get().milliseconds();

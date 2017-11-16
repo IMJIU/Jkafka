@@ -4,6 +4,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import kafka.cluster.Broker;
 import kafka.common.ErrorMapping;
+import kafka.func.Handler;
 import kafka.func.IntCount;
 import kafka.func.Tuple;
 import kafka.network.BoundedByteBufferSend;
@@ -48,7 +49,7 @@ public class LeaderAndIsrRequest extends RequestOrResponse {
         this(LeaderAndIsrRequest.CurrentVersion, correlationId, clientId, controllerId, controllerEpoch, partitionStateInfos, leaders);
     }
 
-    public static LeaderAndIsrRequest readFrom(ByteBuffer buffer) {
+    public final static Handler<ByteBuffer, LeaderAndIsrRequest> readFrom = (buffer) -> {
         short versionId = buffer.getShort();
         int correlationId = buffer.getInt();
         String clientId = readShortString(buffer);
@@ -71,7 +72,7 @@ public class LeaderAndIsrRequest extends RequestOrResponse {
             leaders.add(Broker.readFrom(buffer));
 
         return new LeaderAndIsrRequest(versionId, correlationId, clientId, controllerId, controllerEpoch, partitionStateInfos, leaders);
-    }
+    };
 
 
     public void writeTo(ByteBuffer buffer) {

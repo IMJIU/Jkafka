@@ -9,13 +9,13 @@ import kafka.func.ActionP2;
  * @create 2017-11-06 18:09
  **/
 public class Callbacks {
-    public ActionP2<RequestOrResponse,Object> leaderAndIsrResponseCallback;
-    public ActionP2<RequestOrResponse,Object> updateMetadataResponseCallback;
-    public ActionP2<RequestOrResponse,Object> stopReplicaResponseCallback;
+    public ActionP<RequestOrResponse> leaderAndIsrResponseCallback;
+    public ActionP<RequestOrResponse> updateMetadataResponseCallback;
+    public ActionP2<RequestOrResponse, Integer> stopReplicaResponseCallback;
 
-    public Callbacks(ActionP2<RequestOrResponse,Object> leaderAndIsrResponseCallback,
-                     ActionP2<RequestOrResponse,Object> updateMetadataResponseCallback,
-                     ActionP2<RequestOrResponse,Object> stopReplicaResponseCallback) {
+    public Callbacks(ActionP<RequestOrResponse> leaderAndIsrResponseCallback,
+                     ActionP<RequestOrResponse> updateMetadataResponseCallback,
+                     ActionP2<RequestOrResponse, Integer> stopReplicaResponseCallback) {
         this.leaderAndIsrResponseCallback = leaderAndIsrResponseCallback;
         this.updateMetadataResponseCallback = updateMetadataResponseCallback;
         this.stopReplicaResponseCallback = stopReplicaResponseCallback;
