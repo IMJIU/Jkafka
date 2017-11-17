@@ -93,6 +93,11 @@ class DelayedProduceResponseStatus {
     public ProducerResponseStatus responseStatus;
     public volatile boolean acksPending = false;
 
+    public DelayedProduceResponseStatus(Long requiredOffset, ProducerResponseStatus responseStatus) {
+        this.requiredOffset = requiredOffset;
+        this.responseStatus = responseStatus;
+    }
+
     @Override
     public String toString() {
         return String.format("acksPending:%b, error: %d, startOffset: %d, requiredOffset: %d",

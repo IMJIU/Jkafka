@@ -17,7 +17,7 @@ import java.util.stream.Stream;
  **/
 public class Sc {
 
-    public static <T> int count(Collection<T> it, Handler<T, Boolean> handler) {
+    public static <T> int count(Iterable<T> it, Handler<T, Boolean> handler) {
         int count = 0;
         for (T t : it) {
             if (handler.handle(t)) {
@@ -125,6 +125,13 @@ public class Sc {
             maps.put(tag, m);
         }
         return maps;
+    }
+
+    public static <V> V getOrElse(Optional<V> opt, V v) {
+        if (opt.isPresent()) {
+            return opt.get();
+        }
+        return v;
     }
 
     public static <V, RESULT> Optional<RESULT> map(Optional<V> it, Handler<V, RESULT> handler) {
@@ -438,7 +445,7 @@ public class Sc {
         return result;
     }
 
-    public static <T> T find(Collection<T> list, Handler<T, Boolean> handler) {
+    public static <T> T find(Iterable<T> list, Handler<T, Boolean> handler) {
         for (T t : list) {
             if (handler.handle(t)) {
                 return t;
@@ -556,5 +563,12 @@ public class Sc {
             result.addAll(t);
         }
         return result;
+    }
+
+    public static <T> boolean foldBooleanOr(Iterable<T> it, boolean b, Handler<T, Boolean> handler) {
+        for (T t : it) {
+            b = b || handler.handle(t);
+        }
+        return b;
     }
 }

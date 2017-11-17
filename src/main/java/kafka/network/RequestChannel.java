@@ -32,7 +32,7 @@ public class RequestChannel extends KafkaMetricsGroup {
     Integer numProcessors;
     Integer queueSize;
     private List<ActionP<Integer>> responseListeners = Lists.newArrayList();
-    private ArrayBlockingQueue<Request> requestQueue ;
+    private ArrayBlockingQueue<Request> requestQueue;
     private BlockingQueue<Response>[] responseQueues;
     public static Request AllDone = new Request(1, 2, getShutdownReceive(), 0L);
 
@@ -46,7 +46,7 @@ public class RequestChannel extends KafkaMetricsGroup {
     public void init() {
         requestQueue = new ArrayBlockingQueue<>(queueSize);
         responseQueues = new BlockingQueue[numProcessors];
-         for (int i = 0; i < numProcessors; i++)
+        for (int i = 0; i < numProcessors; i++)
             responseQueues[i] = new LinkedBlockingQueue<>();
 
         newGauge("RequestQueueSize",
@@ -71,7 +71,7 @@ public class RequestChannel extends KafkaMetricsGroup {
 
 
     public static ByteBuffer getShutdownReceive() {
-        ProducerRequest emptyProducerRequest = new ProducerRequest((short)0, 0, "", (short)0, 0, Maps.newHashMap());
+        ProducerRequest emptyProducerRequest = new ProducerRequest((short) 0, 0, "", (short) 0, 0, Maps.newHashMap());
         ByteBuffer byteBuffer = ByteBuffer.allocate(emptyProducerRequest.sizeInBytes() + 2);
         byteBuffer.putShort(RequestKeys.ProduceKey);
         emptyProducerRequest.writeTo(byteBuffer);
@@ -84,14 +84,18 @@ public class RequestChannel extends KafkaMetricsGroup {
      * Send a request to be handled, potentially blocking until there is room in the queue for the request
      */
 
-    public void sendRequest(Request request) throws InterruptedException {
-        requestQueue.put(request);
+    public void sendRequest(Request request) {
+        try {
+            requestQueue.put(request);
+        } catch (InterruptedException e) {
+            error(e.getMessage(), e);
+        }
     }
 
     /**
      * Send a response back to the socket server to be sent over the network
      */
-    public void sendResponse(Response response)  {
+    public void sendResponse(Response response) {
         try {
             responseQueues[response.processor].put(response);
         } catch (InterruptedException e) {
@@ -104,32 +108,47 @@ public class RequestChannel extends KafkaMetricsGroup {
     /**
      * No operation to take for the request, need to read more over the network
      */
-    public void noOperation(Integer processor, RequestChannel.Request request) throws InterruptedException {
-        responseQueues[processor].put(new Response(processor, request, null, ResponseAction.NoOpAction));
-        for (ActionP onResponse : responseListeners)
-            onResponse.invoke(processor);
+    public void noOperation(Integer processor, RequestChannel.Request request) {
+        try {
+            responseQueues[processor].put(new Response(processor, request, null, ResponseAction.NoOpAction));
+            for (ActionP onResponse : responseListeners)
+                onResponse.invoke(processor);
+        } catch (InterruptedException e) {
+            error(e.getMessage(), e);
+        }
+
     }
 
     /**
      * Close the connection for the request
      */
-    public void closeConnection(Integer processor, Request request) throws InterruptedException {
-        responseQueues[processor].put(new Response(processor, request, null, ResponseAction.CloseConnectionAction));
-        for (ActionP onResponse : responseListeners)
-            onResponse.invoke(processor);
+    public void closeConnection(Integer processor, Request request) {
+        try {
+            responseQueues[processor].put(new Response(processor, request, null, ResponseAction.CloseConnectionAction));
+            for (ActionP onResponse : responseListeners)
+                onResponse.invoke(processor);
+        } catch (InterruptedException e) {
+            error(e.getMessage(), e);
+        }
+
     }
 
     /**
      * Get the next request or block until specified time has elapsed
      */
-    public Request receiveRequest(Long timeout) throws InterruptedException {
-        return requestQueue.poll(timeout, TimeUnit.MILLISECONDS);
+    public Request receiveRequest(Long timeout) {
+        try {
+            return requestQueue.poll(timeout, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            error(e.getMessage(), e);
+        }
+        return null;
     }
 
     /**
      * Get the next request or block until there is one
      */
-    public Request receiveRequest()  {
+    public Request receiveRequest() {
         try {
             return requestQueue.take();
         } catch (InterruptedException e) {

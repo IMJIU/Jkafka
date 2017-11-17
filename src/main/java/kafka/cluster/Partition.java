@@ -5,6 +5,7 @@ import com.google.common.collect.Sets;
 import com.yammer.metrics.core.Gauge;
 import kafka.admin.AdminUtils;
 import kafka.api.LeaderAndIsr;
+import kafka.controller.KafkaController;
 import kafka.controller.ctrl.LeaderIsrAndControllerEpoch;
 import kafka.api.PartitionStateInfo;
 import kafka.common.ErrorMapping;
@@ -421,7 +422,7 @@ public class Partition extends KafkaMetricsGroup {
         appendMessagesToLeader(messages, 0);
     }
 
-    public void appendMessagesToLeader(ByteBufferMessageSet messages, Integer requiredAcks) {
+    public LogAppendInfo appendMessagesToLeader(ByteBufferMessageSet messages, Integer requiredAcks) {
         Utils.inReadLock(leaderIsrUpdateLock, () -> {
             Optional<Replica> leaderReplicaOpt = leaderReplicaIfLocal();
             if (leaderReplicaOpt.isPresent()) {
@@ -447,6 +448,7 @@ public class Partition extends KafkaMetricsGroup {
                         topic, partitionId, localBrokerId));
             }
         });
+        return null;
     }
 
     private void updateIsr(Set<Replica> newIsr) {

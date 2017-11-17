@@ -12,6 +12,7 @@ import kafka.common.ControllerMovedException;
 import kafka.common.ErrorMapping;
 import kafka.common.NotAssignedReplicaException;
 import kafka.common.ReplicaNotAvailableException;
+import kafka.controller.KafkaController;
 import kafka.controller.ctrl.LeaderIsrAndControllerEpoch;
 import kafka.func.Tuple;
 import kafka.log.LogManager;
@@ -267,9 +268,9 @@ public class ReplicaManager extends KafkaMetricsGroup {
      * Read from all the offset details given and return a map of
      * (topic, partition) -> PartitionData
      */
-    public List<Tuple<TopicAndPartition, PartitionDataAndOffset>> readMessageSets(FetchRequest fetchRequest) {
+    public Map<TopicAndPartition, PartitionDataAndOffset> readMessageSets(FetchRequest fetchRequest) {
         boolean isFetchFromFollower = fetchRequest.isFromFollower();
-        return Utils.map(fetchRequest.requestInfo, (topicAndPartition, partitionFetchInfo) -> {
+        return Sc.toMap(Utils.map(fetchRequest.requestInfo, (topicAndPartition, partitionFetchInfo) -> {
             String topic = topicAndPartition.topic;
             Integer partition = topicAndPartition.partition;
             Long offset = partitionFetchInfo.offset;
@@ -304,9 +305,8 @@ public class ReplicaManager extends KafkaMetricsGroup {
                 partitionDataAndOffsetInfo = new PartitionDataAndOffset(new FetchResponsePartitionData(ErrorMapping.codeFor(t.getClass()), -1L, MessageSet.Empty), LogOffsetMetadata.UnknownOffsetMetadata);
             }
             return Tuple.of(new TopicAndPartition(topic, partition), partitionDataAndOffsetInfo);
-        });
+        }));
     }
-//
 
     /**
      * Read from a single topic/partition at the given offset upto maxSize bytes

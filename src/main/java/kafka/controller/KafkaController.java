@@ -32,6 +32,7 @@ import kafka.log.TopicAndPartition;
 import kafka.metrics.KafkaMetricsGroup;
 import kafka.server.BrokerState;
 import kafka.server.KafkaConfig;
+import kafka.server.StateChangeLogger;
 import kafka.server.ZookeeperLeaderElector;
 import kafka.utils.*;
 import org.I0Itec.zkclient.IZkDataListener;
@@ -1257,11 +1258,3 @@ class PreferredReplicaElectionListener extends Logging implements IZkDataListene
     }
 }
 
-
-class StateChangeLogger extends Logging {
-    // TODO: 2017/11/2
-
-    public StateChangeLogger(String loggerName) {
-        super(loggerName);
-    }
-}

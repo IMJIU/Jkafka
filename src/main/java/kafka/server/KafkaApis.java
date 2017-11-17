@@ -5,8 +5,11 @@ package kafka.server;/**
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
 import kafka.api.*;
+import kafka.cluster.Partition;
 import kafka.common.*;
+import kafka.controller.KafkaController;
 import kafka.func.Tuple;
+import kafka.log.LogAppendInfo;
 import kafka.log.TopicAndPartition;
 import kafka.message.ByteBufferMessageSet;
 import kafka.message.Message;
@@ -15,6 +18,8 @@ import kafka.network.RequestChannel;
 import kafka.utils.*;
 import org.I0Itec.zkclient.ZkClient;
 import org.apache.kafka.common.errors.InvalidTopicException;
+import org.apache.kafka.common.errors.NotEnoughReplicasException;
+import org.apache.kafka.common.errors.NotLeaderForPartitionException;
 import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
 
 import java.util.List;
@@ -36,6 +41,8 @@ public class KafkaApis extends Logging {
     public KafkaConfig config;
     public KafkaController controller;
     public MetadataCache metadataCache = new MetadataCache();
+    public ProducerRequestPurgatory producerRequestPurgatory;
+    public FetchRequestPurgatory fetchRequestPurgatory;
 
     public KafkaApis(RequestChannel requestChannel, ReplicaManager replicaManager, OffsetManager offsetManager, ZkClient zkClient, Integer brokerId, KafkaConfig config, KafkaController controller) {
         this.requestChannel = requestChannel;
@@ -45,8 +52,8 @@ public class KafkaApis extends Logging {
         this.brokerId = brokerId;
         this.config = config;
         this.controller = controller;
-        ProducerRequestPurgatory producerRequestPurgatory = new ProducerRequestPurgatory(replicaManager, offsetManager, requestChannel);
-        FetchRequestPurgatory fetchRequestPurgatory = new FetchRequestPurgatory(replicaManager, requestChannel);
+        producerRequestPurgatory = new ProducerRequestPurgatory(replicaManager, offsetManager, requestChannel);
+        fetchRequestPurgatory = new FetchRequestPurgatory(replicaManager, requestChannel);
         // the TODO following line will be removed in 0.9;
         replicaManager.initWithRequestPurgatory(producerRequestPurgatory, fetchRequestPurgatory);
         loggerName(String.format("<KafkaApi-%d> ", brokerId));
@@ -193,19 +200,19 @@ public class KafkaApis extends Logging {
                     OffsetManager.offsetCommitKey(offsetCommitRequest.groupId, topicAndPartition.topic, topicAndPartition.partition));
         }).collect(Collectors.toList());
 
-        Map<TopicAndPartition,ByteBufferMessageSet> producerData = ImmutableMap.of(
+        Map<TopicAndPartition, ByteBufferMessageSet> producerData = ImmutableMap.of(
                 new TopicAndPartition(OffsetManager.OffsetsTopicName, offsetManager.partitionFor(offsetCommitRequest.groupId)),
-        new ByteBufferMessageSet(config.offsetsTopicCompressionCodec, msgs )
-    );
+                new ByteBufferMessageSet(config.offsetsTopicCompressionCodec, msgs)
+        );
 
         ProducerRequest request = new ProducerRequest(
-                correlationId = offsetCommitRequest.correlationId,
-                clientId = offsetCommitRequest.clientId,
-                requiredAcks = config.offsetCommitRequiredAcks,
-                ackTimeoutMs = config.offsetCommitTimeoutMs,
-                data = producerData);
-        trace(String.format("Created producer request %s for offset commit request %s.", request, offsetCommitRequest))
-        request;
+                offsetCommitRequest.correlationId,
+                offsetCommitRequest.clientId,
+                config.offsetCommitRequiredAcks,
+                config.offsetCommitTimeoutMs,
+                producerData);
+        trace(String.format("Created producer request %s for offset commit request %s.", request, offsetCommitRequest));
+        return request;
     }
 
     /**
@@ -228,66 +235,66 @@ public class KafkaApis extends Logging {
         if (produceRequest.requiredAcks > 1 || produceRequest.requiredAcks < -1) {
             warn(("Client %s from %s sent a produce request with request.required.acks of %d, which is now deprecated and will " +
                     "be removed in next release. Valid values are -1, 0 or 1. Please consult Kafka documentation for supported " +
-                    "and recommended configuration.").format(produceRequest.clientId, request.remoteAddress, produceRequest.requiredAcks))
+                    "and recommended configuration.").format(produceRequest.clientId, request.remoteAddress, produceRequest.requiredAcks));
         }
 
         Long sTime = Time.get().milliseconds();
         Iterable<ProduceResult> localProduceResults = appendToLocalLog(produceRequest, offsetCommitRequestOpt.isPresent());
         debug(String.format("Produce to local log in %d ms", Time.get().milliseconds() - sTime));
-
-        val firstErrorCode = localProduceResults.find(_.errorCode != ErrorMapping.NoError).map(_.errorCode).getOrElse(ErrorMapping.NoError);
-
-        val numPartitionsInError = localProduceResults.count(_.error.isDefined);
+        ProduceResult produceResult = Sc.find(localProduceResults, r -> r.errorCode() != ErrorMapping.NoError);
+        Short firstErrorCode;
+        if (produceRequest != null) {
+            firstErrorCode = produceResult.errorCode();
+        }
+        int numPartitionsInError = Sc.count(localProduceResults, r -> r.error.isPresent());
         if (produceRequest.requiredAcks == 0) {
             // no operation needed if producer request.required.acks = 0; however, if there is any exception in handling the request, since;
             // no response is expected by the producer the handler will send a close connection response to the socket server;
             // to close the socket so that the producer client will know that some exception has happened and will refresh its metadata;
             if (numPartitionsInError != 0) {
-                info(("Send the close connection response due to error handling produce request " +
-                        "<clientId = %s, correlationId = %s, topicAndPartition = %s> with Ack=0");
-                        .
-                format(produceRequest.clientId, produceRequest.correlationId, produceRequest.topicPartitionMessageSizeMap.keySet.mkString(",")))
+                info(String.format("Send the close connection response due to error handling produce request " +
+                                "<clientId = %s, correlationId = %s, topicAndPartition = %s> with Ack=0",
+                        produceRequest.clientId, produceRequest.correlationId, produceRequest.topicPartitionMessageSizeMap.keySet()));
                 requestChannel.closeConnection(request.processor, request);
             } else {
-
                 if (firstErrorCode == ErrorMapping.NoError)
-                    offsetCommitRequestOpt.foreach(ocr -> offsetManager.putOffsets(ocr.groupId, ocr.requestInfo))
+                    if (offsetCommitRequestOpt.isPresent()) {
+                        offsetManager.putOffsets(offsetCommitRequestOpt.get().groupId, offsetCommitRequestOpt.get().requestInfo);
+                    }
 
-                if (offsetCommitRequestOpt.isDefined) {
-                    val response = offsetCommitRequestOpt.get.responseFor(firstErrorCode, config.offsetMetadataMaxSize);
+                if (offsetCommitRequestOpt.isPresent()) {
+                    OffsetCommitResponse response = offsetCommitRequestOpt.get().responseFor(firstErrorCode, config.offsetMetadataMaxSize);
                     requestChannel.sendResponse(new RequestChannel.Response(request, new BoundedByteBufferSend(response)));
-                } else ;
-                requestChannel.noOperation(request.processor, request);
+                } else
+                    requestChannel.noOperation(request.processor, request);
             }
-        } else if ( produceRequest.requiredAcks == 1 ||;
-        produceRequest.numPartitions <= 0 ||;
-        numPartitionsInError == produceRequest.numPartitions){
+        } else if (produceRequest.requiredAcks == 1 ||
+                produceRequest.numPartitions() <= 0 ||
+                numPartitionsInError == produceRequest.numPartitions()) {
 
             if (firstErrorCode == ErrorMapping.NoError) {
-                offsetCommitRequestOpt.foreach(ocr -> offsetManager.putOffsets(ocr.groupId, ocr.requestInfo))
+                if (offsetCommitRequestOpt.isPresent()) {
+                    offsetManager.putOffsets(offsetCommitRequestOpt.get().groupId, offsetCommitRequestOpt.get().requestInfo);
+                }
             }
-
-            val statuses = localProduceResults.map(r -> r.key ->ProducerResponseStatus(r.errorCode, r.start)).toMap;
-            val response = offsetCommitRequestOpt.map(_.responseFor(firstErrorCode, config.offsetMetadataMaxSize));
-                    .getOrElse(ProducerResponse(produceRequest.correlationId, statuses));
-
+            Map<TopicAndPartition, ProducerResponseStatus> statuses = Sc.toMap(Sc.map(localProduceResults, r -> Tuple.of(r.key, new ProducerResponseStatus(r.errorCode(), r.start))));
+            RequestOrResponse response = Sc.getOrElse(Sc.map(offsetCommitRequestOpt, r -> r.responseFor(firstErrorCode, config.offsetMetadataMaxSize)), new ProducerResponse(produceRequest.correlationId, statuses));
             requestChannel.sendResponse(new RequestChannel.Response(request, new BoundedByteBufferSend(response)));
-        } else{
+        } else {
             // create a list of (topic, partition) pairs to use as keys for this delayed request;
-            val producerRequestKeys = produceRequest.data.keys.toSeq;
-            val statuses = localProduceResults.map(r ->
-                    r.key ->DelayedProduceResponseStatus(r.end + 1, ProducerResponseStatus(r.errorCode, r.start))).
-            toMap;
-            val delayedRequest = new DelayedProduce(
+            List<TopicAndPartition> producerRequestKeys = Sc.toList(produceRequest.data.keySet());
+            Map<TopicAndPartition, DelayedProduceResponseStatus> statuses = Sc.toMap(Sc.map(localProduceResults, r ->
+                    Tuple.of(r.key, new DelayedProduceResponseStatus(r.end + 1, new ProducerResponseStatus(r.errorCode(), r.start)))));
+            DelayedProduce delayedRequest = new DelayedProduce(
                     producerRequestKeys,
                     request,
-                    produceRequest.ackTimeoutMs.toLong,
+                    produceRequest.ackTimeoutMs.longValue(),
                     produceRequest,
                     statuses,
                     offsetCommitRequestOpt);
 
             // add the produce request for watch if it's not satisfied, otherwise send the response back;
-            val satisfiedByMe = producerRequestPurgatory.checkAndMaybeWatch(delayedRequest);
+            Boolean satisfiedByMe = producerRequestPurgatory.checkAndMaybeWatch(delayedRequest);
             if (satisfiedByMe)
                 producerRequestPurgatory.respond(delayedRequest);
         }
@@ -301,6 +308,10 @@ public class KafkaApis extends Logging {
         public Long start;
         public Long end;
         public Optional<Throwable> error;
+
+        public ProduceResult(TopicAndPartition key, Long start, Long end) {
+            this(key, start, end, Optional.empty());
+        }
 
         public ProduceResult(TopicAndPartition key, Long start, Long end, Optional<java.lang.Throwable> error) {
             this.key = key;
@@ -330,97 +341,94 @@ public class KafkaApis extends Logging {
     private Iterable<ProduceResult> appendToLocalLog(ProducerRequest producerRequest, Boolean isOffsetCommit) {
         Map<TopicAndPartition, ByteBufferMessageSet> partitionAndData = producerRequest.data;
         trace(String.format("Append <%s> to local log ", partitionAndData.toString()));
-        partitionAndData.forEach((topicAndPartition, messages) -> {
+        return Sc.map(partitionAndData, (topicAndPartition, messages) -> {
             try {
                 if (Topic.InternalTopics.contains(topicAndPartition.topic) &&
                         !(isOffsetCommit && topicAndPartition.topic == OffsetManager.OffsetsTopicName)) {
-                    throw new InvalidTopicException(String.format("Cannot append to internal topic %s", topicAndPartition.topic))
+                    throw new InvalidTopicException(String.format("Cannot append to internal topic %s", topicAndPartition.topic));
                 }
-                val partitionOpt = replicaManager.getPartition(topicAndPartition.topic, topicAndPartition.partition);
-                val info = partitionOpt match {
-                    case Some(partition) ->
-                        partition.appendMessagesToLeader(messages.asInstanceOf < ByteBufferMessageSet >, producerRequest.requiredAcks);
-                    case None -> throw new UnknownTopicOrPartitionException("Partition %s doesn't exist on %d";
-                            .format(topicAndPartition, brokerId))
+                Optional<Partition> partitionOpt = replicaManager.getPartition(topicAndPartition.topic, topicAndPartition.partition);
+                LogAppendInfo info = null;
+                if (partitionOpt.isPresent()) {
+                    info = partitionOpt.get().appendMessagesToLeader(messages, producerRequest.requiredAcks.intValue());
+                } else {
+                    throw new UnknownTopicOrPartitionException(String.format("Partition %s doesn't exist on %d", topicAndPartition, brokerId));
                 }
 
-                val numAppendedMessages = if (info.firstOffset == -1L || info.lastOffset == -1L) 0
-                else (info.lastOffset - info.firstOffset + 1)
+
+                long numAppendedMessages = (info.firstOffset == -1L || info.lastOffset == -1L) ? 0 : (info.lastOffset - info.firstOffset + 1);
 
                 // update stats for successfully appended bytes and messages as bytesInRate and messageInRate;
-                BrokerTopicStats.getBrokerTopicStats(topicAndPartition.topic).bytesInRate.mark(messages.sizeInBytes);
-                BrokerTopicStats.getBrokerAllTopicsStats.bytesInRate.mark(messages.sizeInBytes);
+                BrokerTopicStats.getBrokerTopicStats(topicAndPartition.topic).bytesInRate.mark(messages.sizeInBytes());
+                BrokerTopicStats.getBrokerAllTopicsStats().bytesInRate.mark(messages.sizeInBytes());
                 BrokerTopicStats.getBrokerTopicStats(topicAndPartition.topic).messagesInRate.mark(numAppendedMessages);
-                BrokerTopicStats.getBrokerAllTopicsStats.messagesInRate.mark(numAppendedMessages);
+                BrokerTopicStats.getBrokerAllTopicsStats().messagesInRate.mark(numAppendedMessages);
 
-                trace("%d bytes written to log %s-%d beginning at offset %d and ending at offset %d";
-                        .
-                format(messages.size, topicAndPartition.topic, topicAndPartition.partition, info.firstOffset, info.lastOffset))
-                ProduceResult(topicAndPartition, info.firstOffset, info.lastOffset);
-            } catch {
+                trace(String.format("%d bytes written to log %s-%d beginning at offset %d and ending at offset %d",
+                        messages.sizeInBytes(), topicAndPartition.topic, topicAndPartition.partition, info.firstOffset, info.lastOffset));
+                return new ProduceResult(topicAndPartition, info.firstOffset, info.lastOffset);
+            } catch (KafkaStorageException e) {
                 // Failed NOTE produce requests is not incremented for UnknownTopicOrPartitionException and NotLeaderForPartitionException;
                 // since failed produce requests metric is supposed to indicate failure of a broker in handling a produce request;
                 // for a partition it is the leader for;
-                case KafkaStorageException e ->
-                        fatal("Halting due to unrecoverable I/O error while handling produce request: ", e);
-                    Runtime.getRuntime.halt(1);
-                    null;
-                case InvalidTopicException ite ->
-                        warn(String.format("Produce request with correlation id %d from client %s on partition %s failed due to %s",
-                                producerRequest.correlationId, producerRequest.clientId, topicAndPartition, ite.getMessage));
-                    new ProduceResult(topicAndPartition, ite);
-                case UnknownTopicOrPartitionException utpe ->
-                        warn(String.format("Produce request with correlation id %d from client %s on partition %s failed due to %s",
-                                producerRequest.correlationId, producerRequest.clientId, topicAndPartition, utpe.getMessage));
-                    new ProduceResult(topicAndPartition, utpe);
-                case NotLeaderForPartitionException nle ->
-                        warn(String.format("Produce request with correlation id %d from client %s on partition %s failed due to %s",
-                                producerRequest.correlationId, producerRequest.clientId, topicAndPartition, nle.getMessage));
-                    new ProduceResult(topicAndPartition, nle);
-                case NotEnoughReplicasException nere ->
-                        warn(String.format("Produce request with correlation id %d from client %s on partition %s failed due to %s",
-                                producerRequest.correlationId, producerRequest.clientId, topicAndPartition, nere.getMessage));
-                    new ProduceResult(topicAndPartition, nere);
-                case Throwable e ->
-                        BrokerTopicStats.getBrokerTopicStats(topicAndPartition.topic).failedProduceRequestRate.mark();
-                    BrokerTopicStats.getBrokerAllTopicsStats.failedProduceRequestRate.mark();
-                    error("Error processing ProducerRequest with correlation id %d from client %s on partition %s";
-                        .format(producerRequest.correlationId, producerRequest.clientId, topicAndPartition), e)
-                    new ProduceResult(topicAndPartition, e);
+                error("Halting due to unrecoverable I/O error while handling produce request: ", e);
+                Runtime.getRuntime().halt(1);
+                return null;
+            } catch (InvalidTopicException ite) {
+                warn(String.format("Produce request with correlation id %d from client %s on partition %s failed due to %s",
+                        producerRequest.correlationId, producerRequest.clientId, topicAndPartition, ite.getMessage()));
+                return new ProduceResult(topicAndPartition, ite);
+            } catch (UnknownTopicOrPartitionException utpe) {
+                warn(String.format("Produce request with correlation id %d from client %s on partition %s failed due to %s",
+                        producerRequest.correlationId, producerRequest.clientId, topicAndPartition, utpe.getMessage()));
+                return new ProduceResult(topicAndPartition, utpe);
+            } catch (NotLeaderForPartitionException nle) {
+                warn(String.format("Produce request with correlation id %d from client %s on partition %s failed due to %s",
+                        producerRequest.correlationId, producerRequest.clientId, topicAndPartition, nle.getMessage()));
+                return new ProduceResult(topicAndPartition, nle);
+            } catch (NotEnoughReplicasException nere) {
+                warn(String.format("Produce request with correlation id %d from client %s on partition %s failed due to %s",
+                        producerRequest.correlationId, producerRequest.clientId, topicAndPartition, nere.getMessage()));
+                return new ProduceResult(topicAndPartition, nere);
+            } catch (Throwable e) {
+                BrokerTopicStats.getBrokerTopicStats(topicAndPartition.topic).failedProduceRequestRate.mark();
+                BrokerTopicStats.getBrokerAllTopicsStats().failedProduceRequestRate.mark();
+                error(String.format("Error processing ProducerRequest with correlation id %d from client %s on partition %s"
+                        , producerRequest.correlationId, producerRequest.clientId, topicAndPartition), e);
+                return new ProduceResult(topicAndPartition, e);
             }
-        }
+        });
     }
 
     /**
      * Handle a fetch request
      */
     public void handleFetchRequest(RequestChannel.Request request) {
-        val fetchRequest = request.requestObj.asInstanceOf < FetchRequest >
-                val dataRead = replicaManager.readMessageSets(fetchRequest);
+        FetchRequest fetchRequest = (FetchRequest) request.requestObj;
+        Map<TopicAndPartition, PartitionDataAndOffset> dataRead = replicaManager.readMessageSets(fetchRequest);
 
         // if the fetch request comes from the follower,
         // update its corresponding log end offset;
-        if (fetchRequest.isFromFollower)
-            recordFollowerLogEndOffsets(fetchRequest.replicaId, dataRead.mapValues(_.offset));
+        if (fetchRequest.isFromFollower())
+            recordFollowerLogEndOffsets(fetchRequest.replicaId, Sc.mapValue(dataRead, v -> v.offset));
 
         // check if this fetch request can be satisfied right away;
-        val bytesReadable = dataRead.values.map(_.data.messages.sizeInBytes).sum;
-        val errorReadingData = dataRead.values.foldLeft(false) ((errorIncurred, dataAndOffset) ->
-                errorIncurred || (dataAndOffset.data.error != ErrorMapping.NoError));
+
+        int bytesReadable = Sc.sum(dataRead.values(), v -> v.data.messages.sizeInBytes());
+        boolean errorReadingData = Sc.foldBooleanOr(dataRead.values(), false, dataAndOffset -> (dataAndOffset.data.error != ErrorMapping.NoError));
         // send the data immediately if 1) fetch request does not want to wait;
         //                              2) fetch request does not require any data;
         //                              3) has enough data to respond;
         //                              4) some error happens while reading data;
-        if ( fetchRequest.maxWait <= 0 ||;
-        fetchRequest.numPartitions <= 0 ||;
-        bytesReadable >= fetchRequest.minBytes ||;
-        errorReadingData){
-            debug("Returning fetch response %s for fetch request with correlation id %d to client %s";
-                    .
-            format(dataRead.values.map(_.data.error).mkString(","), fetchRequest.correlationId, fetchRequest.clientId))
+        if (fetchRequest.maxWait <= 0 ||
+                fetchRequest.numPartitions() <= 0 ||
+                bytesReadable >= fetchRequest.minBytes ||
+                errorReadingData) {
+            debug(String.format("Returning fetch response %s for fetch request with correlation id %d to client %s",
+            dataRead.values.map(_.data.error).mkString(","), fetchRequest.correlationId, fetchRequest.clientId));
             val response = new FetchResponse(fetchRequest.correlationId, dataRead.mapValues(_.data));
             requestChannel.sendResponse(new RequestChannel.Response(request, new FetchResponseSend(response)));
-        } else{
+        } else {
             debug(String.format("Putting fetch request with correlation id %d from client %s into purgatory", fetchRequest.correlationId,
                     fetchRequest.clientId));
             // create a list of (topic, partition) pairs to use as keys for this delayed request;
@@ -435,9 +443,9 @@ public class KafkaApis extends Logging {
         }
     }
 
-    privatepublic
+    private 
 
-    void recordFollowerLogEndOffsets(Int replicaId, Map offsets<TopicAndPartition, LogOffsetMetadata>) {
+    void recordFollowerLogEndOffsets(Integer replicaId, Map<TopicAndPartition, LogOffsetMetadata> offsets) {
         debug(String.format("Record follower log end offsets: %s ", offsets))
         offsets.foreach {
             case (topicAndPartition, offset) ->
