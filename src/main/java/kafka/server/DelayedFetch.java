@@ -35,11 +35,19 @@ import java.util.Map;
 public class DelayedFetch extends DelayedRequest {
     // TODO: 2017/10/25 @Overrive属性？？？
 //@Override
-//    public List<TopicAndPartition> keys;
-//    //@Override
-//    public RequestChannel.Request request;
-//    //@Override
-//    public Long delayMs;
+    public List<TopicAndPartition> keys;
+    //@Override
+    public RequestChannel.Request request;
+    //@Override
+    public Long delayMs;
+    public FetchRequest fetch;
+    private Map<TopicAndPartition, LogOffsetMetadata> partitionFetchOffsets;
+
+    public DelayedFetch(List keys, RequestChannel.Request request, Long delayMs, FetchRequest fetch, Map<TopicAndPartition, LogOffsetMetadata> partitionFetchOffsets) {
+        super(keys, request, delayMs);
+        this.fetch = fetch;
+        this.partitionFetchOffsets = partitionFetchOffsets;
+    }
 
     public DelayedFetch(List<TopicAndPartition> keys, RequestChannel.Request request, Long delayMs) {
         super(keys, request, delayMs);
@@ -48,8 +56,7 @@ public class DelayedFetch extends DelayedRequest {
 //        this.delayMs = delayMs;
     }
 
-    public FetchRequest fetch;
-    private Map<TopicAndPartition, LogOffsetMetadata> partitionFetchOffsets;
+
 
     public Boolean isSatisfied(ReplicaManager replicaManager) {
         IntCount accumulatedSize = IntCount.of(0);
@@ -96,7 +103,7 @@ public class DelayedFetch extends DelayedRequest {
     }
 
     public FetchResponse respond(ReplicaManager replicaManager) {
-        List<Tuple<TopicAndPartition, PartitionDataAndOffset>> topicData = replicaManager.readMessageSets(fetch);
-        return new FetchResponse(fetch.correlationId, Utils.mapValue(Utils.toMap(topicData), v -> v.data));
+        Map<TopicAndPartition, PartitionDataAndOffset> topicData = replicaManager.readMessageSets(fetch);
+        return new FetchResponse(fetch.correlationId, Utils.mapValue(topicData, v -> v.data));
     }
 }

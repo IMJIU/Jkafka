@@ -60,6 +60,12 @@ public class Sc {
         }
     }
 
+    public static <T> void foreach(T[] it, ActionP<T> action) {
+        for (T tuple : it) {
+            action.invoke(tuple);
+        }
+    }
+
     public static <K, V> void foreach(Map<K, V> map, ActionP2<K, V> action) {
         for (Map.Entry<K, V> entry : map.entrySet()) {
             action.invoke(entry.getKey(), entry.getValue());
@@ -132,6 +138,14 @@ public class Sc {
             return opt.get();
         }
         return v;
+    }
+
+    public static <T, V> List<V> map(T[] it, Handler<T, V> action) {
+        List<V> result = new ArrayList<>(it.length);
+        for (T tuple : it) {
+            result.add(action.handle(tuple));
+        }
+        return result;
     }
 
     public static <V, RESULT> Optional<RESULT> map(Optional<V> it, Handler<V, RESULT> handler) {
@@ -570,5 +584,13 @@ public class Sc {
             b = b || handler.handle(t);
         }
         return b;
+    }
+
+    public static <T> List<T> toList(T[] a) {
+        List<T> list = new ArrayList<T>(a.length);
+        for (T t:a) {
+            list.add(t);
+        }
+        return list;
     }
 }

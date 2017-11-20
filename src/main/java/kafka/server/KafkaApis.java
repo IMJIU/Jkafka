@@ -3,14 +3,15 @@ package kafka.server;/**
  */
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import kafka.api.*;
 import kafka.cluster.Partition;
+import kafka.cluster.Replica;
 import kafka.common.*;
 import kafka.controller.KafkaController;
 import kafka.func.Tuple;
-import kafka.log.LogAppendInfo;
-import kafka.log.TopicAndPartition;
+import kafka.log.*;
 import kafka.message.ByteBufferMessageSet;
 import kafka.message.Message;
 import kafka.network.BoundedByteBufferSend;
@@ -22,9 +23,7 @@ import org.apache.kafka.common.errors.NotEnoughReplicasException;
 import org.apache.kafka.common.errors.NotLeaderForPartitionException;
 import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -242,7 +241,7 @@ public class KafkaApis extends Logging {
         Iterable<ProduceResult> localProduceResults = appendToLocalLog(produceRequest, offsetCommitRequestOpt.isPresent());
         debug(String.format("Produce to local log in %d ms", Time.get().milliseconds() - sTime));
         ProduceResult produceResult = Sc.find(localProduceResults, r -> r.errorCode() != ErrorMapping.NoError);
-        Short firstErrorCode;
+        final Short firstErrorCode;
         if (produceRequest != null) {
             firstErrorCode = produceResult.errorCode();
         }
@@ -425,152 +424,136 @@ public class KafkaApis extends Logging {
                 bytesReadable >= fetchRequest.minBytes ||
                 errorReadingData) {
             debug(String.format("Returning fetch response %s for fetch request with correlation id %d to client %s",
-            dataRead.values.map(_.data.error).mkString(","), fetchRequest.correlationId, fetchRequest.clientId));
-            val response = new FetchResponse(fetchRequest.correlationId, dataRead.mapValues(_.data));
+                    Sc.map(dataRead.values(), d -> d.data.error), fetchRequest.correlationId, fetchRequest.clientId));
+            FetchResponse response = new FetchResponse(fetchRequest.correlationId, Sc.mapValue(dataRead, v -> v.data));
             requestChannel.sendResponse(new RequestChannel.Response(request, new FetchResponseSend(response)));
         } else {
             debug(String.format("Putting fetch request with correlation id %d from client %s into purgatory", fetchRequest.correlationId,
                     fetchRequest.clientId));
             // create a list of (topic, partition) pairs to use as keys for this delayed request;
-            val delayedFetchKeys = fetchRequest.requestInfo.keys.toSeq;
-            val delayedFetch = new DelayedFetch(delayedFetchKeys, request, fetchRequest.maxWait, fetchRequest,
-                    dataRead.mapValues(_.offset));
+            List<TopicAndPartition> delayedFetchKeys = Sc.toList(fetchRequest.requestInfo.keySet());
+            DelayedFetch delayedFetch = new DelayedFetch(delayedFetchKeys, request, fetchRequest.maxWait.longValue(), fetchRequest,
+                    Sc.mapValue(dataRead, v -> v.offset));
 
             // add the fetch request for watch if it's not satisfied, otherwise send the response back;
-            val satisfiedByMe = fetchRequestPurgatory.checkAndMaybeWatch(delayedFetch);
+            boolean satisfiedByMe = fetchRequestPurgatory.checkAndMaybeWatch(delayedFetch);
             if (satisfiedByMe)
                 fetchRequestPurgatory.respond(delayedFetch);
         }
     }
 
-    private 
+    private void recordFollowerLogEndOffsets(Integer replicaId, Map<TopicAndPartition, LogOffsetMetadata> offsets) {
+        debug(String.format("Record follower log end offsets: %s ", offsets));
+        offsets.forEach((topicAndPartition, offset) -> {
+            replicaManager.updateReplicaLEOAndPartitionHW(topicAndPartition.topic,
+                    topicAndPartition.partition, replicaId, offset);
 
-    void recordFollowerLogEndOffsets(Integer replicaId, Map<TopicAndPartition, LogOffsetMetadata> offsets) {
-        debug(String.format("Record follower log end offsets: %s ", offsets))
-        offsets.foreach {
-            case (topicAndPartition, offset) ->
-                    replicaManager.updateReplicaLEOAndPartitionHW(topicAndPartition.topic,
-                            topicAndPartition.partition, replicaId, offset) ;
-
-                // for producer requests with ack > 1, we need to check;
-                // if they can be unblocked after some follower's log end offsets have moved;
-                replicaManager.unblockDelayedProduceRequests(topicAndPartition);
-        }
+            // for producer requests with ack > 1, we need to check;
+            // if they can be unblocked after some follower's log end offsets have moved;
+            replicaManager.unblockDelayedProduceRequests(topicAndPartition);
+        });
     }
 
     /**
      * Service the offset request API
      */
     public void handleOffsetRequest(RequestChannel.Request request) {
-        val offsetRequest = request.requestObj.asInstanceOf < OffsetRequest >
-                val responseMap = offsetRequest.requestInfo.map(elem -> {
-            val(topicAndPartition, partitionOffsetRequestInfo) = elem;
+        OffsetRequest offsetRequest = (OffsetRequest) request.requestObj;
+        Map<TopicAndPartition, PartitionOffsetsResponse> responseMap = Sc.toMap(Sc.map(offsetRequest.requestInfo, (topicAndPartition, partitionOffsetRequestInfo) -> {
             try {
                 // ensure leader exists;
-                val localReplica = if (!offsetRequest.isFromDebuggingClient)
-                    replicaManager.getLeaderReplicaIfLocal(topicAndPartition.topic, topicAndPartition.partition);
-                else ;
-                replicaManager.getReplicaOrException(topicAndPartition.topic, topicAndPartition.partition);
-                val offsets = {
-                        val allOffsets = fetchOffsets(replicaManager.logManager,
+                Replica localReplica = (!offsetRequest.isFromDebuggingClient()) ?
+                        replicaManager.getLeaderReplicaIfLocal(topicAndPartition.topic, topicAndPartition.partition) : replicaManager.getReplicaOrException(topicAndPartition.topic, topicAndPartition.partition);
+                List<Long> offsets;
+                List<Long> allOffsets = fetchOffsets(replicaManager.logManager,
                         topicAndPartition,
                         partitionOffsetRequestInfo.time,
                         partitionOffsetRequestInfo.maxNumOffsets);
-                if (!offsetRequest.isFromOrdinaryClient) {
-                    allOffsets;
+                if (!offsetRequest.isFromOrdinaryClient()) {
+                    offsets = allOffsets;
                 } else {
-                    val hw = localReplica.highWatermark.messageOffset;
-                    if (allOffsets.exists(_ > hw))
-                        hw +:allOffsets.dropWhile(_ > hw);
-            else;
-                    allOffsets;
+                    long hw = localReplica.highWatermark().messageOffset;
+                    if (Sc.exists(allOffsets, f -> f > hw)) {
+                        offsets = Lists.newArrayList();
+                        offsets.addAll(Sc.filter(allOffsets, n -> n <= hw));
+                    } else {
+                        offsets = allOffsets;
+                    }
                 }
-        }
-                (topicAndPartition, PartitionOffsetsResponse(ErrorMapping.NoError, offsets));
-            } catch {
+                return Tuple.of(topicAndPartition, new PartitionOffsetsResponse(ErrorMapping.NoError, offsets));
+            } catch (UnknownTopicOrPartitionException utpe) {
                 // UnknownTopicOrPartitionException NOTE and NotLeaderForPartitionException are special cased since these error messages;
                 // are typically transient and there is no value in logging the entire stack trace for the same;
-                case UnknownTopicOrPartitionException utpe ->
-                        warn(String.format("Offset request with correlation id %d from client %s on partition %s failed due to %s",
-                                offsetRequest.correlationId, offsetRequest.clientId, topicAndPartition, utpe.getMessage));
-                    (topicAndPartition, PartitionOffsetsResponse(ErrorMapping.codeFor(utpe.getClass.asInstanceOf < Class < Throwable >>), Nil) );
-                case NotLeaderForPartitionException nle ->
-                        warn(String.format("Offset request with correlation id %d from client %s on partition %s failed due to %s",
-                                offsetRequest.correlationId, offsetRequest.clientId, topicAndPartition, nle.getMessage));
-                    (topicAndPartition, PartitionOffsetsResponse(ErrorMapping.codeFor(nle.getClass.asInstanceOf < Class < Throwable >>), Nil) );
-                case Throwable e ->
-                        warn("Error while responding to offset request", e);
-                    (topicAndPartition, PartitionOffsetsResponse(ErrorMapping.codeFor(e.getClass.asInstanceOf < Class < Throwable >>), Nil) );
+
+                warn(String.format("Offset request with correlation id %d from client %s on partition %s failed due to %s",
+                        offsetRequest.correlationId, offsetRequest.clientId, topicAndPartition, utpe.getMessage()));
+                return Tuple.of(topicAndPartition, new PartitionOffsetsResponse(ErrorMapping.codeFor(utpe.getClass()), null));
+            } catch (NotLeaderForPartitionException nle) {
+                warn(String.format("Offset request with correlation id %d from client %s on partition %s failed due to %s",
+                        offsetRequest.correlationId, offsetRequest.clientId, topicAndPartition, nle.getMessage()));
+                return Tuple.of(topicAndPartition, new PartitionOffsetsResponse(ErrorMapping.codeFor(nle.getClass()), null));
+            } catch (Throwable e) {
+                warn("Error while responding to offset request", e);
+                return Tuple.of(topicAndPartition, new PartitionOffsetsResponse(ErrorMapping.codeFor(e.getClass()), null));
             }
-        });
-        val response = OffsetResponse(offsetRequest.correlationId, responseMap);
+        }));
+        OffsetResponse response = new OffsetResponse(offsetRequest.correlationId, responseMap);
         requestChannel.sendResponse(new RequestChannel.Response(request, new BoundedByteBufferSend(response)));
     }
 
-    public void fetchOffsets(LogManager logManager, TopicAndPartition topicAndPartition, Long timestamp, Int maxNumOffsets):Seq<Long> =
-
-    {
-        logManager.getLog(topicAndPartition) match {
-        case Some(log) ->
-            fetchOffsetsBefore(log, timestamp, maxNumOffsets)
-        case None ->
-            if (timestamp == OffsetRequest.LatestTime || timestamp == OffsetRequest.EarliestTime)
-                Seq(0L);
-            else ;
-            Nil;
-    }
+    public List<Long> fetchOffsets(LogManager logManager, TopicAndPartition topicAndPartition, Long timestamp, Integer maxNumOffsets) {
+        return Sc.match(logManager.getLog(topicAndPartition), (log) ->
+                        fetchOffsetsBefore(log, timestamp, maxNumOffsets)
+                , () -> (timestamp == OffsetRequest.LatestTime || timestamp == OffsetRequest.EarliestTime) ?
+                        Lists.newArrayList(0L) : null);
     }
 
-    public void fetchOffsetsBefore(Log log, Long timestamp, Int maxNumOffsets):Seq<Long> =
+    public List<Long> fetchOffsetsBefore(Log log, Long timestamp, Integer maxNumOffsets) {
+        LogSegment[] segsArray = log.logSegments().toArray(new LogSegment[log.logSegments().size()]);
+        Tuple<Long, Long>[] offsetTimeArray = null;
+        if (segsArray[segsArray.length - 1].size() > 0)
+            offsetTimeArray = new Tuple[segsArray.length + 1];
+        else
+        offsetTimeArray = new Tuple[segsArray.length ];
 
-    {
-        val segsArray = log.logSegments.toArray;
-        var Array offsetTimeArray< (Long, Long)> =null;
-        if (segsArray.last.size > 0)
-            offsetTimeArray = new Array<(Long, Long) > (segsArray.length + 1);
-        else ;
-        offsetTimeArray = new Array<(Long, Long) > (segsArray.length);
+        for (int i=0;i<segsArray.length;i++)
+        offsetTimeArray[i] =Tuple.of (segsArray[i].baseOffset, segsArray[i].lastModified());
+        if (segsArray[segsArray.length - 1].size() > 0)
+            offsetTimeArray[segsArray.length] = Tuple.of(log.logEndOffset(), Time.get().milliseconds());
 
-        for (i< -0 until segsArray.length)
-        offsetTimeArray(i) = (segsArray(i).baseOffset, segsArray(i).lastModified)
-        if (segsArray.last.size > 0)
-            offsetTimeArray(segsArray.length) = (log.logEndOffset, SystemTime.milliseconds);
-
-        var startIndex = -1;
-        timestamp match {
-        case OffsetRequest.LatestTime ->
+        int startIndex = -1;
+        if(OffsetRequest.LatestTime.equals(timestamp)){
             startIndex = offsetTimeArray.length - 1;
-        case OffsetRequest.EarliestTime ->
+        }else  if(OffsetRequest.LatestTime.equals(timestamp)){
             startIndex = 0;
-        case _ ->
-                var isFound = false;
-            debug(String.format("Offset time array = " + offsetTimeArray.foreach(o -> "%d, %d", o._1, o._2)))
+        }else{
+            boolean isFound = false;
+            debug("Offset time array = " + Sc.map(offsetTimeArray,o -> String.format("%d, %d", o.v1, o.v2)));
             startIndex = offsetTimeArray.length - 1;
             while (startIndex >= 0 && !isFound) {
-                if (offsetTimeArray(startIndex)._2 <= timestamp)
+                if (offsetTimeArray[startIndex].v2 <= timestamp)
                     isFound = true;
                 else ;
                 startIndex -= 1;
             }
-    }
+        }
 
-        val retSize = maxNumOffsets.min(startIndex + 1);
-        val ret = new Array<Long>(retSize);
-        for (j< -0 until retSize){
-        ret(j) = offsetTimeArray(startIndex)._1;
-        startIndex -= 1;
-    }
+
+        int retSize =Math.min(maxNumOffsets,startIndex + 1);
+        Long[] ret = new Long[retSize];
+        for (int j=0;j< retSize;j++){
+            ret[j] = offsetTimeArray[startIndex].v1;
+            startIndex -= 1;
+        }
         // ensure that the returned seq is in descending order of offsets;
-        ret.toSeq.sortBy(-_);
+        List<Long> list = Sc.toList(ret);
+        Collections.sort(list,(a, b)->b.intValue()-a.intValue());
+        return list;
     }
 
-    privatepublic
-
-    void getTopicMetadata(Set topics<String]):Seq[TopicMetadata>=
-
-    {
-        val topicResponses = metadataCache.getTopicMetadata(topics);
-        if (topics.size > 0 && topicResponses.size != topics.size) {
+    private List<TopicMetadata> getTopicMetadata(Set<String> topics) {
+        List<TopicMetadata> topicResponses = metadataCache.getTopicMetadata(topics);
+        if (topics.size() > 0 && topicResponses.size() != topics.size()) {
             val nonExistentTopics = topics-- topicResponses.map(_.topic).toSet;
             val responsesForNonExistentTopics = nonExistentTopics.map {
                 topic ->
