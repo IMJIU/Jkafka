@@ -17,11 +17,11 @@ import static kafka.api.ApiUtils.*;
  **/
 
 public class PartitionMetadata extends Logging {
-    Integer partitionId;
-    Broker leader;
-    List<Broker> replicas;
-    List<Broker> isr = Lists.newArrayList();
-    Short errorCode = ErrorMapping.NoError;
+    public Integer partitionId;
+    public Broker leader;
+    public  List<Broker> replicas;
+    public  List<Broker> isr = Lists.newArrayList();
+    public  Short errorCode = ErrorMapping.NoError;
 
     public PartitionMetadata(java.lang.Integer partitionId, Broker leader, List<Broker> replicas, List<Broker> isr, Short errorCode) {
         this.partitionId = partitionId;

@@ -4,8 +4,11 @@ package kafka.server;/**
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import kafka.admin.AdminUtils;
 import kafka.api.*;
+import kafka.cluster.Broker;
 import kafka.cluster.Partition;
 import kafka.cluster.Replica;
 import kafka.common.*;
@@ -195,7 +198,7 @@ public class KafkaApis extends Logging {
         List<Message> msgs = offsetCommitRequest.filterLargeMetadata(config.offsetMetadataMaxSize).map(entry -> {
             TopicAndPartition topicAndPartition = entry.getKey();
             OffsetAndMetadata offset = entry.getValue();
-            new Message(OffsetManager.offsetCommitValue(offset),
+            return new Message(OffsetManager.offsetCommitValue(offset),
                     OffsetManager.offsetCommitKey(offsetCommitRequest.groupId, topicAndPartition.topic, topicAndPartition.partition));
         }).collect(Collectors.toList());
 
@@ -241,7 +244,7 @@ public class KafkaApis extends Logging {
         Iterable<ProduceResult> localProduceResults = appendToLocalLog(produceRequest, offsetCommitRequestOpt.isPresent());
         debug(String.format("Produce to local log in %d ms", Time.get().milliseconds() - sTime));
         ProduceResult produceResult = Sc.find(localProduceResults, r -> r.errorCode() != ErrorMapping.NoError);
-        final Short firstErrorCode;
+         Short firstErrorCode = null;
         if (produceRequest != null) {
             firstErrorCode = produceResult.errorCode();
         }
@@ -277,7 +280,8 @@ public class KafkaApis extends Logging {
                 }
             }
             Map<TopicAndPartition, ProducerResponseStatus> statuses = Sc.toMap(Sc.map(localProduceResults, r -> Tuple.of(r.key, new ProducerResponseStatus(r.errorCode(), r.start))));
-            RequestOrResponse response = Sc.getOrElse(Sc.map(offsetCommitRequestOpt, r -> r.responseFor(firstErrorCode, config.offsetMetadataMaxSize)), new ProducerResponse(produceRequest.correlationId, statuses));
+           final Short errorCode = firstErrorCode;
+            RequestOrResponse response = Sc.getOrElse(Sc.map(offsetCommitRequestOpt, r -> r.responseFor(errorCode, config.offsetMetadataMaxSize)), new ProducerResponse(produceRequest.correlationId, statuses));
             requestChannel.sendResponse(new RequestChannel.Response(request, new BoundedByteBufferSend(response)));
         } else {
             // create a list of (topic, partition) pairs to use as keys for this delayed request;
@@ -554,50 +558,48 @@ public class KafkaApis extends Logging {
     private List<TopicMetadata> getTopicMetadata(Set<String> topics) {
         List<TopicMetadata> topicResponses = metadataCache.getTopicMetadata(topics);
         if (topics.size() > 0 && topicResponses.size() != topics.size()) {
-            val nonExistentTopics = topics-- topicResponses.map(_.topic).toSet;
-            val responsesForNonExistentTopics = nonExistentTopics.map {
-                topic ->
+            Set<String>  nonExistentTopics= Sc.subtract(topics,Sc.toSet(Sc.map(topicResponses,r->r.topic)));
+            Set<TopicMetadata> responsesForNonExistentTopics = Sc.map(nonExistentTopics, topic ->{
                 if (topic == OffsetManager.OffsetsTopicName || config.autoCreateTopicsEnable) {
                     try {
                         if (topic == OffsetManager.OffsetsTopicName) {
-                            val aliveBrokers = metadataCache.getAliveBrokers;
-                            val offsetsTopicReplicationFactor =
-                            if (aliveBrokers.length > 0)
-                                Math.min(config.offsetsTopicReplicationFactor, aliveBrokers.length);
-                            else ;
-                            config.offsetsTopicReplicationFactor;
+                            List<Broker> aliveBrokers = metadataCache.getAliveBrokers();
+                            int offsetsTopicReplicationFactor;
+                            if (aliveBrokers.size() > 0)
+                                offsetsTopicReplicationFactor=Math.min(config.offsetsTopicReplicationFactor, aliveBrokers.size());
+                            else
+                                offsetsTopicReplicationFactor= config.offsetsTopicReplicationFactor;
                             AdminUtils.createTopic(zkClient, topic, config.offsetsTopicPartitions,
                                     offsetsTopicReplicationFactor,
-                                    offsetManager.offsetsTopicConfig);
-                            info("Auto creation of topic %s with %d partitions and replication factor %d is successful!";
-                                    .format(topic, config.offsetsTopicPartitions, offsetsTopicReplicationFactor))
+                                    offsetManager.offsetsTopicConfig());
+                            info(String .format("Auto creation of topic %s with %d partitions and replication factor %d is successful!",
+                                   topic, config.offsetsTopicPartitions, offsetsTopicReplicationFactor));
                         } else {
                             AdminUtils.createTopic(zkClient, topic, config.numPartitions, config.defaultReplicationFactor);
-                            info("Auto creation of topic %s with %d partitions and replication factor %d is successful!";
-                                    .format(topic, config.numPartitions, config.defaultReplicationFactor))
+                            info(String.format("Auto creation of topic %s with %d partitions and replication factor %d is successful!",
+                                    topic, config.numPartitions, config.defaultReplicationFactor));
                         }
-                    } catch {
-                        case TopicExistsException e -> // let it go, possibly another broker created this topic;
+                    } catch ( TopicExistsException e){ // let it go, possibly another broker created this topic;
                     }
-                    new TopicMetadata(topic, Seq.empty < PartitionMetadata >, ErrorMapping.LeaderNotAvailableCode);
+                   return new TopicMetadata(topic,Lists.newArrayList(), ErrorMapping.LeaderNotAvailableCode);
                 } else {
-                    new TopicMetadata(topic, Seq.empty < PartitionMetadata >, ErrorMapping.UnknownTopicOrPartitionCode);
+                   return  new TopicMetadata(topic, Lists.newArrayList(), ErrorMapping.UnknownTopicOrPartitionCode);
                 }
-            }
-            topicResponses.appendAll(responsesForNonExistentTopics);
+            });
+            topicResponses.addAll(responsesForNonExistentTopics);
         }
-        topicResponses;
+       return topicResponses;
     }
 
     /**
      * Service the topic metadata request API
      */
     public void handleTopicMetadataRequest(RequestChannel.Request request) {
-        val metadataRequest = request.requestObj.asInstanceOf < TopicMetadataRequest >
-                val topicMetadata = getTopicMetadata(metadataRequest.topics.toSet);
-        val brokers = metadataCache.getAliveBrokers;
-        trace(String.format("Sending topic metadata %s and brokers %s for correlation id %d to client %s", topicMetadata.mkString(","), brokers.mkString(","), metadataRequest.correlationId, metadataRequest.clientId))
-        val response = new TopicMetadataResponse(brokers, topicMetadata, metadataRequest.correlationId);
+        TopicMetadataRequest metadataRequest = (TopicMetadataRequest)request.requestObj;
+        List<TopicMetadata> topicMetadata = getTopicMetadata(Sc.toSet(metadataRequest.topics));
+        List<Broker> brokers = metadataCache.getAliveBrokers();
+        trace(String.format("Sending topic metadata %s and brokers %s for correlation id %d to client %s", topicMetadata, brokers, metadataRequest.correlationId, metadataRequest.clientId));
+        TopicMetadataResponse response = new TopicMetadataResponse(brokers, topicMetadata, metadataRequest.correlationId);
         requestChannel.sendResponse(new RequestChannel.Response(request, new BoundedByteBufferSend(response)));
     }
 
@@ -605,48 +607,45 @@ public class KafkaApis extends Logging {
      * Service the Offset fetch API
      */
     public void handleOffsetFetchRequest(RequestChannel.Request request) {
-        val offsetFetchRequest = request.requestObj.asInstanceOf < OffsetFetchRequest >
+        OffsetFetchRequest offsetFetchRequest = (OffsetFetchRequest)request.requestObj;
 
         if (offsetFetchRequest.versionId == 0) {
             // version 0 reads offsets from ZK;
-            val responseInfo = offsetFetchRequest.requestInfo.map(t -> {
-                val topicDirs = new ZKGroupTopicDirs(offsetFetchRequest.groupId, t.topic);
+            List<Tuple<TopicAndPartition,OffsetMetadataAndError>> responseInfo = Sc.map(offsetFetchRequest.requestInfo,t -> {
+                ZKGroupTopicDirs topicDirs = new ZKGroupTopicDirs(offsetFetchRequest.groupId, t.topic);
                 try {
                     ensureTopicExists(t.topic);
-                    val payloadOpt = ZkUtils.readDataMaybeNull(zkClient, topicDirs.consumerOffsetDir + "/" + t.partition)._1;
-                    payloadOpt match {
-                        case Some(payload) ->{
-                            (t, OffsetMetadataAndError(offset = payload.toLong, error = ErrorMapping.NoError));
-                        }
-                        case None -> (t,OffsetMetadataAndError(OffsetAndMetadata.InvalidOffset, OffsetAndMetadata.NoMetadata,
-                                ErrorMapping.UnknownTopicOrPartitionCode));
+                    Optional<String> payloadOpt = ZkUtils.readDataMaybeNull(zkClient, topicDirs.consumerOffsetDir() + "/" + t.partition).v1;
+                    if(payloadOpt.isPresent()){
+                        return Tuple.of(t, new OffsetMetadataAndError(Long.parseLong(payloadOpt.get()),ErrorMapping.NoError));
                     }
-                } catch {
-                    case Throwable e ->
-                            (t, OffsetMetadataAndError(OffsetAndMetadata.InvalidOffset, OffsetAndMetadata.NoMetadata,
-                            ErrorMapping.codeFor(e.getClass.asInstanceOf < Class < Throwable >>)));
+                    return Tuple.of(t,new OffsetMetadataAndError(OffsetAndMetadata.InvalidOffset, OffsetAndMetadata.NoMetadata,
+                            ErrorMapping.UnknownTopicOrPartitionCode));
+                } catch (Throwable e){
+                    return Tuple.of(t, new OffsetMetadataAndError(OffsetAndMetadata.InvalidOffset, OffsetAndMetadata.NoMetadata,
+                            ErrorMapping.codeFor(e.getClass())));
                 }
             });
-            val response = new OffsetFetchResponse(collection.immutable.Map(_ responseInfo *), offsetFetchRequest.correlationId);
+            OffsetFetchResponse response = new OffsetFetchResponse(Sc.toMap(responseInfo), offsetFetchRequest.correlationId);
             requestChannel.sendResponse(new RequestChannel.Response(request, new BoundedByteBufferSend(response)));
         } else {
             // version 1 reads offsets from Kafka;
-            val(unknownTopicPartitions, knownTopicPartitions) = offsetFetchRequest.requestInfo.partition(topicAndPartition ->
-                    metadataCache.getPartitionInfo(topicAndPartition.topic, topicAndPartition.partition).isEmpty;
-      );
-            val unknownStatus = unknownTopicPartitions.map(topicAndPartition -> (topicAndPartition, OffsetMetadataAndError.
-                    UnknownTopicOrPartition)).toMap;
-            val knownStatus =
-            if (knownTopicPartitions.size > 0)
-                offsetManager.getOffsets(offsetFetchRequest.groupId, knownTopicPartitions).toMap;
-            else ;
-            Map.empty<TopicAndPartition, OffsetMetadataAndError>
-            val status = unknownStatus++ knownStatus;
+            Tuple<List<TopicAndPartition>,List<TopicAndPartition>> result = Sc.partition( offsetFetchRequest.requestInfo,topicAndPartition ->
+                    metadataCache.getPartitionInfo(topicAndPartition.topic, topicAndPartition.partition).isPresent());
+            List<TopicAndPartition> knownTopicPartitions = result.v1;
+            List<TopicAndPartition> unknownTopicPartitions = result.v2;
+            Map<TopicAndPartition,OffsetMetadataAndError> unknownStatus = Sc.toMap(Sc.map(unknownTopicPartitions,topicAndPartition ->
+                    Tuple.of(topicAndPartition, OffsetMetadataAndError.UnknownTopicOrPartition)));
+            Map<TopicAndPartition, OffsetMetadataAndError> knownStatus ;
+            if (knownTopicPartitions.size() > 0)
+                knownStatus=offsetManager.getOffsets(offsetFetchRequest.groupId, knownTopicPartitions);
+            else
+                knownStatus = Maps.newHashMap();
+           Map<TopicAndPartition,OffsetMetadataAndError> status = Sc.add(unknownStatus,knownStatus);
+            OffsetFetchResponse response = new OffsetFetchResponse(status, offsetFetchRequest.correlationId);
 
-            val response = OffsetFetchResponse(status, offsetFetchRequest.correlationId);
-
-            trace("Sending offset fetch response %s for correlation id %d to client %s.";
-                    .format(response, offsetFetchRequest.correlationId, offsetFetchRequest.clientId))
+            trace(String.format("Sending offset fetch response %s for correlation id %d to client %s.",
+                    response, offsetFetchRequest.correlationId, offsetFetchRequest.clientId));
             requestChannel.sendResponse(new RequestChannel.Response(request, new BoundedByteBufferSend(response)));
         }
     }
@@ -655,26 +654,28 @@ public class KafkaApis extends Logging {
      * Service the consumer metadata API
      */
     public void handleConsumerMetadataRequest(RequestChannel.Request request) {
-        val consumerMetadataRequest = request.requestObj.asInstanceOf < ConsumerMetadataRequest >
+        ConsumerMetadataRequest consumerMetadataRequest = (ConsumerMetadataRequest)request.requestObj;
 
-                val partition = offsetManager.partitionFor(consumerMetadataRequest.group);
+                Integer partition = offsetManager.partitionFor(consumerMetadataRequest.group);
 
         // get metadata (and create the topic if necessary)
-        val offsetsTopicMetadata = getTopicMetadata(Set(OffsetManager.OffsetsTopicName)).head;
+        TopicMetadata offsetsTopicMetadata = Sc.head(getTopicMetadata(Sets.newHashSet(OffsetManager.OffsetsTopicName)));
 
-        val errorResponse = ConsumerMetadataResponse(None, ErrorMapping.ConsumerCoordinatorNotAvailableCode, consumerMetadataRequest.correlationId);
+        ConsumerMetadataResponse errorResponse = new ConsumerMetadataResponse(Optional.empty(), ErrorMapping.ConsumerCoordinatorNotAvailableCode, consumerMetadataRequest.correlationId);
+        PartitionMetadata partitionMetadata=Sc.find(offsetsTopicMetadata.partitionsMetadata,p->p.partitionId == partition);
+        ConsumerMetadataResponse response;
+        if(partitionMetadata!=null){
+            if(partitionMetadata.leader!=null){
+                response= new ConsumerMetadataResponse(Optional.of(partitionMetadata.leader), ErrorMapping.NoError, consumerMetadataRequest.correlationId);
+            }else{
+                response = errorResponse;
+            }
+        }else{
+            response = errorResponse;
+        }
 
-        val response =
-                offsetsTopicMetadata.partitionsMetadata.find(_.partitionId == partition).map {
-            partitionMetadata ->
-                    partitionMetadata.leader.map {
-                leader ->
-                        ConsumerMetadataResponse(Some(leader), ErrorMapping.NoError, consumerMetadataRequest.correlationId);
-            }.getOrElse(errorResponse);
-        }.getOrElse(errorResponse);
-
-        trace("Sending consumer metadata %s for correlation id %d to client %s.";
-                .format(response, consumerMetadataRequest.correlationId, consumerMetadataRequest.clientId))
+        trace(String.format("Sending consumer metadata %s for correlation id %d to client %s.",
+                response, consumerMetadataRequest.correlationId, consumerMetadataRequest.clientId));
         requestChannel.sendResponse(new RequestChannel.Response(request, new BoundedByteBufferSend(response)));
     }
 

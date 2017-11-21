@@ -6,10 +6,7 @@ import kafka.utils.Logging;
 import kafka.utils.ZkUtils;
 import org.I0Itec.zkclient.ZkClient;
 
-import java.util.HashMap;
-import java.util.Properties;
-import java.util.Random;
-import java.util.Set;
+import java.util.*;
 
 /**
  * @author zhoulf
@@ -19,55 +16,52 @@ import java.util.Set;
 public class AdminUtils extends Logging {
    public static final Random rand = new Random();
     public static final     String TopicConfigChangeZnodePrefix = "config_change_";
-//
-//        /**
-//         * There are 2 goals of replica assignment:
-//         * 1. Spread the replicas evenly among brokers.
-//         * 2. For partitions assigned to a particular broker, their other replicas are spread over the other brokers.
-//         *
-//         * To achieve this goal, we:
-//         * 1. Assign the first replica of each partition by round-robin, starting from a random position in the broker list.
-//         * 2. Assign the remaining replicas of each partition with an increasing shift.
-//         *
-//         * Here is an example of assigning
-//         * broker-0  broker-1  broker-2  broker-3  broker-4
-//         * p0        p1        p2        p3        p4       (1st replica)
-//         * p5        p6        p7        p8        p9       (1st replica)
-//         * p4        p0        p1        p2        p3       (2nd replica)
-//         * p8        p9        p5        p6        p7       (2nd replica)
-//         * p3        p4        p0        p1        p2       (3nd replica)
-//         * p7        p8        p9        p5        p6       (3nd replica)
-//         */
-//       public void assignReplicasToBrokers(Seq brokerList<Integer>,
-//        Int nPartitions,
-//        Int replicationFactor,
-//        Integer fixedStartIndex = -1,
-//        Integer startPartitionId = -1);
-//        : Map<Integer,> Seq<Int>> = {
-//        if (nPartitions <= 0)
-//        throw new AdminOperationException("number of partitions must be larger than 0");
-//        if (replicationFactor <= 0)
-//        throw new AdminOperationException("replication factor must be larger than 0");
-//        if (replicationFactor > brokerList.size)
-//        throw new AdminOperationException("replication factor: " + replicationFactor +
-//        " larger than available brokers: " + brokerList.size);
-//        val ret = new mutable.HashMap<Integer,> List<Int>>();
-//        val startIndex = if (fixedStartIndex >= 0) fixedStartIndex else rand.nextInt(brokerList.size)
-//        var currentPartitionId = if (startPartitionId >= 0) startPartitionId else 0;
-//
-//        var nextReplicaShift = if (fixedStartIndex >= 0) fixedStartIndex else rand.nextInt(brokerList.size)
-//        for (i <- 0 until nPartitions) {
-//        if (currentPartitionId > 0 && (currentPartitionId % brokerList.size == 0))
-//        nextReplicaShift += 1;
-//        val firstReplicaIndex = (currentPartitionId + startIndex) % brokerList.size;
-//        var replicaList = List(brokerList(firstReplicaIndex));
-//        for (j <- 0 until replicationFactor - 1)
-//        replicaList ::= brokerList(replicaIndex(firstReplicaIndex, nextReplicaShift, j, brokerList.size))
-//        ret.put(currentPartitionId, replicaList.reverse);
-//        currentPartitionId = currentPartitionId + 1;
-//        }
-//        ret.toMap;
-//        }
+
+        /**
+         * There are 2 goals of replica assignment:
+         * 1. Spread the replicas evenly among brokers.
+         * 2. For partitions assigned to a particular broker, their other replicas are spread over the other brokers.
+         *
+         * To achieve this goal, we:
+         * 1. Assign the first replica of each partition by round-robin, starting from a random position in the broker list.
+         * 2. Assign the remaining replicas of each partition with an increasing shift.
+         *
+         * Here is an example of assigning
+         * broker-0  broker-1  broker-2  broker-3  broker-4
+         * p0        p1        p2        p3        p4       (1st replica)
+         * p5        p6        p7        p8        p9       (1st replica)
+         * p4        p0        p1        p2        p3       (2nd replica)
+         * p8        p9        p5        p6        p7       (2nd replica)
+         * p3        p4        p0        p1        p2       (3nd replica)
+         * p7        p8        p9        p5        p6       (3nd replica)
+         */
+       public void assignReplicasToBrokers(List<Integer> brokerList, Integer nPartitions,   Integer replicationFactor, Integer fixedStartIndex = -1,
+        Integer startPartitionId = -1);
+        : Map<Integer,> Seq<Int>> = {
+        if (nPartitions <= 0)
+        throw new AdminOperationException("number of partitions must be larger than 0");
+        if (replicationFactor <= 0)
+        throw new AdminOperationException("replication factor must be larger than 0");
+        if (replicationFactor > brokerList.size)
+        throw new AdminOperationException("replication factor: " + replicationFactor +
+        " larger than available brokers: " + brokerList.size);
+        val ret = new mutable.HashMap<Integer,> List<Int>>();
+        val startIndex = if (fixedStartIndex >= 0) fixedStartIndex else rand.nextInt(brokerList.size)
+        var currentPartitionId = if (startPartitionId >= 0) startPartitionId else 0;
+
+        var nextReplicaShift = if (fixedStartIndex >= 0) fixedStartIndex else rand.nextInt(brokerList.size)
+        for (i <- 0 until nPartitions) {
+        if (currentPartitionId > 0 && (currentPartitionId % brokerList.size == 0))
+        nextReplicaShift += 1;
+        val firstReplicaIndex = (currentPartitionId + startIndex) % brokerList.size;
+        var replicaList = List(brokerList(firstReplicaIndex));
+        for (j <- 0 until replicationFactor - 1)
+        replicaList ::= brokerList(replicaIndex(firstReplicaIndex, nextReplicaShift, j, brokerList.size))
+        ret.put(currentPartitionId, replicaList.reverse);
+        currentPartitionId = currentPartitionId + 1;
+        }
+        ret.toMap;
+        }
 //
 //
 //        /**
@@ -144,15 +138,21 @@ public class AdminUtils extends Logging {
 //       public Boolean  void topicExists(ZkClient zkClient, String topic);
 //        zkClient.exists(ZkUtils.getTopicPath(topic));
 //
-//       public void createTopic(ZkClient zkClient,
-//        String topic,
-//        Int partitions,
-//        Int replicationFactor,
-//        Properties topicConfig = new Properties) {
-//        val brokerList = ZkUtils.getSortedBrokerList(zkClient);
-//        val replicaAssignment = AdminUtils.assignReplicasToBrokers(brokerList, partitions, replicationFactor);
-//        AdminUtils.createOrUpdateTopicPartitionAssignmentPathInZK(zkClient, topic, replicaAssignment, topicConfig);
-//        }
+public static void createTopic(ZkClient zkClient,
+                        String topic,
+                        Integer partitions,
+                        Integer replicationFactor) {
+    return createTopic(zkClient,topic,partitions,replicationFactor,new Properties());
+                        }
+       public static void createTopic(ZkClient zkClient,
+        String topic,
+        Integer partitions,
+                               Integer replicationFactor,
+        Properties topicConfig ) {
+        List<Integer> brokerList = ZkUtils.getSortedBrokerList(zkClient);
+        val replicaAssignment = AdminUtils.assignReplicasToBrokers(brokerList, partitions, replicationFactor);
+        AdminUtils.createOrUpdateTopicPartitionAssignmentPathInZK(zkClient, topic, replicaAssignment, topicConfig);
+        }
 //
 //       public void createOrUpdateTopicPartitionAssignmentPathInZK(ZkClient zkClient,
 //        String topic,

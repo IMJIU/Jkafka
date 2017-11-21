@@ -76,9 +76,9 @@ public class MetadataCache extends Logging{
         return topicResponses;
     }
 
-    public Collection<Broker> getAliveBrokers() {
+    public List<Broker> getAliveBrokers() {
         return Utils.inReadLock(partitionMetadataLock, () ->
-                aliveBrokers.values()
+                new ArrayList<>(aliveBrokers.values())
         );
     }
 

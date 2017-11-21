@@ -3,7 +3,9 @@ package kafka.utils;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import kafka.common.OffsetMetadataAndError;
 import kafka.func.*;
+import kafka.log.TopicAndPartition;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.map.HashedMap;
 
@@ -579,6 +581,13 @@ public class Sc {
         return result;
     }
 
+    public static <K, V> Map<K, V> add(Map<K, V> m1, Map<K, V> m2) {
+        Map<K, V> result = new HashedMap(m1.size() + m2.size());
+        m1.forEach((k, v) -> result.put(k, v));
+        m2.forEach((k, v) -> result.put(k, v));
+        return result;
+    }
+
     public static <T> boolean foldBooleanOr(Iterable<T> it, boolean b, Handler<T, Boolean> handler) {
         for (T t : it) {
             b = b || handler.handle(t);
@@ -588,9 +597,24 @@ public class Sc {
 
     public static <T> List<T> toList(T[] a) {
         List<T> list = new ArrayList<T>(a.length);
-        for (T t:a) {
+        for (T t : a) {
             list.add(t);
         }
         return list;
     }
+
+    public static <T> Tuple<List<T>, List<T>> partition(List<T> list, Handler<T, Boolean> handler) {
+        List<T> list1 = Lists.newArrayList();
+        List<T> list2 = Lists.newArrayList();
+        for (T t : list) {
+            if (handler.handle(t)) {
+                list1.add(t);
+            } else {
+                list2.add(t);
+            }
+        }
+        return Tuple.of(list1, list2);
+    }
+
+
 }
