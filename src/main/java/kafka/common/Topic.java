@@ -18,10 +18,10 @@ public class Topic {
     public static final String legalChars = "[a-zA-Z0-9\\._\\-]";
     private static final Integer maxNameLength = 255;
     //    private Regex rgx = new Regex(legalChars + "+");
-    private Pattern pattern = Pattern.compile("(" + legalChars + "+)");
+    private static  Pattern pattern = Pattern.compile("(" + legalChars + "+)");
     public static final Set<String> InternalTopics = Sets.newHashSet(OffsetManager.OffsetsTopicName);
 
-    public void validate(String topic) {
+    public  static void validate(String topic) {
         if (topic.length() <= 0)
             throw new InvalidTopicException("topic name is illegal, can't be empty");
         else if (topic.equals(".") || topic.equals(".."))

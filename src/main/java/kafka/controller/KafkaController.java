@@ -129,7 +129,7 @@ public class KafkaController extends KafkaMetricsGroup {
     }
 
 
-    public Integer parseControllerId(String controllerInfoString) {
+    public static Integer parseControllerId(String controllerInfoString) {
         try {
             Map<String, Object> controllerInfo = JSON.parseObject(controllerInfoString, Map.class);
             if (controllerInfo != null) {

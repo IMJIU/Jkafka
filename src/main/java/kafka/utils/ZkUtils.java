@@ -7,6 +7,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import kafka.admin.PreferredReplicaLeaderElectionCommand;
 import kafka.api.LeaderAndIsr;
+import kafka.controller.KafkaController;
 import kafka.controller.ctrl.LeaderIsrAndControllerEpoch;
 import kafka.cluster.Broker;
 import kafka.cluster.Cluster;
@@ -21,7 +22,6 @@ import kafka.func.Handler;
 import kafka.func.Tuple;
 import kafka.func.Tuple3;
 import kafka.log.TopicAndPartition;
-import kafka.server.KafkaController;
 import org.I0Itec.zkclient.ZkClient;
 import org.I0Itec.zkclient.exception.ZkBadVersionException;
 import org.I0Itec.zkclient.exception.ZkMarshallingError;
@@ -708,7 +708,7 @@ public class ZkUtils {
         return Optional.empty();
     }
 
-    public static List<String> getAllTopics(ZkClient zkClient) throws Throwable {
+    public static List<String> getAllTopics(ZkClient zkClient) {
         List<String> topics = ZkUtils.getChildrenParentMayNotExist(zkClient, BrokerTopicsPath);
         if (topics == null)
             return Collections.emptyList();

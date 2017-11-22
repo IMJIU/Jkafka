@@ -176,6 +176,17 @@ public class Sc {
         return list;
     }
 
+    public static <V, K, V2> Map<K, V2> mapToMap(Collection<V> set, Handler<V, Tuple<K, V2>> handler) {
+        Map<K, V2> result = new HashMap<>(set.size());
+        if (set != null) {
+            for (V entry : set) {
+                Tuple<K, V2> tuple = handler.handle(entry);
+                result.put(tuple.v1, tuple.v2);
+            }
+        }
+        return result;
+    }
+
     public static <V, RESULT> Set<RESULT> map(Set<V> set, Handler<V, RESULT> handler) {
         Set<RESULT> list = Sets.newHashSet();
         if (set != null) {
@@ -617,4 +628,30 @@ public class Sc {
     }
 
 
+    public static <T> List<T> takeRight(Collection<T> it, int index) {
+        int i = 0;
+        Iterator<T> iterator = it.iterator();
+        List<T> result = Lists.newArrayList();
+        while (iterator.hasNext()) {
+            if (i++ >= index) {
+                result.add(iterator.next());
+            }
+        }
+        return result;
+    }
+
+    public static <T> boolean subsetOf(Set<T> sub, Set<T> parent) {
+        boolean result = true;
+        for (T t : sub) {
+            if (!parent.contains(t)) {
+                result = false;
+                break;
+            }
+        }
+        return result;
+    }
+
+    public static Map toMap(Properties config) {
+        return config;
+    }
 }
