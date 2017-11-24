@@ -7,4 +7,8 @@ public class ReplicaNotAvailableException extends RuntimeException {
     public ReplicaNotAvailableException(String msg) {
         super(msg);
     }
+
+    public ReplicaNotAvailableException(Throwable cause) {
+        super(cause);
+    }
 }

@@ -102,7 +102,7 @@ public class ZkUtils {
             makeSurePersistentPathExists(zkClient, path);
     }
 
-    public static Optional<Integer> getLeaderForPartition(ZkClient zkClient, String topic, Integer partition) throws Throwable {
+    public static Optional<Integer> getLeaderForPartition(ZkClient zkClient, String topic, Integer partition)  {
         Optional<String> leaderAndIsrOpt = readDataMaybeNull(zkClient, getTopicPartitionLeaderAndIsrPath(topic, partition)).v1;
         if (leaderAndIsrOpt.isPresent()) {
             String leaderAndIsr = leaderAndIsrOpt.get();
@@ -135,7 +135,7 @@ public class ZkUtils {
     /**
      * Gets the in-sync replicas (ISR) for a specific topic and partition
      */
-    public static List<Integer> getInSyncReplicasForPartition(ZkClient zkClient, String topic, Integer partition) throws Throwable {
+    public static List<Integer> getInSyncReplicasForPartition(ZkClient zkClient, String topic, Integer partition)  {
         Optional<String> leaderAndIsrOpt = readDataMaybeNull(zkClient, getTopicPartitionLeaderAndIsrPath(topic, partition)).v1;
         if (leaderAndIsrOpt.isPresent()) {
             String leaderAndIsr = leaderAndIsrOpt.get();

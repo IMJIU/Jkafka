@@ -47,6 +47,7 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 public class KafkaController extends KafkaMetricsGroup {
+    public static Logging logging = Logging.getLogger(KafkaController.class.getName());
     public static StateChangeLogger stateChangeLogger = new StateChangeLogger("state.change.logger");
     public static final int InitialControllerEpoch = 1;
     public static final int InitialControllerEpochZkVersion = 1;
@@ -139,7 +140,7 @@ public class KafkaController extends KafkaMetricsGroup {
             }
         } catch (Throwable t) {
             // It may be due to an incompatible controller register version;
-            warn(String.format("Failed to parse the controller info as json. " +
+            logging.warn(String.format("Failed to parse the controller info as json. " +
                     "Probably this controller is still using the old format <%s> to store the broker id in zookeeper", controllerInfoString));
             try {
                 return Integer.parseInt(controllerInfoString);

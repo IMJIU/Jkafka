@@ -654,4 +654,26 @@ public class Sc {
     public static Map toMap(Properties config) {
         return config;
     }
+
+    public static <K, V> List<Tuple<K, V>> toList(Map<K, V> map) {
+        List<Tuple<K, V>> result = new ArrayList(map.size());
+        map.forEach((k, v) -> result.add(Tuple.of(k, v)));
+        return result;
+    }
+
+    public static <T> List<T> sortWith(List<T> list, Handler2<T, T, Boolean> handler2) {
+        List<T> result = new ArrayList<>(list);
+        for (int i = 0; i < result.size() - 1; i++) {
+            T temp = result.get(i);
+            for (int j = i + 1; j < list.size(); j++) {
+                T next = result.get(j);
+                if (handler2.handle(next, temp)) {
+                    result.set(i, next);
+                    result.set(j, temp);
+                    temp = next;
+                }
+            }
+        }
+        return result;
+    }
 }

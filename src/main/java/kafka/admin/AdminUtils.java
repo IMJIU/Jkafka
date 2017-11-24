@@ -3,12 +3,11 @@ package kafka.admin;
 import com.alibaba.fastjson.JSON;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import kafka.api.PartitionMetadata;
 import kafka.api.TopicMetadata;
 import kafka.cluster.Broker;
-import kafka.common.AdminOperationException;
-import kafka.common.Topic;
-import kafka.common.TopicExistsException;
-import kafka.controller.ctrl.PartitionAndReplica;
+import kafka.common.*;
+import kafka.controller.KafkaController;
 import kafka.func.Tuple;
 import kafka.log.LogConfig;
 import kafka.log.TopicAndPartition;
@@ -18,7 +17,6 @@ import kafka.utils.Sc;
 import kafka.utils.ZkUtils;
 import org.I0Itec.zkclient.ZkClient;
 import org.I0Itec.zkclient.exception.ZkNodeExistsException;
-
 import java.util.*;
 
 /**
@@ -26,7 +24,8 @@ import java.util.*;
  * @create 2017-10-23 28 10
  **/
 
-public class AdminUtils extends Logging {
+public class AdminUtils  {
+    public static Logging logging = Logging.getLogger(KafkaController.class.getName());
     public static final Random rand = new Random();
     public static final String TopicConfigChangeZnodePrefix = "config_change_";
 
@@ -71,11 +70,12 @@ public class AdminUtils extends Logging {
             int firstReplicaIndex = (currentPartitionId + startIndex) % brokerList.size();
             List replicaList = Lists.newArrayList(brokerList.get(firstReplicaIndex));
             for (int j = 0; j < replicationFactor - 1; j++)
-                replicaList:: = brokerList(replicaIndex. (firstReplicaIndex, nextReplicaShift, j, brokerList.size()));
-            ret.put(currentPartitionId, replicaList.reverse);
+                replicaList.add(brokerList.get(replicaIndex(firstReplicaIndex, nextReplicaShift, j, brokerList.size())));
+            Collections.reverse(replicaList);
+            ret.put(currentPartitionId, replicaList);
             currentPartitionId = currentPartitionId + 1;
         }
-        ret.toMap;
+        return ret;
     }
 
 
@@ -84,13 +84,12 @@ public class AdminUtils extends Logging {
      *
      * @param zkClient             Zookeeper client
      * @param topic                Topic for adding partitions to
-     * @param numPartitions        Number of partitions to be set
-     * @param replicaAssignmentStr Manual replica assignment
-     * @param checkBrokerAvailable Ignore checking if assigned replica broker is available. Only used for testing
-     * @param config               Pre-existing properties that should be preserved
+     * param numPartitions        Number of partitions to be set
+     * param replicaAssignmentStr Manual replica assignment
+     * param checkBrokerAvailable Ignore checking if assigned replica broker is available. Only used for testing
+     * param config               Pre-existing properties that should be preserved
      */
-    public static void addPartitions(ZkClient zkClient,
-                                     String topic) {
+    public static void addPartitions(ZkClient zkClient, String topic) {
         addPartitions(zkClient, topic, 1, "", true, new Properties());
 
     }
@@ -117,14 +116,18 @@ public class AdminUtils extends Logging {
             throw new AdminOperationException("The replication factor in manual replication assignment " +
                     " is not equal to the existing replication factor for the topic " + existingReplicaList.size());
 
-        info(String.format("Add partition list for %s is %s", topic, newPartitionReplicaList));
-        List<Tuple<Integer, List<Integer>>> partitionReplicaList = Sc.map(existingPartitionsReplicaList, (k, v) -> Tuple.of(k.partition, v));
+        logging.info(String.format("Add partition list for %s is %s", topic, newPartitionReplicaList));
+        Map<Integer, List<Integer>> partitionReplicaList = Sc.mapKey(existingPartitionsReplicaList, k -> k.partition);
         // add the new list;
-        partitionReplicaList++ = newPartitionReplicaList;
+        partitionReplicaList.putAll(newPartitionReplicaList);
         AdminUtils.createOrUpdateTopicPartitionAssignmentPathInZK(zkClient, topic, partitionReplicaList, config, true);
     }
 
-    public static Map<Integer, List<Integer>> getManualReplicaAssignment(String replicaAssignmentList, Set<Integer> availableBrokerList, Integer startPartitionId, Boolean checkBrokerAvailable =true) {
+    public static Map<Integer, List<Integer>> getManualReplicaAssignment(String replicaAssignmentList, Set<Integer> availableBrokerList, Integer startPartitionId) {
+        return getManualReplicaAssignment(replicaAssignmentList,availableBrokerList,startPartitionId,true);
+    }
+
+    public static Map<Integer, List<Integer>> getManualReplicaAssignment(String replicaAssignmentList, Set<Integer> availableBrokerList, Integer startPartitionId, Boolean checkBrokerAvailable) {
         List<String> partitionList = Arrays.asList(replicaAssignmentList.split(","));
         HashMap<Integer, List<Integer>> ret = new HashMap<Integer, List<Integer>>();
         Integer partitionId = startPartitionId;
@@ -205,13 +208,13 @@ public class AdminUtils extends Logging {
             String jsonPartitionData = ZkUtils.replicaAssignmentZkData(Sc.toMap(Sc.map(replicaAssignment, (k, v) -> Tuple.of(k.toString(), v))));
 
             if (!update) {
-                info("Topic creation " + jsonPartitionData.toString());
+                logging.info("Topic creation " + jsonPartitionData.toString());
                 ZkUtils.createPersistentPath(zkClient, zkPath, jsonPartitionData);
             } else {
-                info("Topic update " + jsonPartitionData.toString());
+                logging.info("Topic update " + jsonPartitionData.toString());
                 ZkUtils.updatePersistentPath(zkClient, zkPath, jsonPartitionData);
             }
-            debug(String.format("Updated path %s with %s for replica assignment", zkPath, jsonPartitionData));
+            logging.debug(String.format("Updated path %s with %s for replica assignment", zkPath, jsonPartitionData));
         } catch (ZkNodeExistsException e) {
             throw new TopicExistsException(String.format("topic %s already exists", topic));
         } catch (Throwable e2) {
@@ -222,14 +225,14 @@ public class AdminUtils extends Logging {
     /**
      * Update the config for an existing topic and create a change notification so the change will propagate to other brokers
      *
-     * @param The zkClient ZkClient handle used to write the new config to zookeeper
-     * @param The topic topic for which configs are being changed
-     * @param The configs final set of configs that will be applied to the topic. If any new configs need to be added or
+     * param The zkClient ZkClient handle used to write the new config to zookeeper
+     * param The topic topic for which configs are being changed
+     * param The configs final set of configs that will be applied to the topic. If any new configs need to be added or
      *            existing configs need to be deleted, it should be done prior to invoking this API
      */
     public void changeTopicConfig(ZkClient zkClient, String topic, Properties configs) {
         if (!topicExists(zkClient, topic))
-            throw new AdminOperationException(String.format("Topic \"%s\" does not exist.", topic))
+            throw new AdminOperationException(String.format("Topic \"%s\" does not exist.", topic));
 
         // remove the topic  @Overrides
         LogConfig.validate(configs);
@@ -257,19 +260,18 @@ public class AdminUtils extends Logging {
         String str = zkClient.readData(ZkUtils.getTopicConfigPath(topic), true);
         Properties props = new Properties();
         if (str != null) {
-
-            Json.parseFull(str) match {
-                case None -> // there are no config  @Overrides
-                case Some(Map map < String, _ >) ->
-                    require(map("version") == 1);
-                    map.get("config") match {
-                    case Some(Map config < String, String >) ->
-                        for ((k, v) <-config)
-                        props.setProperty(k, v);
-                    case _ -> throw new IllegalArgumentException("Invalid topic config: " + str);
+            Map map = JSON.parseObject(str, Map.class);
+            if (map != null) {
+                Prediction.require(map.get("version").equals("1"));
+                Object obj = map.get("config");
+                if (obj != null) {
+                    Map<String, String> config = (Map<String, String>) obj;
+                    config.forEach((k, v) -> props.setProperty(k, v));
+                } else {
+                    throw new IllegalArgumentException("Invalid topic config: " + str);
                 }
-
-                case o -> throw new IllegalArgumentException("Unexpected value in config: " + str);
+            } else {
+                throw new IllegalArgumentException("Unexpected value in config: " + str);
             }
         }
         return props;
@@ -291,53 +293,56 @@ public class AdminUtils extends Logging {
 
     private TopicMetadata fetchTopicMetadataFromZk(String topic, ZkClient zkClient, HashMap<Integer, Broker> cachedBrokerInfo) {
         if (ZkUtils.pathExists(zkClient, ZkUtils.getTopicPath(topic))) {
-            val topicPartitionAssignment = ZkUtils.getPartitionAssignmentForTopics(zkClient, List(topic)).get(topic).get;
-            val sortedPartitions = topicPartitionAssignment.toList.sortWith((m1, m2) -> m1._1 < m2._1);
-            val partitionMetadata = sortedPartitions.map {
-                partitionMap ->
-                        val partition = partitionMap._1;
-                val replicas = partitionMap._2;
-                val inSyncReplicas = ZkUtils.getInSyncReplicasForPartition(zkClient, topic, partition);
-                val leader = ZkUtils.getLeaderForPartition(zkClient, topic, partition);
-                debug("replicas = " + replicas + ", in sync replicas = " + inSyncReplicas + ", leader = " + leader);
+            Map<Integer, List<Integer>> topicPartitionAssignment = ZkUtils.getPartitionAssignmentForTopics(zkClient, Lists.newArrayList(topic)).get(topic);
+            List<Tuple<Integer, List<Integer>>> sortedPartitions = Sc.sortWith(Sc.toList(topicPartitionAssignment), (m1, m2) -> m1.v1 < m2.v1);
+            List<PartitionMetadata> partitionMetadata = Sc.map(sortedPartitions, partitionMap -> {
+                Integer partition = partitionMap.v1;
+                List<Integer> replicas = partitionMap.v2;
+                List<Integer> inSyncReplicas = ZkUtils.getInSyncReplicasForPartition(zkClient, topic, partition);
+                Optional<Integer> leader = ZkUtils.getLeaderForPartition(zkClient, topic, partition);
+                logging.debug("replicas = " + replicas + ", in sync replicas = " + inSyncReplicas + ", leader = " + leader);
 
-                var Option leaderInfo<Broker> =None;
-                var Seq replicaInfo<Broker> =Nil;
-                var Seq isrInfo<Broker> =Nil;
+                Optional<Broker> leaderInfo = Optional.empty();
+                List<Broker> replicaInfo = null;
+                List<Broker> isrInfo = null;
                 try {
-                    leaderInfo = leader match {
-                        case Some(l) ->
-                            try {
-                                Some(getBrokerInfoFromCache(zkClient, cachedBrokerInfo, List(l)).head);
-                            } catch {
-                            case Throwable e -> throw new LeaderNotAvailableException(String.format("Leader not available for partition <%s,%d>", topic, partition), e)
+                    if (leader.isPresent()) {
+                        Integer l = leader.get();
+                        try {
+                            leaderInfo = Optional.of(Sc.head(getBrokerInfoFromCache(zkClient, cachedBrokerInfo, Lists.newArrayList(l))));
+                        } catch (Throwable e) {
+                            throw new LeaderNotAvailableException(String.format("Leader not available for partition <%s,%d>", topic, partition), e);
                         }
-                        case None -> throw new LeaderNotAvailableException("No leader exists for partition " + partition)
+                    } else {
+                        throw new LeaderNotAvailableException("No leader exists for partition " + partition);
                     }
                     try {
-                        replicaInfo = getBrokerInfoFromCache(zkClient, cachedBrokerInfo, replicas.map(id -> id.toInt));
+                        replicaInfo = getBrokerInfoFromCache(zkClient, cachedBrokerInfo, replicas);
                         isrInfo = getBrokerInfoFromCache(zkClient, cachedBrokerInfo, inSyncReplicas);
-                    } catch {
-                        case Throwable e -> throw new ReplicaNotAvailableException(e);
+                    } catch (Throwable e) {
+                        throw new ReplicaNotAvailableException(e);
                     }
-                    if (replicaInfo.size < replicas.size)
+                    if (replicaInfo.size() < replicas.size()) {
+                        final List<Broker> replicaInfo2 = replicaInfo;
                         throw new ReplicaNotAvailableException("Replica information not available for following brokers: " +
-                                replicas.filterNot(replicaInfo.map(_.id).contains(_)).mkString(","));
-                    if (isrInfo.size < inSyncReplicas.size)
+                                Sc.filterNot(replicas, replica -> Sc.map(replicaInfo2, r -> r.id).contains(replica)));
+                    }
+                    if (isrInfo.size() < inSyncReplicas.size()) {
+                        final List<Broker> isrInfo2 = isrInfo;
                         throw new ReplicaNotAvailableException("In Sync Replica information not available for following brokers: " +
-                                inSyncReplicas.filterNot(isrInfo.map(_.id).contains(_)).mkString(","));
-                    new PartitionMetadata(partition, leaderInfo, replicaInfo, isrInfo, ErrorMapping.NoError);
-                } catch {
-                    case Throwable e ->
-                            debug(String.format("Error while fetching metadata for partition <%s,%d>", topic, partition), e)
-                        new PartitionMetadata(partition, leaderInfo, replicaInfo, isrInfo,
-                                ErrorMapping.codeFor(e.getClass.asInstanceOf < Class < Throwable >>));
+                                Sc.filterNot(inSyncReplicas, isr -> Sc.map(isrInfo2, r -> r.id).contains(isr)));
+                    }
+                    return new PartitionMetadata(partition, leaderInfo.get(), replicaInfo, isrInfo, ErrorMapping.NoError);
+                } catch (Throwable e) {
+                    logging.debug(String.format("Error while fetching metadata for partition <%s,%d>", topic, partition), e);
+                    return new PartitionMetadata(partition, leaderInfo.get(), replicaInfo, isrInfo,
+                            ErrorMapping.codeFor(e.getClass()));
                 }
-            }
-            new TopicMetadata(topic, partitionMetadata);
+            });
+            return new TopicMetadata(topic, partitionMetadata);
         } else {
             // topic doesn't exist, send appropriate error code;
-            new TopicMetadata(topic, Seq.empty < PartitionMetadata >, ErrorMapping.UnknownTopicOrPartitionCode);
+           return  new TopicMetadata(topic, Lists.newArrayList(), ErrorMapping.UnknownTopicOrPartitionCode);
         }
     }
 
@@ -361,7 +366,7 @@ public class AdminUtils extends Logging {
         return Sc.map(Sc.filter(brokerMetadata, b -> b.isPresent()), b -> b.get());
     }
 
-    private Integer replicaIndex(Integer firstReplicaIndex, Integer secondReplicaShift, Integer replicaIndex, Integer nBrokers) {
+    private static Integer replicaIndex(Integer firstReplicaIndex, Integer secondReplicaShift, Integer replicaIndex, Integer nBrokers) {
         Integer shift = 1 + (secondReplicaShift + replicaIndex) % (nBrokers - 1);
         return (firstReplicaIndex + shift) % nBrokers;
     }

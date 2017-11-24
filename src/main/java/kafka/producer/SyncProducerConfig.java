@@ -60,6 +60,5 @@ abstract class SyncProducerConfigShared {
     /*
      * The ack timeout of the producer requests. Value must be non-negative and non-zero
      */
-    Integer requestTimeoutMs = props.getIntInRange("request.timeout.ms", SyncProducerConfig.DefaultAckTimeoutMs,
-            Tuple.of(1, Integer.MAX_VALUE));
+    Integer requestTimeoutMs = props.getIntInRange("request.timeout.ms", SyncProducerConfig.DefaultAckTimeoutMs, Tuple.of(1, Integer.MAX_VALUE));
 }
