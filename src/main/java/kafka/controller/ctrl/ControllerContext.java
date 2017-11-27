@@ -4,9 +4,9 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import kafka.cluster.Broker;
 import kafka.controller.ControllerChannelManager;
+import kafka.controller.KafkaController;
 import kafka.controller.ReassignedPartitionsContext;
 import kafka.log.TopicAndPartition;
-import kafka.server.KafkaController;
 import kafka.utils.Sc;
 import org.I0Itec.zkclient.ZkClient;
 

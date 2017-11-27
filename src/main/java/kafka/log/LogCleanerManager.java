@@ -115,7 +115,7 @@ public class LogCleanerManager extends KafkaMetricsGroup {
 //                    return Optional.of(filthiest);
 //                }
 //            } catch (IOException e) {
-//                e.printStackTrace();
+//                 throw new RuntimeException(e);
 //            }
             return Optional.empty();
         });

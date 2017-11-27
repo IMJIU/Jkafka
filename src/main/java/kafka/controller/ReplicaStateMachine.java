@@ -11,6 +11,7 @@ import kafka.controller.channel.Callbacks;
 import kafka.controller.ctrl.*;
 import kafka.func.Tuple;
 import kafka.log.TopicAndPartition;
+import kafka.server.StateChangeLogger;
 import kafka.utils.*;
 import org.I0Itec.zkclient.IZkChildListener;
 import org.I0Itec.zkclient.ZkClient;

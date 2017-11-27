@@ -68,7 +68,7 @@ public class CleanerTest {
             try {
                 map.put(key(k), Long.MAX_VALUE);
             } catch (UnsupportedEncodingException e) {
-                e.printStackTrace();
+                throw new RuntimeException(e);
             }
         });
 
@@ -136,7 +136,7 @@ public class CleanerTest {
             try {
                 map.put(key(k), Long.MAX_VALUE);
             } catch (UnsupportedEncodingException e) {
-                e.printStackTrace();
+                throw new RuntimeException(e);
             }
         });
         thrown.expect(LogCleaningAbortedException.class);

@@ -3,7 +3,6 @@ package kafka.controller;
 import kafka.api.LeaderAndIsr;
 import kafka.controller.ctrl.ControllerContext;
 import kafka.log.TopicAndPartition;
-import kafka.server.KafkaController;
 import kafka.utils.Logging;
 import kafka.utils.Sc;
 import kafka.utils.Utils;

@@ -31,7 +31,7 @@ public class BulkIn {
                     .addTransportAddress(new InetSocketTransportAddress(
                             InetAddress.getByName("127.0.0.1"), 9300));
         } catch (UnknownHostException e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
     }
 
@@ -56,11 +56,11 @@ public class BulkIn {
             bfr.close();
             fr.close();
         } catch (UnknownHostException e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         } catch (FileNotFoundException e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
     }
 

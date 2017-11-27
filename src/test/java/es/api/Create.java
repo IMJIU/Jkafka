@@ -31,7 +31,7 @@ public class Create {
             client = TransportClient.builder().build()
                     .addTransportAddress(new InetSocketTransportAddress(InetAddress.getByName("127.0.0.1"), 9300));
         } catch (UnknownHostException e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
     }
 

@@ -51,7 +51,7 @@ public class FetchResponseSend extends Send {
             try {
                 written += channel.write(buffer);
             } catch (IOException e) {
-                e.printStackTrace();
+                throw new RuntimeException(e);
             }
         if (!buffer.hasRemaining() && !sends.complete()) {
             written += sends.writeTo(channel);

@@ -6,6 +6,8 @@ import com.google.common.collect.Sets;
 import kafka.api.*;
 import kafka.cluster.Broker;
 import kafka.cluster.Replica;
+import kafka.controller.channel.ControllerBrokerStateInfo;
+import kafka.controller.channel.RequestSendThread;
 import kafka.controller.ctrl.ControllerContext;
 import kafka.controller.ctrl.LeaderIsrAndControllerEpoch;
 import kafka.controller.ctrl.PartitionAndReplica;
@@ -14,6 +16,7 @@ import kafka.log.TopicAndPartition;
 import kafka.network.BlockingChannel;
 import kafka.network.Receive;
 import kafka.server.KafkaConfig;
+import kafka.server.StateChangeLogger;
 import kafka.utils.Logging;
 import kafka.utils.Sc;
 import kafka.utils.ShutdownableThread;
@@ -59,10 +62,16 @@ public class ControllerChannelManager extends Logging {
 
     public void sendRequest(Integer brokerId, RequestOrResponse request, ActionP<RequestOrResponse> callback) {
         synchronized (brokerLock) {
-            ControllerBrokerStateInfo stateInfoOpt = brokerStateInfo.get(brokerId);
-            Sc.match(stateInfoOpt, stateInfo -> stateInfo.messageQueue.put((request, callback)),
-                    () -> warn(String.format("Not sending request %s to broker %d, since it is offline.", request, brokerId)))
-            ;
+            ControllerBrokerStateInfo stateInfo = brokerStateInfo.get(brokerId);
+            if (stateInfo != null) {
+                try {
+                    stateInfo.messageQueue.put(Tuple.of(request, callback));
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            } else {
+                warn(String.format("Not sending request %s to broker %d, since it is offline.", request, brokerId));
+            }
         }
     }
 
@@ -91,7 +100,7 @@ public class ControllerChannelManager extends Logging {
                 config.controllerSocketTimeoutMs);
         RequestSendThread requestThread = new RequestSendThread(config.brokerId, controllerContext, broker, messageQueue, channel);
         requestThread.setDaemon(false);
-        brokerStateInfo.put(broker.id, new ControllerBrokerRequestBatch.ControllerBrokerStateInfo(channel, broker, messageQueue, requestThread));
+        brokerStateInfo.put(broker.id, new ControllerBrokerStateInfo(channel, broker, messageQueue, requestThread));
     }
 
     private void removeExistingBroker(Integer brokerId) {
@@ -112,88 +121,6 @@ public class ControllerChannelManager extends Logging {
     }
 }
 
-class RequestSendThread extends ShutdownableThread {
-    //(String.format("Controller-%d-to-broker-%d-send-thread",controllerId, toBroker.id))
-    public Integer controllerId;
-    public ControllerContext controllerContext;
-    public Broker toBroker;
-    public BlockingQueue<Tuple<RequestOrResponse, ActionP<RequestOrResponse>>> queue;
-    public BlockingChannel channel;
-
-    public RequestSendThread(String name, Boolean isInterruptible, Integer controllerId, ControllerContext controllerContext, Broker toBroker, BlockingQueue<Tuple<RequestOrResponse, ActionP<RequestOrResponse>>> queue, BlockingChannel channel) {
-        super(String.format("Controller-%d-to-broker-%d-send-thread", controllerId, toBroker.id));
-        this.controllerId = controllerId;
-        this.controllerContext = controllerContext;
-        this.toBroker = toBroker;
-        this.queue = queue;
-        this.channel = channel;
-        connectToBroker(toBroker, channel);
-        stateChangeLogger = KafkaController.stateChangeLogger;
-    }
-
-    private Object lock = new Object();
-    private StateChangeLogger stateChangeLogger;
-
-    @Override
-    public void doWork() {
-        Tuple<RequestOrResponse, ActionP<RequestOrResponse>> queueItem = queue.take();
-        RequestOrResponse request = queueItem.v1;
-        ActionP<RequestOrResponse> callback = queueItem.v2;
-        Receive receive = null;
-        try {
-            synchronized (lock) {
-                boolean isSendSuccessful = false;
-                while (isRunning.get() && !isSendSuccessful) {
-                    // if a broker goes down for a long time, then at some point the controller's zookeeper listener will trigger a;
-                    // removeBroker which will invoke shutdown() on this thread. At that point, we will stop retrying.;
-                    try {
-                        channel.send(request);
-                        receive = channel.receive();
-                        isSendSuccessful = true;
-                    } catch (Throwable e) {// if the send was not successful, reconnect to broker and resend the message;
-                        logger.warn(String.format("Controller %d epoch %d fails to send request %s to broker %s. " +
-                                        "Reconnecting to broker.", controllerId, controllerContext.epoch,
-                                request.toString(), toBroker.toString()), e);
-                        channel.disconnect();
-                        connectToBroker(toBroker, channel);
-                        isSendSuccessful = false;
-                        // backoff before retrying the connection and send;
-                        Utils.swallow(() -> Thread.sleep(300));
-                    }
-                }
-                RequestOrResponse response = null;
-                request.requestId.get match {
-                    case RequestKeys.LeaderAndIsrKey =>
-                        response = LeaderAndIsrResponse.readFrom(receive.buffer());
-                    case RequestKeys.StopReplicaKey =>
-                        response = StopReplicaResponse.readFrom(receive.buffer());
-                    case RequestKeys.UpdateMetadataKey =>
-                        response = UpdateMetadataResponse.readFrom(receive.buffer());
-                }
-                stateChangeLogger.trace(String.format("Controller %d epoch %d received response %s for a request sent to broker %s",
-                        controllerId, controllerContext.epoch, response.toString(), toBroker.toString()));
-
-                if (callback != null) {
-                    callback.invoke(response);
-                }
-            }
-        } catch (Throwable e) {
-            logger.error(String.format("Controller %d fails to send a request to broker %s", controllerId, toBroker.toString()), e)
-            // If there is any socket error (eg, socket timeout), the channel is no longer usable and needs to be recreated.;
-            channel.disconnect();
-        }
-    }
-
-    private void connectToBroker(Broker broker, BlockingChannel channel) {
-        try {
-            channel.connect();
-            logger.info(String.format("Controller %d connected to %s for sending state change requests", controllerId, broker.toString()))
-        } catch (Throwable e) {
-            channel.disconnect();
-            logger.error(String.format("Controller %d's connection to broker %s was unsuccessful", controllerId, broker.toString()), e)
-        }
-    }
-}
 
 class ControllerBrokerRequestBatch extends Logging {
     public KafkaController controller;
@@ -214,35 +141,35 @@ class ControllerBrokerRequestBatch extends Logging {
         // raise error if the previous batch is not empty;
         if (leaderAndIsrRequestMap.size() > 0)
             throw new IllegalStateException("Controller to broker state change requests batch is not empty while creating " +
-                    String.format("a new one. Some LeaderAndIsr state changes %s might be lost ", leaderAndIsrRequestMap.toString()))
+                    String.format("a new one. Some LeaderAndIsr state changes %s might be lost ", leaderAndIsrRequestMap.toString()));
         if (stopReplicaRequestMap.size() > 0)
             throw new IllegalStateException("Controller to broker state change requests batch is not empty while creating a " +
-                    String.format("new one. Some StopReplica state changes %s might be lost ", stopReplicaRequestMap.toString()))
+                    String.format("new one. Some StopReplica state changes %s might be lost ", stopReplicaRequestMap.toString()));
         if (updateMetadataRequestMap.size() > 0)
             throw new IllegalStateException("Controller to broker state change requests batch is not empty while creating a " +
-                    String.format("new one. Some UpdateMetadata state changes %s might be lost ", updateMetadataRequestMap.toString()))
-    }
-    public Set<TopicAndPartition> addLeaderAndIsrRequestForBrokers(List<Integer> brokerIds, String topic, Integer partition,
-                                                                   LeaderIsrAndControllerEpoch leaderIsrAndControllerEpoch,
-                                                                   List<Integer> replicas) {
-        return addLeaderAndIsrRequestForBrokers(brokerIds,topic,partition,leaderIsrAndControllerEpoch,replicas,null);
+                    String.format("new one. Some UpdateMetadata state changes %s might be lost ", updateMetadataRequestMap.toString()));
     }
 
-    public Set<TopicAndPartition> addLeaderAndIsrRequestForBrokers(List<Integer> brokerIds, String topic, Integer partition,
-                                                                   LeaderIsrAndControllerEpoch leaderIsrAndControllerEpoch,
-                                                                   List<Integer> replicas, ActionP<RequestOrResponse> callback) {
+    public void addLeaderAndIsrRequestForBrokers(List<Integer> brokerIds, String topic, Integer partition,
+                                                 LeaderIsrAndControllerEpoch leaderIsrAndControllerEpoch,
+                                                 List<Integer> replicas) {
+        addLeaderAndIsrRequestForBrokers(brokerIds, topic, partition, leaderIsrAndControllerEpoch, replicas, null);
+    }
+
+    public void addLeaderAndIsrRequestForBrokers(List<Integer> brokerIds, String topic, Integer partition,
+                                                 LeaderIsrAndControllerEpoch leaderIsrAndControllerEpoch,
+                                                 List<Integer> replicas, ActionP<RequestOrResponse> callback) {
         TopicAndPartition topicAndPartition = new TopicAndPartition(topic, partition);
         Sc.filter(brokerIds, b -> b >= 0).forEach(brokerId -> {
-            leaderAndIsrRequestMap.getOrDefault(brokerId, new HashMap<Tuple<String, Integer>, PartitionStateInfo>());
+            leaderAndIsrRequestMap.getOrDefault(brokerId, new HashMap<>());
             leaderAndIsrRequestMap.get(brokerId).put(Tuple.of(topic, partition),
                     new PartitionStateInfo(leaderIsrAndControllerEpoch, Sc.toSet(replicas)));
         });
 
-        addUpdateMetadataRequestForBrokers(controllerContext.liveOrShuttingDownBrokerIds());
-        return Sets.newHashSet(topicAndPartition);
+        addUpdateMetadataRequestForBrokers(Sc.toList(controllerContext.liveOrShuttingDownBrokerIds()), Sets.newHashSet(topicAndPartition), null);
     }
 
-    public void addStopReplicaRequestForBrokers(List<Integer> brokerIds, String topic, Integer partition, Boolean deletePartition, ActionP2<RequestOrResponse, Object> callback) {
+    public void addStopReplicaRequestForBrokers(List<Integer> brokerIds, String topic, Integer partition, Boolean deletePartition, ActionP2<RequestOrResponse, Integer> callback) {
         Sc.filter(brokerIds, b -> b >= 0).forEach(brokerId -> {
             stopReplicaRequestMap.getOrDefault(brokerId, Lists.newArrayList());
             List<StopReplicaRequestInfo> v = stopReplicaRequestMap.get(brokerId);
@@ -250,7 +177,7 @@ class ControllerBrokerRequestBatch extends Logging {
                 stopReplicaRequestMap.get(brokerId).add(new StopReplicaRequestInfo(new PartitionAndReplica(topic, partition, brokerId),
                         deletePartition, r -> callback.invoke(r, brokerId)));
             else
-                stopReplicaRequestMap.get(brokerId).add(new StopReplicaRequestInfo(new PartitionAndReplica(topic, partition, brokerId), deletePartition);
+                stopReplicaRequestMap.get(brokerId).add(new StopReplicaRequestInfo(new PartitionAndReplica(topic, partition, brokerId), deletePartition));
         });
     }
 
@@ -285,12 +212,12 @@ class ControllerBrokerRequestBatch extends Logging {
             givenPartitions = controllerContext.partitionLeadershipInfo.keySet();
         else
             givenPartitions = partitions;
-        if (controller.deleteTopicManager.partitionsToBeDeleted.isEmpty)
+        if (controller.deleteTopicManager.partitionsToBeDeleted.isEmpty())
             filteredPartitions = givenPartitions;
         else
-            filteredPartitions = (givenPartitions-- controller.deleteTopicManager.partitionsToBeDeleted);
+            filteredPartitions = Sc.subtract(givenPartitions,controller.deleteTopicManager.partitionsToBeDeleted);
         filteredPartitions.forEach(partition -> updateMetadataRequestMapFor(brokerIds, partition, false));
-        controller.deleteTopicManager.partitionsToBeDeleted.forEach(partition -> updateMetadataRequestMapFor(partition, true));
+        controller.deleteTopicManager.partitionsToBeDeleted.forEach(partition -> updateMetadataRequestMapFor(brokerIds,partition, true));
     }
 
     public void sendRequestsToBrokers(Integer controllerEpoch, Integer correlationId) {
@@ -322,19 +249,7 @@ class ControllerBrokerRequestBatch extends Logging {
         stopReplicaRequestMap.clear();
     }
 
-    class ControllerBrokerStateInfo {
-        public BlockingChannel channel;
-        public Broker broker;
-        public BlockingQueue<Tuple<RequestOrResponse, ActionP<RequestOrResponse>>> messageQueue;
-        public RequestSendThread requestSendThread;
 
-        public ControllerBrokerStateInfo(BlockingChannel channel, Broker broker, BlockingQueue<Tuple<RequestOrResponse, ActionP<RequestOrResponse>>> messageQueue, RequestSendThread requestSendThread) {
-            this.channel = channel;
-            this.broker = broker;
-            this.messageQueue = messageQueue;
-            this.requestSendThread = requestSendThread;
-        }
-    }
 
     class StopReplicaRequestInfo {
         public PartitionAndReplica replica;

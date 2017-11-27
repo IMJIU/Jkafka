@@ -74,7 +74,7 @@ public class ReplicaManager extends KafkaMetricsGroup {
                         Tuple.of(new File(dir).getAbsolutePath(),
                                 new OffsetCheckpoint(new File(dir, ReplicaManager.HighWatermarkFilename)));
                     } catch (IOException e) {
-                        e.printStackTrace();
+                        throw new RuntimeException(e);
                     }
                     return null;
                 }
@@ -578,7 +578,7 @@ public class ReplicaManager extends KafkaMetricsGroup {
                 );
             }
         } catch (IOException e1) {
-            e1.printStackTrace();
+            throw new RuntimeException(e1);
         } catch (Throwable e) {
             String errorMsg = String.format("Error on broker %d while processing LeaderAndIsr request with correlationId %d received from controller %d " +
                     "epoch %d", localBrokerId, correlationId, controllerId, epoch);

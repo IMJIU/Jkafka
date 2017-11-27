@@ -24,6 +24,7 @@ import kafka.metrics.KafkaMetricsGroup;
 import kafka.utils.Pool;
 import kafka.utils.ShutdownableThread;
 import kafka.utils.Utils;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -87,13 +88,8 @@ public abstract class AbstractFetcherThread extends ShutdownableThread {
 
     @Override
     public void shutdown() {
-        try {
-            super.shutdown();
-            simpleConsumer.close();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-
+        super.shutdown();
+        simpleConsumer.close();
     }
 
     @Override
@@ -103,7 +99,7 @@ public abstract class AbstractFetcherThread extends ShutdownableThread {
                 try {
                     partitionMapCond.await(200L, TimeUnit.MILLISECONDS);
                 } catch (InterruptedException e) {
-                    e.printStackTrace();
+                   throw new RuntimeException(e);
                 }
             partitionMap.entrySet().forEach(e -> {
                 TopicAndPartition topicAndPartition = e.getKey();
@@ -119,7 +115,7 @@ public abstract class AbstractFetcherThread extends ShutdownableThread {
 
     private void processFetchRequest(FetchRequest fetchRequest) {
         final Set<TopicAndPartition> partitionsWithError = Sets.newHashSet();
-         FetchResponse response = null;
+        FetchResponse response = null;
         try {
             logger.trace(String.format("Issuing to broker %d of fetch request %s", sourceBroker.id, fetchRequest));
             response = simpleConsumer.fetch(fetchRequest);
@@ -136,7 +132,7 @@ public abstract class AbstractFetcherThread extends ShutdownableThread {
             final FetchResponse response2 = response;
             // process fetched data;
             Utils.inLock(partitionMapLock, () ->
-                    response2.data.forEach((topicAndPartition,partitionData) -> {
+                    response2.data.forEach((topicAndPartition, partitionData) -> {
                         String topic = topicAndPartition.topic;
                         Integer partitionId = topicAndPartition.partition;
                         Long currentOffset = partitionMap.get(topicAndPartition);
@@ -204,8 +200,8 @@ public abstract class AbstractFetcherThread extends ShutdownableThread {
             }
             partitionMapCond.signalAll();
         } catch (Throwable e) {
-            e.printStackTrace();
-        }finally {
+            throw new RuntimeException(e);
+        } finally {
             partitionMapLock.unlock();
         }
     }
@@ -215,7 +211,7 @@ public abstract class AbstractFetcherThread extends ShutdownableThread {
             partitionMapLock.lockInterruptibly();
             topicAndPartitions.forEach(tp -> partitionMap.remove(tp));
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         } finally {
             partitionMapLock.unlock();
         }
@@ -226,11 +222,10 @@ public abstract class AbstractFetcherThread extends ShutdownableThread {
             partitionMapLock.lockInterruptibly();
             return partitionMap.size();
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         } finally {
             partitionMapLock.unlock();
         }
-        return null;
     }
 }
 

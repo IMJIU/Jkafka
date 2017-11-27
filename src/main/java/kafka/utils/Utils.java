@@ -172,7 +172,7 @@ public class Utils {
     public static void swallow(ActionWithThrow action, ActionP<Throwable> log) {
         try {
             action.invoke();
-        } catch (Exception e) {
+        } catch (Throwable e) {
             if (log != null)
                 log.invoke(e);
         }
@@ -215,9 +215,8 @@ public class Utils {
         try {
             return new String(bytes, encoding);
         } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
-        return null;
     }
 
     public static String readString(ByteBuffer buffer) {

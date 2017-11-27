@@ -30,9 +30,8 @@ public class ApiUtils {
         try {
             return new String(bytes, ProtocolEncoding);
         } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
-        return null;
     }
 //
     /**
@@ -49,7 +48,7 @@ public class ApiUtils {
             try {
                 encodedString = string.getBytes(ProtocolEncoding);
             } catch (UnsupportedEncodingException e) {
-                e.printStackTrace();
+                throw new RuntimeException(e);
             }
             if (encodedString.length > Short.MAX_VALUE) {
                 throw new KafkaException("String exceeds the maximum size of " + Short.MAX_VALUE + ".");
@@ -72,7 +71,7 @@ public class ApiUtils {
             try {
                 encodedString = string.getBytes(ProtocolEncoding);
             } catch (UnsupportedEncodingException e) {
-                e.printStackTrace();
+                throw new RuntimeException(e);
             }
             if (encodedString.length > Short.MAX_VALUE) {
                 throw new KafkaException("String exceeds the maximum size of " + Short.MAX_VALUE + ".");

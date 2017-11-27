@@ -32,24 +32,24 @@ public class App {
         MsgProcessor processor = new MsgProcessor();
     }
 
-    public static void socket(){
+    public static void socket() {
         /**
          * 基于TCP协议的Socket通信，实现用户登录，服务端
          */
         ServerSocket serverSocket = null;//1024-65535的某个端口
         try {
             serverSocket = new ServerSocket(10086);
-            while(true){
+            while (true) {
                 Socket socket = serverSocket.accept();
                 accept(socket);
             }
         } catch (IOException e) {
-            e.printStackTrace();
-        }finally {
+            throw new RuntimeException(e);
+        } finally {
             try {
                 serverSocket.close();
             } catch (IOException e) {
-                e.printStackTrace();
+                throw new RuntimeException(e);
             }
         }
 
@@ -69,25 +69,17 @@ public class App {
                     Thread.sleep(10L);
                 }
             } catch (IOException e) {
-                e.printStackTrace();
+                throw new RuntimeException(e);
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                throw new RuntimeException(e);
             } finally {
                 try {
                     socket.shutdownInput();
                     socket.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-                try {
                     out.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-                try {
                     br.close();
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    throw new RuntimeException(e);
                 }
             }
         });

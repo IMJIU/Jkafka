@@ -72,7 +72,7 @@ public class ErrorMapping {
             try {
                 throw codeToException.get(code).newInstance();
             } catch (Exception e) {
-                e.printStackTrace();
+                throw new RuntimeException(e);
             }
     }
 
@@ -84,10 +84,9 @@ public class ErrorMapping {
             }
             return c.newInstance();
         } catch (InstantiationException e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         } catch (IllegalAccessException e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
-        return null;
     }
 }

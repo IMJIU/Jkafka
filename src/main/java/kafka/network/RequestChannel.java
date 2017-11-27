@@ -99,7 +99,7 @@ public class RequestChannel extends KafkaMetricsGroup {
         try {
             responseQueues[response.processor].put(response);
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
         for (ActionP onResponse : responseListeners)
             onResponse.invoke(response.processor);
@@ -152,9 +152,8 @@ public class RequestChannel extends KafkaMetricsGroup {
         try {
             return requestQueue.take();
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
-        return null;
     }
 
     /**

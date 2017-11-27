@@ -61,7 +61,7 @@ public class BoundedByteBufferSend extends Send {
         try {
             written = channel.write(bs);
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
         // if we are done, mark it off;
         if (!buffer.hasRemaining())

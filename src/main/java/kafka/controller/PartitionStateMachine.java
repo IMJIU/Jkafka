@@ -14,6 +14,7 @@ import kafka.controller.ctrl.LeaderIsrAndControllerEpoch;
 import kafka.controller.partition.PartitionState;
 import kafka.func.Tuple;
 import kafka.log.TopicAndPartition;
+import kafka.server.StateChangeLogger;
 import kafka.utils.*;
 import org.I0Itec.zkclient.IZkChildListener;
 import org.I0Itec.zkclient.IZkDataListener;

@@ -40,7 +40,7 @@ public class Client {
                     os.close();
                     socket.close();
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    throw new RuntimeException(e);
                 } finally {
                     latch.countDown();
                 }

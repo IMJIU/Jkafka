@@ -187,7 +187,6 @@ public class Processor extends AbstractServerThread {
      * Process reads from ready sockets
      */
     public void read(SelectionKey key) {
-        try {
             lruConnections.put(key, currentTimeNanos);
             SocketChannel socketChannel = channelFor(key);
             Receive receive;
@@ -214,9 +213,6 @@ public class Processor extends AbstractServerThread {
                 key.interestOps(SelectionKey.OP_READ);
                 wakeup();
             }
-        } catch (InterruptedException e) {
-            error(e.getMessage(), e);
-        }
     }
 
 

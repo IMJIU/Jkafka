@@ -57,7 +57,7 @@ public abstract class ShutdownableThread extends Thread {
         logger.info("Shutdown completed");
     }
 
-    public abstract void doWork();
+    public abstract void doWork() throws InterruptedException;
 
     @Override
     public void run() {

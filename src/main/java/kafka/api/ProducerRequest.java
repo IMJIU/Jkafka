@@ -150,11 +150,7 @@ public class ProducerRequest extends RequestOrResponse {
 
     public void handleError(Exception e, RequestChannel requestChannel, RequestChannel.Request request) {
         if (((ProducerRequest) request.requestObj).requiredAcks == 0) {
-            try {
                 requestChannel.closeConnection(request.processor, request);
-            } catch (InterruptedException e1) {
-                error(e1.getMessage(), e1);
-            }
         } else {
             Map<TopicAndPartition, ProducerResponseStatus> producerResponseStatus =
                     Utils.mapValue(data, v -> new ProducerResponseStatus(ErrorMapping.codeFor(e.getClass()), -1l));

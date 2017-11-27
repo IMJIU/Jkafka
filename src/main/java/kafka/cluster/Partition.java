@@ -104,16 +104,14 @@ public class Partition extends KafkaMetricsGroup {
                 try {
                     log = logManager.createLog(new TopicAndPartition(topic, partitionId), config);
                 } catch (IOException e) {
-                    e.printStackTrace();
-                    return null;
+                    throw new RuntimeException(e);
                 }
                 OffsetCheckpoint checkpoint = replicaManager.highWatermarkCheckpoints.get(log.dir.getParentFile().getAbsolutePath());
                 Map<TopicAndPartition, Long> offsetMap = null;
                 try {
                     offsetMap = checkpoint.read();
                 } catch (IOException e) {
-                    e.printStackTrace();
-                    return null;
+                    throw new RuntimeException(e);
                 }
                 if (!offsetMap.containsKey(new TopicAndPartition(topic, partitionId)))
                     warn(String.format("No checkpointed highwatermark is found for partition <%s,%d>", topic, partitionId));

@@ -3,6 +3,7 @@ package kafka.server;
 
 import com.alibaba.fastjson.JSON;
 import com.google.common.collect.ImmutableMap;
+import kafka.controller.KafkaController;
 import kafka.controller.ctrl.ControllerContext;
 import kafka.func.Action;
 import kafka.func.ActionWithThrow;

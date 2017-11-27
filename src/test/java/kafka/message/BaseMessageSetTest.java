@@ -75,9 +75,9 @@ public abstract class BaseMessageSetTest {
                 checkEquals(set.iterator(), newSet.iterator());
             }
         } catch (FileNotFoundException e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
     }
 }

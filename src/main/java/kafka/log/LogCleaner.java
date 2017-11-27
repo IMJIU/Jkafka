@@ -126,11 +126,7 @@ public class LogCleaner extends KafkaMetricsGroup {
     public void shutdown() {
         info("Shutting down the log cleaner.");
         cleaners.forEach(c -> {
-            try {
-                c.shutdown();
-            } catch (InterruptedException e) {
-                error(e.getMessage(),e);
-            }
+            c.shutdown();
         });
     }
 
@@ -229,14 +225,14 @@ public class LogCleaner extends KafkaMetricsGroup {
             try {
                 cleanOrSleep();
             } catch (InterruptedException e) {
-                error(e.getMessage(),e);
+                error(e.getMessage(), e);
             } catch (IOException e) {
-                error(e.getMessage(),e);
+                error(e.getMessage(), e);
             }
         }
 
         @Override
-        public void shutdown()  {
+        public void shutdown() {
             initiateShutdown();
             backOffWaitLatch.countDown();
             awaitShutdown();

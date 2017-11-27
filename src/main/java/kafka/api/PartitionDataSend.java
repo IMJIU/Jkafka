@@ -47,7 +47,7 @@ public class PartitionDataSend extends Send {
                 written += bytesSent;
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
         return written;
     }

@@ -119,9 +119,8 @@ public class SimpleConsumer extends Logging {
                     try {
                         return sendRequest(request);
                     } catch (IOException e) {
-                        e.printStackTrace();
+                        throw new RuntimeException(e);
                     }
-                    return null;
                 })
         );
         FetchResponse fetchResponse = FetchResponse.readFrom(response.buffer());

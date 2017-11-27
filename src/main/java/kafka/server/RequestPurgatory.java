@@ -345,7 +345,7 @@ abstract class RequestPurgatory<T extends DelayedRequest>
             try {
                 shutdownLatch.await();
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                throw new RuntimeException(e);
             }
             debug("Shut down complete.");
         }
@@ -359,7 +359,7 @@ abstract class RequestPurgatory<T extends DelayedRequest>
                 try {
                     curr = delayedQueue.poll(200L, TimeUnit.MILLISECONDS);
                 } catch (InterruptedException e) {
-                    e.printStackTrace();
+                    throw new RuntimeException(e);
                 }
                 if (curr == null)
                     return null;

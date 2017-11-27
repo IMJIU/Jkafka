@@ -250,7 +250,7 @@ public class LogConfig implements Cloneable{
         try {
             log = clone();
         } catch (CloneNotSupportedException e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
         log.segmentSize = segmentSize;
         return log;
