@@ -19,14 +19,16 @@ public class ScalaTranslator {
     public static void main(String[] args) throws IOException {
 //        System.out.println("ksdjfkasdf<Int> threadId)".replaceAll("([\\s\\(<])Int([\\s>])", "$1Integer$2"));
         List<String> filePaths = Arrays.asList(
-//                main + "server/ReplicaManager.java",
-//                main + "cluster/Partition.java",
-//                main + "utils/Pool.java",
-//                main + "log/LogConfig.java",
-//                main + "server/MetadataCache.java"
-//                main+"consumer/PartitionTopicInfo.java"
-//                main + "network/MultiSend.java"
-                main + "api/PartitionMetadata.java"
+                main + "server/ZookeeperLeaderElector.java"
+//                main + "cluster/Cluster.java"
+//                main + "controller/TopicDeletionManager.java"
+//                main + "utils/DelayedItem.java"
+//                main + "admin/PreferredReplicaLeaderElectionCommand.java"
+//                main + "log/LogConfig.java"
+//                main + "server/DelayedFetch.java"
+//                main + "consumer/TopicFilter.java"
+//                main + "network/BlockingChannel.java"
+//                main + "api/ConsumerTopicStats.java"
         );
 //        List<String> filePaths = Arrays.asList(main + "log/Log.java");
         for (String p : filePaths) {
@@ -36,13 +38,19 @@ public class ScalaTranslator {
 
 
     public static void convertToJava(String filePath, boolean write) throws IOException {
-        List<Character> lastList = Arrays.asList('[', '(', '}', '{', ';', '*', '/', ',', '>', '=', '+');
+        List<Character> lastList = Lists.newArrayList('[', '(', '}', '{', ';', '*', '/', ',', '>', '=', '+');
         String[] ps = new String[]{
+                "= >", "->",
+                "=>", "->",
+                " List\\(", " Lists.newArrayList\\(",
+                "Any", "Object",
                 " Int ", " Integer ",
+                "case(\\S+)->", "case$1:",
                 "\\[(\\D+)\\]", "<$1>",
                 "\\sInt\\s", " Integer ",
-                "Int>", "Integer>",
-                "<Int,", "<Integer,>",
+                ",Int ", ",Integer ",
+                ",Int>", ",Integer>",
+                "<Int,", "<Integer,",
                 " def ", "public void ",
                 "([\\s\\(<])Int([\\s>])", "$1Integer$2",
                 "(\\w+):\\s?(\\w+)", "$2 $1",
@@ -55,7 +63,7 @@ public class ScalaTranslator {
                 "Double.MaxValue", "Double.MAX_VALUE",
                 " assertEquals", "Assert.assertEquals",
                 "val\\s(\\S+)\\s?\\s?:\\s?(\\S+)", "$2 $1",
-                "overrride", " @Override",
+                "override", " @Override",
                 " assertTrue", " Assert.assertTrue"
         };
         StringBuilder content = new StringBuilder();
@@ -146,8 +154,8 @@ public class ScalaTranslator {
     static {
         String ip = getMyIp();
         if (ip.equals("10.8.74.190")) {
-            main = "e:/github/JKafka/src/main/java/kafka/";
-            test = "e:/github/JKafka/src/test/java/kafka/";
+            main = "e:/github/Monitor_test/src/main/java/kafka/";
+            test = "e:/github/Monitor_test/src/test/java/kafka/";
         }
     }
 }
