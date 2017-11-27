@@ -5,12 +5,7 @@ package kafka.utils;/**
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import kafka.api.PartitionStateInfo;
-import kafka.cluster.Partition;
-import kafka.cluster.Replica;
 import kafka.func.*;
-import org.apache.zookeeper.Op;
-
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -19,8 +14,8 @@ import java.nio.charset.Charset;
 import java.util.*;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
-import java.util.function.*;
-import java.util.stream.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.zip.CRC32;
 
 /**
@@ -43,36 +38,33 @@ public class Utils {
      * @param fun A function
      * @return A Runnable that just executes the function
      */
-    public static Runnable runnable(Action fun) {
-        return () -> fun.invoke();
+    public static Runnable runnable(Runnable fun) {
+        return () -> fun.run();
     }
-//
-//        /**
-//         * Create a daemon thread
-//         * @param runnable The runnable to execute in the background
-//         * @return The unstarted thread
-//         */
-//        public Thread  daemonThread(Runnable runnable)
-//                newThread(runnable, true);
-//
-//        /**
-//         * Create a daemon thread
-//         * @param name The name of the thread
-//         * @param runnable The runnable to execute in the background
-//         * @return The unstarted thread
-//         */
-//        public Thread  daemonThread(String name, Runnable runnable)
-//                newThread(name, runnable, true);
-//
-//        /**
-//         * Create a daemon thread
-//         * @param name The name of the thread
-//         * @param fun The runction to execute in the thread
-//         * @return The unstarted thread
-//         */
-//        public Thread  daemonThread(String name, fun: () => Unit)
-//                daemonThread(name, runnable(fun));
-//
+
+    /**
+     * Create a daemon thread
+     *
+     * @param runnable The runnable to execute in the background
+     * @return The unstarted thread
+     */
+    public  static Thread daemonThread(Runnable runnable) {
+        return newThread(runnable, true);
+    }
+
+
+    /**
+     * Create a daemon thread
+     *
+     * @param name     The name of the thread
+     * @param runnable The runnable to execute in the background
+     * @return The unstarted thread
+     */
+    public static Thread daemonThread(String name, Runnable runnable) {
+        return newThread(name, runnable, true);
+    }
+
+
 
     /**
      * Create a new thread
@@ -93,24 +85,21 @@ public class Utils {
         });
         return thread;
     }
-//
-//        /**
-//         * Create a new thread
-//         * @param runnable The work for the thread to do
-//         * @param daemon Should the thread block JVM shutdown?
-//         * @return The unstarted thread
-//         */
-//        public Thread  newThread(Runnable runnable, Boolean daemon) {
-//                Integer thread = new Thread(runnable);
-//                thread.setDaemon(daemon);
-//                thread.setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
-//                    def uncaughtException(Thread t, Throwable e) {
-//                        error("Uncaught exception in thread '" + t.getName + "':", e);
-//                    }
-//                });
-//                thread;
-//        }
-//
+
+    /**
+     * Create a new thread
+     *
+     * @param runnable The work for the thread to do
+     * @param daemon   Should the thread block JVM shutdown?
+     * @return The unstarted thread
+     */
+    public static Thread newThread(Runnable runnable, Boolean daemon) {
+        Thread thread = new Thread(runnable);
+        thread.setDaemon(daemon);
+        thread.setUncaughtExceptionHandler((Thread t, Throwable e)-> logger.error("Uncaught exception in thread '" + t.getName() + "':", e));
+        return thread;
+    }
+
 
     /**
      * Read the given byte buffer into a byte array
