@@ -369,11 +369,14 @@ class KafkaServer extends KafkaMetricsGroup {
     private OffsetManager createOffsetManager() {
         OffsetManagerConfig offsetManagerConfig = new OffsetManagerConfig(
                 config.offsetMetadataMaxSize,
-                 config.offsetsLoadBufferSize,
+                config.offsetsLoadBufferSize,
                 config.offsetsRetentionMinutes * 60 * 1000L,
+                null,
                 config.offsetsTopicPartitions,
-                 config.offsetsTopicReplicationFactor,
-                 config.offsetCommitTimeoutMs,
+                null,
+                config.offsetsTopicReplicationFactor,
+                null,
+                config.offsetCommitTimeoutMs,
                 config.offsetCommitRequiredAcks);
         return new OffsetManager(offsetManagerConfig, replicaManager, zkClient, kafkaScheduler);
     }

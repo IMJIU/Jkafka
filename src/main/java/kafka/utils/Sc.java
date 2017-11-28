@@ -204,6 +204,11 @@ public class Sc {
         return list;
     }
 
+    public static <V1, V2, V3, V4> Tuple<V3, V4> map(Tuple<V1, V2> tuple, Handler2<V1, V2, Tuple<V3, V4>> handler) {
+        Tuple<V3, V4> result = handler.handle(tuple.v1, tuple.v2);
+        return result;
+    }
+
     public static <K, V, RESULT> List<RESULT> map(Map<K, V> map, Handler2<K, V, RESULT> handler) {
         List<RESULT> list = Lists.newArrayList();
         if (map != null) {

@@ -6,6 +6,7 @@ import kafka.network.BoundedByteBufferSend;
 import kafka.network.RequestChannel;
 
 import java.nio.ByteBuffer;
+import java.util.Optional;
 
 /**
  * @author zhoulf
@@ -20,6 +21,7 @@ public class ControlledShutdownRequest extends RequestOrResponse {
     int brokerId;
 
     public ControlledShutdownRequest(short versionId, int correlationId, int brokerId) {
+        super(Optional.of(RequestKeys.ControlledShutdownKey));
         this.versionId = versionId;
         this.correlationId = correlationId;
         this.brokerId = brokerId;

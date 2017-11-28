@@ -8,6 +8,7 @@ import kafka.utils.ZkUtils;
 import org.I0Itec.zkclient.IZkChildListener;
 import org.I0Itec.zkclient.ZkClient;
 
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -67,7 +68,7 @@ class TopicConfigManager extends Logging {
      */
     public void startup() {
         ZkUtils.makeSurePersistentPathExists(zkClient, ZkUtils.TopicConfigChangesPath);
-        zkClient.subscribeChildChanges(ZkUtils.TopicConfigChangesPath, ConfigChangeListener);
+        zkClient.subscribeChildChanges(ZkUtils.TopicConfigChangesPath, new ConfigChangeListener());
         processAllConfigChanges();
     }
 
@@ -75,19 +76,19 @@ class TopicConfigManager extends Logging {
  * Process all config changes
  */
     private void processAllConfigChanges() {
-        val configChanges = zkClient.getChildren(ZkUtils.TopicConfigChangesPath);
-        import JavaConversions._;
-        processConfigChanges((mutable configChanges.Buffer < String >).sorted);
+        List<String> configChanges = zkClient.getChildren(ZkUtils.TopicConfigChangesPath);
+        Collections.sort(configChanges);
+        processConfigChanges(configChanges);
     }
 
 /**
  * Process the given list of config changes
  */
-    private void processConfigChanges(Seq notifications<String>) {
-        if (notifications.size > 0) {
-            info("Processing config change notification(s)...")
-            val now = time.milliseconds;
-            val logs = logManager.logsByTopicPartition.toBuffer;
+    private void processConfigChanges(List<String> notifications) {
+        if (notifications.size() > 0) {
+            info("Processing config change notification(s)...");
+            Long now = time.milliseconds();
+            val logs = logManager.logsByTopicPartition;
             val logsByTopic = logs.groupBy(_._1.topic).mapValues(_.map(_._2));
             for (notification< -notifications) {
                 val changeId = changeNumber(notification)
