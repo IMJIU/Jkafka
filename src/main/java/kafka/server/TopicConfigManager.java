@@ -50,14 +50,18 @@ class TopicConfigManager extends Logging {
     private Time time = Time.get();
     private Long lastExecutedChange = -1L;
 
-    public TopicConfigManager(ZkClient zkClient, LogManager logManager, java.lang.Long changeExpirationMs, Time time, java.lang.Long lastExecutedChange) {
+    public TopicConfigManager(ZkClient zkClient, LogManager logManager, java.lang.Long changeExpirationMs, Time time) {
         this.zkClient = zkClient;
         this.logManager = logManager;
         this.changeExpirationMs = changeExpirationMs;
         this.time = time;
-        this.lastExecutedChange = lastExecutedChange;
     }
-
+    public TopicConfigManager(ZkClient zkClient, LogManager logManager) {
+        this.zkClient = zkClient;
+        this.logManager = logManager;
+        this.changeExpirationMs = 15*60*1000L;
+        this.time = Time.get();
+    }
     /**
      * Begin watching for config changes
      */

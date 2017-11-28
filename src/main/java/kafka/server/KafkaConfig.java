@@ -45,7 +45,7 @@ public class KafkaConfig extends ZKConfig {
         socketReceiveBufferBytes = props.getInt("socket.receive.buffer.bytes", 100 * 1024);
         socketRequestMaxBytes = props.getIntInRange("socket.request.max.bytes", 100 * 1024 * 1024, Tuple.of(1, Integer.MAX_VALUE));
         maxConnectionsPerIp = props.getIntInRange("max.connections.per.ip", Integer.MAX_VALUE, Tuple.of(1, Integer.MAX_VALUE));
-        maxConnectionsPerIpOverrides = props.getMap("max.connections.per.ip.overrides");
+        maxConnectionsPerIpOverrides = Sc.mapValue(props.getMap("max.connections.per.ip.overrides"),v->Integer.parseInt(v));
         connectionsMaxIdleMs = props.getLong("connections.max.idle.ms", 10 * 60 * 1000L);
         /*********** Log Configuration ***********/
         numPartitions = props.getIntInRange("num.partitions", 1, Tuple.of(1, Integer.MAX_VALUE));
@@ -217,7 +217,7 @@ public class KafkaConfig extends ZKConfig {
     public Integer maxConnectionsPerIp ;
 
     /* per-ip or hostname overrides to the default maximum number of connections */
-    public Map<String, String> maxConnectionsPerIpOverrides ;
+    public Map<String, Integer> maxConnectionsPerIpOverrides ;
 
     /* idle connections the timeout server socket processor threads close the connections that idle more than this */
     public Long connectionsMaxIdleMs ;

@@ -730,29 +730,7 @@ public class ZkUtils {
     }
 }
 
-class ZKStringSerializer implements ZkSerializer {
 
-    //        @throws(classOf<ZkMarshallingError>)
-    public byte[] serialize(Object data) {
-        try {
-            return ((String) data).getBytes("UTF-8");
-        } catch (UnsupportedEncodingException e) {
-            throw new ZkMarshallingError();
-        }
-    }
-
-    //        @throws(classOf<ZkMarshallingError>)
-    public Object deserialize(byte[] bytes) {
-        if (bytes == null)
-            return null;
-        else
-            try {
-                return new String(bytes, "UTF-8");
-            } catch (UnsupportedEncodingException e) {
-                throw new ZkMarshallingError();
-            }
-    }
-}
 
 
 

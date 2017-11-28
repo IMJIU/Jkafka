@@ -230,7 +230,7 @@ public class AdminUtils  {
      * param The configs final set of configs that will be applied to the topic. If any new configs need to be added or
      *            existing configs need to be deleted, it should be done prior to invoking this API
      */
-    public void changeTopicConfig(ZkClient zkClient, String topic, Properties configs) {
+    public static void changeTopicConfig(ZkClient zkClient, String topic, Properties configs) {
         if (!topicExists(zkClient, topic))
             throw new AdminOperationException(String.format("Topic \"%s\" does not exist.", topic));
 
@@ -277,21 +277,21 @@ public class AdminUtils  {
         return props;
     }
 
-    public Map<String, Properties> fetchAllTopicConfigs(ZkClient zkClient) {
+    public static Map<String, Properties> fetchAllTopicConfigs(ZkClient zkClient) {
         return Sc.mapToMap(ZkUtils.getAllTopics(zkClient), topic -> Tuple.of(topic, fetchTopicConfig(zkClient, topic)));
     }
 
 
-    public TopicMetadata fetchTopicMetadataFromZk(String topic, ZkClient zkClient) {
+    public static TopicMetadata fetchTopicMetadataFromZk(String topic, ZkClient zkClient) {
         return fetchTopicMetadataFromZk(topic, zkClient, new HashMap<Integer, Broker>());
     }
 
-    public Set<TopicMetadata> fetchTopicMetadataFromZk(Set<String> topics, ZkClient zkClient) {
+    public static Set<TopicMetadata> fetchTopicMetadataFromZk(Set<String> topics, ZkClient zkClient) {
         HashMap<Integer, Broker> cachedBrokerInfo = new HashMap<Integer, Broker>();
         return Sc.map(topics, topic -> fetchTopicMetadataFromZk(topic, zkClient, cachedBrokerInfo));
     }
 
-    private TopicMetadata fetchTopicMetadataFromZk(String topic, ZkClient zkClient, HashMap<Integer, Broker> cachedBrokerInfo) {
+    private static TopicMetadata fetchTopicMetadataFromZk(String topic, ZkClient zkClient, HashMap<Integer, Broker> cachedBrokerInfo) {
         if (ZkUtils.pathExists(zkClient, ZkUtils.getTopicPath(topic))) {
             Map<Integer, List<Integer>> topicPartitionAssignment = ZkUtils.getPartitionAssignmentForTopics(zkClient, Lists.newArrayList(topic)).get(topic);
             List<Tuple<Integer, List<Integer>>> sortedPartitions = Sc.sortWith(Sc.toList(topicPartitionAssignment), (m1, m2) -> m1.v1 < m2.v1);
@@ -346,7 +346,7 @@ public class AdminUtils  {
         }
     }
 
-    private List<Broker> getBrokerInfoFromCache(ZkClient zkClient, final Map<Integer, Broker> cachedBrokerInfo, List<Integer> brokerIds) {
+    private static List<Broker> getBrokerInfoFromCache(ZkClient zkClient, final Map<Integer, Broker> cachedBrokerInfo, List<Integer> brokerIds) {
         List<Integer> failedBrokerIds = Lists.newArrayList();
         List<Optional<Broker>> brokerMetadata = Sc.map(brokerIds, id -> {
             Broker brokerInfo = cachedBrokerInfo.get(id);

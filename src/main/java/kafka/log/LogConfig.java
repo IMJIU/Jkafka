@@ -6,15 +6,13 @@ import com.google.common.collect.Sets;
 import kafka.common.InvalidConfigException;
 import kafka.utils.Prediction;
 
-import java.util.Properties;
-import java.util.Random;
-import java.util.Set;
+import java.util.*;
 
 /**
  * @author
  * @create 2017-04-01 30 22
  **/
-public class LogConfig implements Cloneable{
+public class LogConfig implements Cloneable {
     public Integer segmentSize;
     public Long segmentMs;
     public Long segmentJitterMs;
@@ -31,7 +29,6 @@ public class LogConfig implements Cloneable{
     public Boolean compact;
     public Boolean uncleanLeaderElectionEnable;
     public Integer minInSyncReplicas;
-
 
 
     interface Defaults {
@@ -73,6 +70,39 @@ public class LogConfig implements Cloneable{
      *                                    but included here for topic-specific configuration validation purposes
      * @param minInSyncReplicas           If number of insync replicas drops below this number, we stop accepting writes with -1 (or all) required acks
      */
+    public LogConfig create(Object... params) {
+        Integer segmentSize = null;
+        Long segmentMs = null;
+        Long segmentJitterMs = null;
+        Long flushInterval = null;
+        Long flushMs = null;
+        Long retentionSize = null;
+        Long retentionMs = null;
+        Integer maxMessageSize = null;
+        Integer maxIndexSize = null;
+        Integer indexInterval = null;
+        Long fileDeleteDelayMs = null;
+        Long deleteRetentionMs = null;
+        Double minCleanableRatio = null;
+        Boolean compact = null;
+        Boolean uncleanLeaderElectionEnable = null;
+        Integer minInSyncReplicas = null;
+        for (int i = 0; i < params.length; i+=2) {
+            if("segmentSize".equals(params[i].toString())){
+
+            }else if("segmentMs".equals(params[i].toString())){
+
+            }else if("segmentMs".equals(params[i].toString())){
+
+            }else if("segmentMs".equals(params[i].toString())){
+
+            }
+
+        }
+        return new LogConfig(segmentSize, segmentMs, segmentJitterMs, flushInterval, flushMs, retentionSize, retentionMs, maxMessageSize, maxIndexSize, indexInterval, fileDeleteDelayMs, deleteRetentionMs, minCleanableRatio, compact, uncleanLeaderElectionEnable, minInSyncReplicas);
+    }
+
+
     public LogConfig(Integer segmentSize,
                      Long segmentMs,
                      Long segmentJitterMs,
@@ -213,7 +243,7 @@ public class LogConfig implements Cloneable{
     /**
      * Check that property names are valid
      */
-    public  static void validateNames(Properties props) {
+    public static void validateNames(Properties props) {
         for (Object name : props.keySet())
             Prediction.require(LogConfig.ConfigNames.contains(name), String.format("Unknown configuration \"%s\".", name));
     }
@@ -232,7 +262,7 @@ public class LogConfig implements Cloneable{
      * Unfortunately, we can't validate its smaller than number of replicas
      * since we don't have this information here
      */
-    private static  void validateMinInSyncReplicas(Properties props) {
+    private static void validateMinInSyncReplicas(Properties props) {
         Object minIsr = props.getProperty(MinInSyncReplicasProp);
         if (minIsr != null && new Integer(minIsr.toString()) < 1) {
             throw new InvalidConfigException("Wrong value " + minIsr + " of min.insync.replicas in topic configuration; " +
@@ -242,10 +272,10 @@ public class LogConfig implements Cloneable{
 
     @Override
     protected LogConfig clone() throws CloneNotSupportedException {
-        return (LogConfig)super.clone();
+        return (LogConfig) super.clone();
     }
 
-    public LogConfig copy(Integer segmentSize){
+    public LogConfig copy(Integer segmentSize) {
         LogConfig log = null;
         try {
             log = clone();

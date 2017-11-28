@@ -3,10 +3,7 @@ package kafka.utils;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import kafka.common.OffsetMetadataAndError;
 import kafka.func.*;
-import kafka.log.TopicAndPartition;
-import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.map.HashedMap;
 
 import java.util.*;
@@ -166,8 +163,8 @@ public class Sc {
         return list;
     }
 
-    public static <V, RESULT> List<RESULT> map(Collection<V> set, Handler<V, RESULT> handler) {
-        List<RESULT> list = Lists.newArrayList();
+    public static <V, V2> List<V2> map(Collection<V> set, Handler<V, V2> handler) {
+        List<V2> list = Lists.newArrayList();
         if (set != null) {
             for (V entry : set) {
                 list.add(handler.handle(entry));
