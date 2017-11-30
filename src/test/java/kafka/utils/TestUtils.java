@@ -2,8 +2,13 @@ package kafka.utils;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import kafka.admin.AdminUtils;
+import kafka.api.PartitionStateInfo;
+import kafka.api.Request;
 import kafka.func.Action;
 import kafka.func.Fun;
+import kafka.func.IntCount;
+import kafka.func.Tuple;
 import kafka.log.LogConfig;
 import kafka.log.LogManager;
 import kafka.message.ByteBufferMessageSet;
@@ -11,6 +16,9 @@ import kafka.message.CompressionCodec;
 import kafka.message.Message;
 import kafka.message.MessageAndOffset;
 import kafka.server.BrokerState;
+import kafka.server.KafkaConfig;
+import kafka.server.KafkaServer;
+import org.I0Itec.zkclient.ZkClient;
 import org.junit.Assert;
 
 import java.io.*;
@@ -19,10 +27,13 @@ import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static org.apache.kafka.common.utils.Utils.*;
+
 /**
  * Created by Administrator on 2017/3/26.
  */
 public class TestUtils {
+    public static final Logging log = Logging.getLogger(TestUtils.class.getName());
     public final static String IoTmpDir = "f:\\temp\\";
     public final static String Letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
     public final static String Digits = "0123456789";
@@ -147,27 +158,31 @@ public class TestUtils {
     /**
      * Choose a number of random available ports
      */
-    public static List<Integer> choosePorts(Integer count) throws IOException {
-        List<ServerSocket> socketList = Lists.newArrayList();
-        for (int i = 0; i < count; i++) {
-            socketList.add(new ServerSocket(0));
-        }
-        List<Integer> ports = socketList.stream().map(s -> s.getLocalPort()).collect(Collectors.toList());
-        socketList.forEach(s -> {
-            try {
-                s.close();
-            } catch (IOException e) {
-                e.printStackTrace();
+    public static List<Integer> choosePorts(Integer count) {
+        try {
+            List<ServerSocket> socketList = Lists.newArrayList();
+            for (int i = 0; i < count; i++) {
+                socketList.add(new ServerSocket(0));
             }
-        });
-        return ports;
+            List<Integer> ports = socketList.stream().map(s -> s.getLocalPort()).collect(Collectors.toList());
+            socketList.forEach(s -> {
+                try {
+                    s.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            });
+            return ports;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     //
 //    /**
 //     * Choose an available port
 //     */
-    public static Integer choosePort() throws IOException {
+    public static Integer choosePort() {
         return choosePorts(1).get(0);
     }
 //
@@ -197,17 +212,26 @@ public class TestUtils {
 //     */
 //    public void  tempChannel(): FileChannel = new RandomAccessFile(tempFile(), "rw").getChannel();
 //
-//    /**
-//     * Create a kafka server instance with appropriate test settings
-//     * USING THIS IS A SIGN YOU ARE NOT WRITING A REAL UNIT TEST
-//     * @param config The configuration of the server
-//     */
-//    public void  createServer(KafkaConfig config, Time time = SystemTime): KafkaServer = {
-//        val server = new KafkaServer(config, time);
-//        server.startup();
-//        server;
-//    }
-//
+
+    /**
+     * Create a kafka server instance with appropriate test settings
+     * USING THIS IS A SIGN YOU ARE NOT WRITING A REAL UNIT TEST
+     *
+     * @param config The configuration of the server
+     */
+    public static KafkaServer createServer(KafkaConfig config) {
+        return createServer(config, null);
+    }
+
+    public static KafkaServer createServer(KafkaConfig config, Time time) {
+        if (time == null) {
+            time = Time.get();
+        }
+        KafkaServer server = new KafkaServer(config, time);
+        server.startup();
+        return server;
+    }
+
 
     /**
      * Create a test config for the given node id
@@ -221,16 +245,16 @@ public class TestUtils {
         }
         return properties;
     }
-//
-//    public void  getBrokerListStrFromConfigs(Seq configs<KafkaConfig>): String = {
-//        configs.map(c => formatAddress(c.hostName, c.port)).mkString(",")
-//    }
-//
+
+    public static String getBrokerListStrFromConfigs(List<KafkaConfig> configs) {
+        return Sc.mkString(Sc.map(configs, c -> formatAddress(c.hostName, c.port)), ",");
+    }
+
 
     /**
      * Create a test config for the given node id
      */
-    public static Properties createBrokerConfig(Integer nodeId, Integer port, Boolean enableControlledShutdown) throws IOException {
+    public static Properties createBrokerConfig(Integer nodeId, Integer port, Boolean enableControlledShutdown) {
         port = port == null ? choosePort() : port;
         enableControlledShutdown = enableControlledShutdown == null ? true : enableControlledShutdown;
         Properties props = new Properties();
@@ -244,41 +268,52 @@ public class TestUtils {
         return props;
     }
 //
-//    /**
-//     * Create a topic in zookeeper.
-//     * Wait until the leader is elected and the metadata is propagated to all brokers.
-//     * Return the leader for each partition.
-//     */
-//    public void  createTopic(ZkClient zkClient,
-//                    String topic,
-//                    Integer numPartitions = 1,
-//                    Integer replicationFactor = 1,
-//                    Seq servers<KafkaServer>,
-//                    Properties topicConfig = new Properties) : scala.collection.immutable.Map<Int, Option[Int]> = {
-//        // create topic;
-//        AdminUtils.createTopic(zkClient, topic, numPartitions, replicationFactor, topicConfig);
-//        // wait until the update metadata request for new topic reaches all servers;
-//        (0 until numPartitions).map { case i =>
-//            TestUtils.waitUntilMetadataIsPropagated(servers, topic, i);
-//            i -> TestUtils.waitUntilLeaderIsElectedOrChanged(zkClient, topic, i);
-//        }.toMap;
-//    }
+
+    /**
+     * Create a topic in zookeeper.
+     * Wait until the leader is elected and the metadata is propagated to all brokers.
+     * Return the leader for each partition.
+     */
+    public static Map<Integer, Optional<Integer>> createTopic(ZkClient zkClient,
+                                                       String topic,
+                                                       Integer numPartitions,
+                                                       Integer replicationFactor,
+                                                       List<KafkaServer> servers,
+                                                       Properties topicConfig) {
+        if (numPartitions == null) {
+            numPartitions = 1;
+        }
+        if (replicationFactor == null) {
+            replicationFactor = 1;
+        }
+        if (topicConfig == null) {
+            topicConfig = new Properties();
+        }
+        // create topic;
+        AdminUtils.createTopic(zkClient, topic, numPartitions, replicationFactor, topicConfig);
+        // wait until the update metadata request for new topic reaches all servers;
+      return Sc.toMap(Sc.itToList(0, numPartitions, i -> {
+            TestUtils.waitUntilMetadataIsPropagated(servers, topic, i);
+            return Tuple.of(i , TestUtils.waitUntilLeaderIsElectedOrChanged(zkClient, topic, i,null,null,null));
+        })) ;
+    }
 //
-//    /**
-//     * Create a topic in zookeeper using a customized replica assignment.
-//     * Wait until the leader is elected and the metadata is propagated to all brokers.
-//     * Return the leader for each partition.
-//     */
-//    public void  createTopic(ZkClient zkClient, String topic, collection partitionReplicaAssignment.Map<Int, Seq[Int]>,
-//                    Seq servers<KafkaServer>) : scala.collection.immutable.Map<Int, Option[Int]> = {
-//        // create topic;
-//        AdminUtils.createOrUpdateTopicPartitionAssignmentPathInZK(zkClient, topic, partitionReplicaAssignment);
-//        // wait until the update metadata request for new topic reaches all servers;
-//        partitionReplicaAssignment.keySet.map { case i =>
-//            TestUtils.waitUntilMetadataIsPropagated(servers, topic, i);
-//            i -> TestUtils.waitUntilLeaderIsElectedOrChanged(zkClient, topic, i);
-//        }.toMap;
-//    }
+
+    /**
+     * Create a topic in zookeeper using a customized replica assignment.
+     * Wait until the leader is elected and the metadata is propagated to all brokers.
+     * Return the leader for each partition.
+     */
+    public static Map<Integer, Optional<Integer>> createTopic(ZkClient zkClient, String topic, Map<Integer, List<Integer>> partitionReplicaAssignment,
+                                                       List<KafkaServer> servers) {
+        // create topic;
+        AdminUtils.createOrUpdateTopicPartitionAssignmentPathInZK(zkClient, topic, partitionReplicaAssignment);
+        // wait until the update metadata request for new topic reaches all servers;
+        return Sc.mapToMap(partitionReplicaAssignment.keySet(), i -> {
+            TestUtils.waitUntilMetadataIsPropagated(servers, topic, i);
+            return Tuple.of(i , TestUtils.waitUntilLeaderIsElectedOrChanged(zkClient, topic, i,null,null,null));
+        });
+    }
 //
 //    /**
 //     * Create a test config for a consumer
@@ -436,26 +471,26 @@ public class TestUtils {
 //        builder.toString;
 //    }
 //
-//    /**
-//     * Create a producer with a few pre-configured properties.
-//     * If certain properties need to be overridden, they can be provided in producerProps.
-//     */
-//    public void  createProducer<K, V>(String brokerList,
-//    String encoder = classOf<DefaultEncoder>.getName,
-//    String keyEncoder = classOf<DefaultEncoder>.getName,
-//    String partitioner = classOf<DefaultPartitioner>.getName,
-//    Properties producerProps = null): Producer<K, V> = {
-//        val Properties props = getProducerConfig(brokerList);
-//
-//        //override any explicitly specified properties;
-//        if (producerProps != null)
-//            props.putAll(producerProps);
-//
-//        props.put("serializer.class", encoder);
-//        props.put("key.serializer.class", keyEncoder);
-//        props.put("partitioner.class", partitioner);
-//        new Producer<K, V>(new ProducerConfig(props));
-//    }
+    /**
+     * Create a producer with a few pre-configured properties.
+     * If certain properties need to be overridden, they can be provided in producerProps.
+     */
+    public <K, V> Producer<K, V> createProducer(String brokerList,
+                                                String encoder = classOf<DefaultEncoder>.getName,
+                                                String keyEncoder = classOf<DefaultEncoder>.getName,
+                                                String partitioner = classOf<DefaultPartitioner>.getName,
+                                                Properties producerProps = null) {
+         Properties props = getProducerConfig(brokerList);
+
+        //override any explicitly specified properties;
+        if (producerProps != null)
+            props.putAll(producerProps);
+
+        props.put("serializer.class", encoder);
+        props.put("key.serializer.class", keyEncoder);
+        props.put("partitioner.class", partitioner);
+        return new Producer(new ProducerConfig(props));
+    }
 //
 //    /**
 //     * Create a (new) producer with a few pre-configured properties.
@@ -599,50 +634,67 @@ public class TestUtils {
 //        }
 //    }
 //
-//    /**
-//     *  If neither oldLeaderOpt nor newLeaderOpt is defined, wait until the leader of a partition is elected.
-//     *  If oldLeaderOpt is defined, it waits until the new leader is different from the old leader.
-//     *  If newLeaderOpt is defined, it waits until the new leader becomes the expected new leader.
-//     * @return The new leader or assertion failure if timeout is reached.
-//     */
-//    public void  waitUntilLeaderIsElectedOrChanged(ZkClient zkClient, String topic, Integer partition, Long timeoutMs = 5000L,
-//                                          Option oldLeaderOpt<Int> = None, Option newLeaderOpt<Int> = None): Option<Int> = {
-//        require(!(oldLeaderOpt.isDefined && newLeaderOpt.isDefined), "Can't define both the old and the new leader");
-//        val startTime = System.currentTimeMillis();
-//        var isLeaderElectedOrChanged = false;
-//
-//        trace("Waiting for leader to be elected or changed for partition <%s,%d>, older leader is %s, new leader is %s";
-//                .format(topic, partition, oldLeaderOpt, newLeaderOpt))
-//
-//        var Option leader<Int> = None;
-//        while (!isLeaderElectedOrChanged && System.currentTimeMillis() < startTime + timeoutMs) {
-//            // check if leader is elected;
-//            leader = ZkUtils.getLeaderForPartition(zkClient, topic, partition);
-//            leader match {
-//                case Some(l) =>
-//                    if (newLeaderOpt.isDefined && newLeaderOpt.get == l) {
-//                        trace(String.format("Expected new leader %d is elected for partition <%s,%d>",l, topic, partition))
-//                        isLeaderElectedOrChanged = true;
-//                    } else if (oldLeaderOpt.isDefined && oldLeaderOpt.get != l) {
-//                        trace(String.format("Leader for partition <%s,%d> is changed from %d to %d",topic, partition, oldLeaderOpt.get, l))
-//                        isLeaderElectedOrChanged = true;
-//                    } else if (!oldLeaderOpt.isDefined) {
-//                        trace(String.format("Leader %d is elected for partition <%s,%d>",l, topic, partition))
-//                        isLeaderElectedOrChanged = true;
-//                    } else {
-//                        trace(String.format("Current leader for partition <%s,%d> is %d",topic, partition, l))
-//                    }
-//                case None =>
-//                    trace(String.format("Leader for partition <%s,%d> is not elected yet",topic, partition))
-//            }
-//            Thread.sleep(timeoutMs.min(100L));
-//        }
-//        if (!isLeaderElectedOrChanged)
-//            fail("Timing out after %d ms since leader is not elected or changed for partition <%s,%d>";
-//                    .format(timeoutMs, topic, partition))
-//
-//        return leader;
-//    }
+
+    /**
+     * If neither oldLeaderOpt nor newLeaderOpt is defined, wait until the leader of a partition is elected.
+     * If oldLeaderOpt is defined, it waits until the new leader is different from the old leader.
+     * If newLeaderOpt is defined, it waits until the new leader becomes the expected new leader.
+     *
+     * @return The new leader or assertion failure if timeout is reached.
+     */
+    public static Optional<Integer> waitUntilLeaderIsElectedOrChanged(ZkClient zkClient, String topic,
+                                                               Integer partition, Long timeoutMs,
+                                                               Optional<Integer> oldLeaderOpt,
+                                                               Optional<Integer> newLeaderOpt) {
+        if (timeoutMs == null) {
+            timeoutMs = 5000L;
+        }
+        if (oldLeaderOpt == null) {
+            oldLeaderOpt = Optional.empty();
+        }
+        if (newLeaderOpt == null) {
+            newLeaderOpt = Optional.empty();
+        }
+
+        Prediction.require(!(oldLeaderOpt.isPresent() && newLeaderOpt.isPresent()), "Can't define both the old and the new leader");
+        long startTime = System.currentTimeMillis();
+        boolean isLeaderElectedOrChanged = false;
+
+        log.trace(String.format("Waiting for leader to be elected or changed for partition <%s,%d>, older leader is %s, new leader is %s",
+                topic, partition, oldLeaderOpt, newLeaderOpt));
+
+        Optional<Integer> leader = Optional.empty();
+        while (!isLeaderElectedOrChanged && System.currentTimeMillis() < startTime + timeoutMs) {
+            // check if leader is elected;
+            leader = ZkUtils.getLeaderForPartition(zkClient, topic, partition);
+            if (leader.isPresent()) {
+                Integer l = leader.get();
+                if (newLeaderOpt.isPresent() && newLeaderOpt.get() == l) {
+                    log.trace(String.format("Expected new leader %d is elected for partition <%s,%d>", l, topic, partition));
+                    isLeaderElectedOrChanged = true;
+                } else if (oldLeaderOpt.isPresent() && oldLeaderOpt.get() != l) {
+                    log.trace(String.format("Leader for partition <%s,%d> is changed from %d to %d", topic, partition, oldLeaderOpt.get(), l));
+                    isLeaderElectedOrChanged = true;
+                } else if (!oldLeaderOpt.isPresent()) {
+                    log.trace(String.format("Leader %d is elected for partition <%s,%d>", l, topic, partition));
+                    isLeaderElectedOrChanged = true;
+                } else {
+                    log.trace(String.format("Current leader for partition <%s,%d> is %d", topic, partition, l));
+                }
+            } else {
+                log.trace(String.format("Leader for partition <%s,%d> is not elected yet", topic, partition));
+            }
+            try {
+                Thread.sleep(Math.min(timeoutMs, 100L));
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        if (!isLeaderElectedOrChanged)
+            log.error(String.format("Timing out after %d ms since leader is not elected or changed for partition <%s,%d>", timeoutMs, topic, partition));
+
+        return leader;
+    }
 //
 
     /**
@@ -673,21 +725,25 @@ public class TestUtils {
         }
     }
 
-    public static Boolean waitUntilTrue(Fun<Boolean> condition, String msg) throws InterruptedException {
+    public static Boolean waitUntilTrue(Fun<Boolean> condition, String msg) {
         return waitUntilTrue(condition, msg, 5000L);
     }
 
     /**
      * Wait until the given condition is true or throw an exception if the given wait time elapses.
      */
-    public static Boolean waitUntilTrue(Fun<Boolean> condition, String msg, Long waitTime) throws InterruptedException {
+    public static Boolean waitUntilTrue(Fun<Boolean> condition, String msg, Long waitTime) {
         long startTime = System.currentTimeMillis();
         while (true) {
             if (condition.invoke())
                 return true;
             if (System.currentTimeMillis() > startTime + waitTime)
                 Assert.fail(msg);
-            Thread.sleep(Math.min(waitTime, 100L));
+            try {
+                Thread.sleep(Math.min(waitTime, 100L));
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
         }
         // should never hit here;
 //        throw new RuntimeException("unexpected error");
@@ -716,34 +772,40 @@ public class TestUtils {
 //    }
 //
 //
-//    /**
-//     * Wait until a valid leader is propagated to the metadata cache in each broker.
-//     * It assumes that the leader propagated to each broker is the same.
-//     * @param servers The list of servers that the metadata should reach to
-//     * @param topic The topic name
-//     * @param partition The partition Id
-//     * @param timeout The amount of time waiting on this condition before assert to fail
-//     * @return The leader of the partition.
-//     */
-//    public void  waitUntilMetadataIsPropagated(Seq servers<KafkaServer>, String topic, Integer partition, Long timeout = 5000L): Integer = {
-//        var Integer leader = -1;
-//        TestUtils.waitUntilTrue(() =>
-//                servers.foldLeft(true) {
-//            (result, server) =>
-//            val partitionStateOpt = server.apis.metadataCache.getPartitionInfo(topic, partition);
-//            partitionStateOpt match {
-//                case None => false;
-//                case Some(partitionState) =>
-//                    leader = partitionState.leaderIsrAndControllerEpoch.leaderAndIsr.leader;
-//                    result && Request.isValidBrokerId(leader);
-//            }
-//        },
-//        String.format("Partition <%s,%d> metadata not propagated after %d ms",topic, partition, timeout),
-//                waitTime = timeout);
-//
-//        leader;
-//    }
-//
+
+    /**
+     * Wait until a valid leader is propagated to the metadata cache in each broker.
+     * It assumes that the leader propagated to each broker is the same.
+     *
+     * @param servers   The list of servers that the metadata should reach to
+     * @param topic     The topic name
+     * @param partition The partition Id
+     * param timeout   The amount of time waiting on this condition before assert to fail
+     * @return The leader of the partition.
+     */
+    public static Integer waitUntilMetadataIsPropagated(List<KafkaServer> servers, String topic, Integer partition) {
+        return waitUntilMetadataIsPropagated(servers, topic, partition, 5000L);
+    }
+
+    public static Integer waitUntilMetadataIsPropagated(List<KafkaServer> servers, String topic, Integer partition, final Long timeout) {
+        IntCount leader = IntCount.of(-1);
+        TestUtils.waitUntilTrue(() ->
+                        Sc.foldBooleanAll(servers, true, s -> {
+                            Optional<PartitionStateInfo> partitionStateOpt = s.apis.metadataCache.getPartitionInfo(topic, partition);
+                            if (partitionStateOpt.isPresent()) {
+                                PartitionStateInfo partitionState = partitionStateOpt.get();
+                                leader.set(partitionState.leaderIsrAndControllerEpoch.leaderAndIsr.leader);
+                                return Request.isValidBrokerId(leader.get());
+                            } else {
+                                return false;
+                            }
+                        }),
+                String.format("Partition <%s,%d> metadata not propagated after %d ms", topic, partition, timeout),
+                timeout);
+        return leader.get();
+    }
+
+    //
 //    public void  writeNonsenseToFile(File fileName, Long position, Integer size) {
 //        val file = new RandomAccessFile(fileName, "rw");
 //        file.seek(position);

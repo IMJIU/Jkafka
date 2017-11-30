@@ -206,12 +206,12 @@ public class KafkaMetricsGroup extends Logging {
 //        removeAllMetricsInList(KafkaMetricsGroup.consumerMetricNameList,clientId);
 //        }
 //
-//        def removeAllProducerMetrics(String clientId){
-//        ProducerRequestStatsRegistry.removeProducerRequestStats(clientId);
-//        ProducerTopicStatsRegistry.removeProducerTopicStats(clientId);
-//        ProducerStatsRegistry.removeProducerStats(clientId);
-//        removeAllMetricsInList(KafkaMetricsGroup.producerMetricNameList,clientId);
-//        }
+        def removeAllProducerMetrics(String clientId){
+        ProducerRequestStatsRegistry.removeProducerRequestStats(clientId);
+        ProducerTopicStatsRegistry.removeProducerTopicStats(clientId);
+        ProducerStatsRegistry.removeProducerStats(clientId);
+        removeAllMetricsInList(KafkaMetricsGroup.producerMetricNameList,clientId);
+        }
 //
 //private def removeAllMetricsInList(immutable metricNameList.List[MetricName],String clientId){
 //        metricNameList.foreach(metric=>{

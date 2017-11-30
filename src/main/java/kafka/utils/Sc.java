@@ -608,6 +608,13 @@ public class Sc {
         return b;
     }
 
+    public static <T> Boolean foldBooleanAll(Collection<T> it, boolean b, Handler<T, Boolean> handler) {
+        for (T t : it) {
+            b = b && handler.handle(t);
+        }
+        return b;
+    }
+
     public static <T> List<T> toList(T[] a) {
         List<T> list = new ArrayList<T>(a.length);
         for (T t : a) {
@@ -677,5 +684,17 @@ public class Sc {
             }
         }
         return result;
+    }
+
+    public static String mkString(Collection collection, String sep) {
+        StringBuilder sb = new StringBuilder();
+        Iterator iterator = collection.iterator();
+        while (iterator.hasNext()) {
+            sb.append(iterator.next()).append(sep);
+        }
+        if (collection.size() > 0) {
+            sb.deleteCharAt(sb.length() - 1);
+        }
+        return sb.toString();
     }
 }

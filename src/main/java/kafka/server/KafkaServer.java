@@ -40,9 +40,25 @@ import static kafka.server.BrokerStates.*;
  * Represents the lifecycle of a single Kafka broker. Handles all functionality required
  * to start up and shutdown a single Kafka node.
  */
-class KafkaServer extends KafkaMetricsGroup {
-    KafkaConfig config;
-    Time time;
+public class KafkaServer extends KafkaMetricsGroup {
+    public KafkaConfig config;
+    public Time time;
+    private AtomicBoolean isShuttingDown = new AtomicBoolean(false);
+    private CountDownLatch shutdownLatch = new CountDownLatch(1);
+    private AtomicBoolean startupComplete = new AtomicBoolean(false);
+    public BrokerState brokerState = new BrokerState();
+    public AtomicInteger correlationId = new AtomicInteger(0);
+    public SocketServer socketServer = null;
+    public KafkaRequestHandlerPool requestHandlerPool = null;
+    public LogManager logManager = null;
+    public OffsetManager offsetManager = null;
+    public KafkaHealthcheck kafkaHealthcheck = null;
+    public TopicConfigManager topicConfigManager = null;
+    public  ReplicaManager replicaManager = null;
+    public  KafkaApis apis = null;
+    public KafkaController kafkaController = null;
+    public  KafkaScheduler kafkaScheduler = new KafkaScheduler(config.backgroundThreads);
+    public  ZkClient zkClient = null;
 
     public KafkaServer(KafkaConfig config, Time time) {
         this.config = config;
@@ -54,23 +70,6 @@ class KafkaServer extends KafkaMetricsGroup {
             }
         });
     }
-
-    private AtomicBoolean isShuttingDown = new AtomicBoolean(false);
-    private CountDownLatch shutdownLatch = new CountDownLatch(1);
-    private AtomicBoolean startupComplete = new AtomicBoolean(false);
-    BrokerState brokerState = new BrokerState();
-    AtomicInteger correlationId = new AtomicInteger(0);
-    SocketServer socketServer = null;
-    KafkaRequestHandlerPool requestHandlerPool = null;
-    LogManager logManager = null;
-    OffsetManager offsetManager = null;
-    KafkaHealthcheck kafkaHealthcheck = null;
-    TopicConfigManager topicConfigManager = null;
-    ReplicaManager replicaManager = null;
-    KafkaApis apis = null;
-    KafkaController kafkaController = null;
-    KafkaScheduler kafkaScheduler = new KafkaScheduler(config.backgroundThreads);
-    ZkClient zkClient = null;
 
 
     /**

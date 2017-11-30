@@ -1,15 +1,21 @@
 package kafka.server;
 
 
+import kafka.admin.AdminUtils;
+import kafka.func.Tuple;
+import kafka.log.Log;
+import kafka.log.LogConfig;
 import kafka.log.LogManager;
+import kafka.log.TopicAndPartition;
 import kafka.utils.Logging;
+import kafka.utils.Sc;
 import kafka.utils.Time;
 import kafka.utils.ZkUtils;
 import org.I0Itec.zkclient.IZkChildListener;
 import org.I0Itec.zkclient.ZkClient;
+import org.apache.zookeeper.data.Stat;
 
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 /**
  * This class initiates and carries out topic config changes.
@@ -57,12 +63,14 @@ class TopicConfigManager extends Logging {
         this.changeExpirationMs = changeExpirationMs;
         this.time = time;
     }
+
     public TopicConfigManager(ZkClient zkClient, LogManager logManager) {
         this.zkClient = zkClient;
         this.logManager = logManager;
-        this.changeExpirationMs = 15*60*1000L;
+        this.changeExpirationMs = 15 * 60 * 1000L;
         this.time = Time.get();
     }
+
     /**
      * Begin watching for config changes
      */
@@ -72,41 +80,44 @@ class TopicConfigManager extends Logging {
         processAllConfigChanges();
     }
 
-/**
- * Process all config changes
- */
+    /**
+     * Process all config changes
+     */
     private void processAllConfigChanges() {
         List<String> configChanges = zkClient.getChildren(ZkUtils.TopicConfigChangesPath);
         Collections.sort(configChanges);
         processConfigChanges(configChanges);
     }
 
-/**
- * Process the given list of config changes
- */
+    /**
+     * Process the given list of config changes
+     */
     private void processConfigChanges(List<String> notifications) {
         if (notifications.size() > 0) {
             info("Processing config change notification(s)...");
             Long now = time.milliseconds();
-            val logs = logManager.logsByTopicPartition;
-            val logsByTopic = logs.groupBy(_._1.topic).mapValues(_.map(_._2));
-            for (notification< -notifications) {
-                val changeId = changeNumber(notification)
+            Map<TopicAndPartition, Log> logs = logManager.logsByTopicPartition;
+            Map<String, Map<TopicAndPartition, Log>> map = Sc.groupBy(logs, (k, v) -> k.topic);
+            Map<String, List<Log>> logsByTopic = Sc.mapValue(map, v -> Sc.map(v, (kk, vv) -> vv));
+            for (String notification : notifications) {
+                Long changeId = changeNumber(notification);
                 if (changeId > lastExecutedChange) {
-                    val changeZnode = ZkUtils.TopicConfigChangesPath + "/" + notification;
-                    val(jsonOpt, stat) = ZkUtils.readDataMaybeNull(zkClient, changeZnode);
-                    if (jsonOpt.isDefined) {
-                        val json = jsonOpt.get;
-                        val topic = json.substring(1, json.length - 1) // hacky way to dequote;
-                        if (logsByTopic.contains(topic)) {
+                    String changeZnode = ZkUtils.TopicConfigChangesPath + "/" + notification;
+                    Tuple<Optional<String>, Stat> tuple = ZkUtils.readDataMaybeNull(zkClient, changeZnode);
+                    Optional<String> jsonOpt = tuple.v1;
+                    Stat stat = tuple.v2;
+                    if (jsonOpt.isPresent()) {
+                        String json = jsonOpt.get();
+                        String topic = json.substring(1, json.length() - 1); // hacky way to dequote;
+                        if (logsByTopic.containsKey(topic)) {
               /* combine the default properties with the  @Overrides in zk to create the new LogConfig */
-                            val props = new Properties(logManager.defaultConfig.toProps);
+                            Properties props = new Properties(logManager.defaultConfig.toProps());
                             props.putAll(AdminUtils.fetchTopicConfig(zkClient, topic));
-                            val logConfig = LogConfig.fromProps(props);
-                            for (log< -logsByTopic(topic))
+                            LogConfig logConfig = LogConfig.fromProps(props);
+                            for (Log log : logsByTopic.get(topic))
                                 log.config = logConfig;
-                            info(String.format("Processed topic config change %d for topic %s, setting new config to %s.", changeId, topic, props))
-                            purgeObsoleteNotifications(now, notifications)
+                            info(String.format("Processed topic config change %d for topic %s, setting new config to %s.", changeId, topic, props));
+                            purgeObsoleteNotifications(now, notifications);
                         }
                     }
                     lastExecutedChange = changeId;
@@ -115,13 +126,16 @@ class TopicConfigManager extends Logging {
         }
     }
 
-    private void purgeObsoleteNotifications(Long now, Seq notifications<String>) {
-        for (notification< -notifications.sorted) {
-            val(jsonOpt, stat) = ZkUtils.readDataMaybeNull(zkClient, ZkUtils.TopicConfigChangesPath + "/" + notification)
-            if (jsonOpt.isDefined) {
-                val changeZnode = ZkUtils.TopicConfigChangesPath + "/" + notification;
-                if (now - stat.getCtime > changeExpirationMs) {
-                    debug("Purging config change notification " + notification)
+    private void purgeObsoleteNotifications(Long now, List<String> notifications) {
+        Collections.sort(notifications);
+        for (String notification:notifications) {
+            Tuple<Optional<String>, Stat> tuple  = ZkUtils.readDataMaybeNull(zkClient, ZkUtils.TopicConfigChangesPath + "/" + notification);
+            Optional<String> jsonOpt = tuple.v1;
+            Stat stat = tuple.v2;
+            if (jsonOpt.isPresent()) {
+                String changeZnode = ZkUtils.TopicConfigChangesPath + "/" + notification;
+                if (now - stat.getCtime() > changeExpirationMs) {
+                    debug("Purging config change notification " + notification);
                     ZkUtils.deletePath(zkClient, changeZnode);
                 } else {
                     return;
@@ -131,9 +145,9 @@ class TopicConfigManager extends Logging {
     }
 
     /* get the change number from a change notification znode */
-    private Long  changeNumber(String name){
-        return name.substring(AdminUtils.TopicConfigChangeZnodePrefix.length).toLong;
-    } 
+    private Long changeNumber(String name) {
+        return Long.parseLong(name.substring(AdminUtils.TopicConfigChangeZnodePrefix.length()));
+    }
 
     /**
      * A listener that applies config changes to logs
@@ -142,10 +156,9 @@ class TopicConfigManager extends Logging {
         @Override
         public void handleChildChange(String path, List<String> chillins) {
             try {
-//        import JavaConversions._;
-                processConfigChanges(mutable chillins.Buffer < String >);
-            } catch {
-                case Exception e -> error("Error processing config change:", e);
+                processConfigChanges(chillins);
+            } catch (Exception e) {
+                error("Error processing config change:", e);
             }
         }
     }
