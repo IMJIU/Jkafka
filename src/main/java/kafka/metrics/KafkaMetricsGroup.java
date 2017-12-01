@@ -206,7 +206,7 @@ public class KafkaMetricsGroup extends Logging {
 //        removeAllMetricsInList(KafkaMetricsGroup.consumerMetricNameList,clientId);
 //        }
 //
-        def removeAllProducerMetrics(String clientId){
+        public void  removeAllProducerMetrics(String clientId){
         ProducerRequestStatsRegistry.removeProducerRequestStats(clientId);
         ProducerTopicStatsRegistry.removeProducerTopicStats(clientId);
         ProducerStatsRegistry.removeProducerStats(clientId);

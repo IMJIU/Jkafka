@@ -1,92 +1,123 @@
 package kafka.producer;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
+import com.yammer.metrics.core.Gauge;
+import kafka.common.IllegalQueueStateException;
+import kafka.func.Action;
+import kafka.metrics.KafkaMetricsGroup;
+import kafka.producer.async.EventHandler;
+import kafka.utils.Logging;
+import kafka.utils.Time;
+import java.util.List;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+
 /**
  * @author zhoulf
  * @create 2017-11-30 49 15
  **/
 
-public class ProducerSendThread<K,V>(val String threadName,
-        val BlockingQueue queue<KeyedMessage<K,V>>,
-        val EventHandler handler<K,V>,
-        val Long queueTime,
-        val Int batchSize,
-        val String clientId) extends Thread(threadName) with Logging with KafkaMetricsGroup {
+//with Logging with KafkaMetricsGroup
+public class ProducerSendThread<K, V> extends Thread {
+    private static final Logging log = Logging.getLogger(ProducerSendThread.class.getName());
+    public KafkaMetricsGroup kafkaMetricsGroup = new KafkaMetricsGroup();
+    public String threadName;
+    public BlockingQueue<KeyedMessage<K, V>> queue;
+    public EventHandler<K, V> handler;
+    public Long queueTime;
+    public Integer batchSize;
+    public String clientId;
 
-private val shutdownLatch = new CountDownLatch(1);
-private val shutdownCommand = new KeyedMessage<K,V]("shutdown", null.asInstanceOf[K], null.asInstanceOf[V>);
+    private CountDownLatch shutdownLatch = new CountDownLatch(1);
+    private KeyedMessage shutdownCommand = new KeyedMessage<K, V>("shutdown", null, null);
 
-        newGauge("ProducerQueueSize",
-        new Gauge<Integer> {
-       public void value = queue.size;
-        },
-        Map("clientId" -> clientId));
+    public ProducerSendThread(String threadName) {
+        super(threadName);
+        this.threadName = threadName;
+        kafkaMetricsGroup.newGauge("ProducerQueueSize", new Gauge<Integer>() {
+                    public Integer value() {
+                        return queue.size();
+                    }
+                },
+                ImmutableMap.of("clientId", clientId));
+    }
 
-         @Overridepublic void run {
+
+    @Override
+    public void run() {
         try {
-        processEvents;
-        }catch {
-        case Throwable e -> error("Error in sending events: ", e);
-        }finally {
-        shutdownLatch.countDown;
+            processEvents.invoke();
+        } catch (Throwable e) {
+            log.error("Error in sending events: ", e);
+        } finally {
+            shutdownLatch.countDown();
         }
-        }
+    }
 
-       public void shutdown = {
-        info("Begin shutting down ProducerSendThread");
-        queue.put(shutdownCommand);
-        shutdownLatch.await;
-        info("Shutdown ProducerSendThread complete");
-        }
-
-privatepublic void processEvents() {
-        var lastSend = SystemTime.milliseconds;
-        var events = new ArrayBuffer<KeyedMessage<K,V>>
-        var Boolean full = false;
-
-        // drain the queue until you get a shutdown command;
-        Stream.continually(queue.poll(scala.math.max(0, (lastSend + queueTime) - SystemTime.milliseconds), TimeUnit.MILLISECONDS));
-        .takeWhile(item -> if(item != null) item ne shutdownCommand else true).foreach {
-        currentQueueItem ->
-        val elapsed = (SystemTime.milliseconds - lastSend);
-        // check if the queue time is reached. This happens when the poll method above returns after a timeout and;
-        // returns a null object;
-        val expired = currentQueueItem == null;
-        if(currentQueueItem != null) {
-        trace("Dequeued item for topic %s, partition key: %s, data: %s";
-        .format(currentQueueItem.topic, currentQueueItem.key, currentQueueItem.message))
-        events += currentQueueItem;
-        }
-
-        // check if the batch size is reached;
-        full = events.size >= batchSize;
-
-        if(full || expired) {
-        if(expired)
-        debug(elapsed + " ms elapsed. Queue time reached. Sending..");
-        if(full)
-        debug("Batch full. Sending..");
-        // if either queue time has reached or batch size has reached, dispatch to event handler;
-        tryToHandle(events);
-        lastSend = SystemTime.milliseconds;
-        events = new ArrayBuffer<KeyedMessage<K,V>>
-        }
-        }
-        // send the last batch of events;
-        tryToHandle(events);
-        if(queue.size > 0)
-        throw new IllegalQueueStateException("Invalid queue state! After queue shutdown, %d remaining items in the queue";
-        .format(queue.size))
-        }
-
-       public void tryToHandle(Seq events<KeyedMessage<K,V>>) {
-        val size = events.size;
+    public void shutdown() {
+        log.info("Begin shutting down ProducerSendThread");
         try {
-        debug("Handling " + size + " events");
-        if(size > 0)
-        handler.handle(events);
-        }catch {
-        case Throwable e -> error("Error in handling batch of " + size + " events", e);
-        }
+            queue.put(shutdownCommand);
+            shutdownLatch.await();
+            log.info("Shutdown ProducerSendThread complete");
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
         }
 
+    }
+
+    private Action processEvents = () -> {
+        Long lastSend = Time.get().milliseconds();
+        List<KeyedMessage<K, V>> events = Lists.newArrayList();
+        Boolean full = false;
+        try {
+            KeyedMessage<K, V> currentQueueItem = null;
+            // drain the queue until you get a shutdown command;
+            do {
+                currentQueueItem = queue.poll(Math.max(0, (lastSend + queueTime) - Time.get().milliseconds()), TimeUnit.MILLISECONDS);
+                Long elapsed = (Time.get().milliseconds() - lastSend);
+                // check if the queue time is reached. This happens when the poll method above returns after a timeout and;
+                // returns a null object;
+                boolean expired = currentQueueItem == null;
+                if (currentQueueItem != null) {
+                    log.trace(String.format("Dequeued item for topic %s, partition key: %s, data: %s",
+                            currentQueueItem.topic, currentQueueItem.key, currentQueueItem.message));
+                    events.add(currentQueueItem);
+                }
+
+                // check if the batch size is reached;
+                full = events.size() >= batchSize;
+
+                if (full || expired) {
+                    if (expired)
+                        log.debug(elapsed + " ms elapsed. Queue time reached. Sending..");
+                    if (full)
+                        log.debug("Batch full. Sending..");
+                    // if either queue time has reached or batch size has reached, dispatch to event handler;
+                    tryToHandle(events);
+                    lastSend = Time.get().milliseconds();
+                    events = Lists.newArrayList();
+                }
+            } while (currentQueueItem == null || !currentQueueItem.equals(shutdownCommand));
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
+        tryToHandle(events);
+        if (queue.size() > 0)
+            throw new IllegalQueueStateException(String.format("Invalid queue state! After queue shutdown, %d remaining items in the queue", queue.size()));
+    };
+
+    public void tryToHandle(List<KeyedMessage<K, V>> events) {
+        int size = events.size();
+        try {
+            log.debug("Handling " + size + " events");
+            if (size > 0)
+                handler.handle(events);
+        } catch (Throwable e) {
+            log.error("Error in handling batch of " + size + " events", e);
+        }
+    }
+
+}

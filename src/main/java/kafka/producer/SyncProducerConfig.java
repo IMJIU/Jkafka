@@ -11,7 +11,7 @@ import java.util.Properties;
  * @author
  * @create 2017-05-03 09 14
  **/
-public class SyncProducerConfig extends SyncProducerConfigShared {
+public class SyncProducerConfig implements SyncProducerConfigShared {
     public VerifiableProperties props;
     public static String DefaultClientId = "";
     public static Short DefaultRequiredAcks = 0;
@@ -36,15 +36,23 @@ public class SyncProducerConfig extends SyncProducerConfigShared {
      */
     public Integer port = props.getInt("port");
 
+    @Override
+    public VerifiableProperties props() {
+        return props;
+    }
 }
 
-abstract class SyncProducerConfigShared {
-    VerifiableProperties props;
+interface SyncProducerConfigShared {
+    VerifiableProperties props();
 
-    Integer sendBufferBytes = props.getInt("send.buffer.bytes", 100 * 1024);
+    default Integer sendBufferBytes() {
+        return props().getInt("send.buffer.bytes", 100 * 1024);
+    }
 
     /* the client application sending the producer requests */
-    String clientId = props.getString("client.id", SyncProducerConfig.DefaultClientId);
+    default String clientId() {
+        return props().getString("client.id", SyncProducerConfig.DefaultClientId);
+    }
 
   /*
    * The number of acknowledgments the producer requires the leader to have received before considering a request complete.
@@ -55,10 +63,14 @@ abstract class SyncProducerConfigShared {
    * request.required.acks = -1 - means the leader will wait for acknowledgement from all in-sync replicas before acknowledging the write
    */
 
-    Short requestRequiredAcks = props.getShortInRange("request.required.acks", SyncProducerConfig.DefaultRequiredAcks, Tuple.of((short) -1, (short) 1));
+    default Short requestRequiredAcks() {
+        return props().getShortInRange("request.required.acks", SyncProducerConfig.DefaultRequiredAcks, Tuple.of((short) -1, (short) 1));
+    }
 
     /*
      * The ack timeout of the producer requests. Value must be non-negative and non-zero
      */
-    Integer requestTimeoutMs = props.getIntInRange("request.timeout.ms", SyncProducerConfig.DefaultAckTimeoutMs, Tuple.of(1, Integer.MAX_VALUE));
+    default Integer requestTimeoutMs() {
+        return props().getIntInRange("request.timeout.ms", SyncProducerConfig.DefaultAckTimeoutMs, Tuple.of(1, Integer.MAX_VALUE));
+    }
 }

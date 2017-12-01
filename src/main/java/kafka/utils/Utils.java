@@ -6,7 +6,13 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import kafka.func.*;
+
+import javax.management.MBeanServer;
+import javax.management.ObjectName;
 import java.io.*;
+import java.lang.management.ManagementFactory;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
@@ -48,7 +54,7 @@ public class Utils {
      * @param runnable The runnable to execute in the background
      * @return The unstarted thread
      */
-    public  static Thread daemonThread(Runnable runnable) {
+    public static Thread daemonThread(Runnable runnable) {
         return newThread(runnable, true);
     }
 
@@ -63,7 +69,6 @@ public class Utils {
     public static Thread daemonThread(String name, Runnable runnable) {
         return newThread(name, runnable, true);
     }
-
 
 
     /**
@@ -96,7 +101,7 @@ public class Utils {
     public static Thread newThread(Runnable runnable, Boolean daemon) {
         Thread thread = new Thread(runnable);
         thread.setDaemon(daemon);
-        thread.setUncaughtExceptionHandler((Thread t, Throwable e)-> logger.error("Uncaught exception in thread '" + t.getName() + "':", e));
+        thread.setUncaughtExceptionHandler((Thread t, Throwable e) -> logger.error("Uncaught exception in thread '" + t.getName() + "':", e));
         return thread;
     }
 
@@ -260,33 +265,33 @@ public class Utils {
         }
     }
 //
-//        /**
-//         * Register the given mbean with the platform mbean server,
-//         * unregistering any mbean that was there before. Note,
-//         * this method will not throw an exception if the registration
-//         * fails (since there is nothing you can do and it isn't fatal),
-//         * instead it just returns false indicating the registration failed.
-//         * @param mbean The object to register as an mbean
-//         * @param name The name to register this mbean with
-//         * @return true if the registration succeeded
-//         */
-//        public Boolean  registerMBean(Object mbean, String name) {
-//        try {
-//            Integer mbs = ManagementFactory.getPlatformMBeanServer();
-//            mbs synchronized {
-//                Integer objName = new ObjectName(name);
-//                if(mbs.isRegistered(objName))
-//                    mbs.unregisterMBean(objName);
-//                mbs.registerMBean(mbean, objName);
-//                true;
-//            }
-//        } catch {
-//            case Exception e => {
-//                error("Failed to register Mbean " + name, e);
-//                false;
-//            }
-//        }
-//  }
+
+    /**
+     * Register the given mbean with the platform mbean server,
+     * unregistering any mbean that was there before. Note,
+     * this method will not throw an exception if the registration
+     * fails (since there is nothing you can do and it isn't fatal),
+     * instead it just returns false indicating the registration failed.
+     *
+     * @param mbean The object to register as an mbean
+     * @param name  The name to register this mbean with
+     * @return true if the registration succeeded
+     */
+    public static Boolean registerMBean(Object mbean, String name) {
+        try {
+            MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
+            synchronized (mbs) {
+                ObjectName objName = new ObjectName(name);
+                if (mbs.isRegistered(objName))
+                    mbs.unregisterMBean(objName);
+                mbs.registerMBean(mbean, objName);
+                return true;
+            }
+        } catch (Exception e) {
+            logger.error("Failed to register Mbean " + name, e);
+            return false;
+        }
+    }
 //
 //        /**
 //         * Unregister the mbean with the given name, if there is one registered
@@ -475,18 +480,19 @@ public class Utils {
             return Arrays.asList(csvList.split("\\s*,\\s*")).stream().filter(v -> !v.equals("")).collect(Collectors.toList());
         }
     }
-//
-//    /**
-//     * Create an instance of the class with the given class name
-//     */
-//    def createObject[
-//    T<:AnyRef](String className,AnyRef args*):T=
-//
-//    {
-//        Integer klass = Class.forName(className).asInstanceOf[Class[T]];
-//        Integer constructor = klass.getConstructor(args.map(_.getClass):_ *);
-//        constructor.newInstance(_ args *).asInstanceOf[T];
-//    }
+
+    /**
+     * Create an instance of the class with the given class name
+     */
+    public static <T> T createObject(String className, Object... args) {
+        try {
+            Class klass = Class.forName(className);
+            Constructor<T> constructor = klass.getConstructor(Sc.map(args, a -> a.getClass()).toArray(new Class[args.length]));
+            return constructor.newInstance(args);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 //
 //    /**
 //     * Is the given string null or empty ("")?

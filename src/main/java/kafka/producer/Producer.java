@@ -1,10 +1,11 @@
 package kafka.producer;
 
 import kafka.metrics.KafkaMetricsGroup;
+import kafka.producer.async.DefaultEventHandler;
+import kafka.producer.async.EventHandler;
 import kafka.utils.Logging;
-import org.apache.kafka.clients.producer.ProducerConfig;
+import kafka.utils.Utils;
 
-import java.beans.EventHandler;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -16,38 +17,48 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class Producer<K,V>  extends Logging {
    public  ProducerConfig config;
     private EventHandler<K,V> eventHandler;
-private AtomicBoolean hasShutdown = new AtomicBoolean(false);
+
+    public Producer(ProducerConfig config, EventHandler<K, V> eventHandler) {
+        this.config = config;
+        this.eventHandler = eventHandler;
+
+        config.producerType match {
+            case "sync" ->
+            case "async" ->
+                sync = false;
+                producerSendThread = new ProducerSendThread<K,V>("ProducerSendThread-" + config.clientId,
+                        queue,
+                        eventHandler,
+                        config.queueBufferingMaxMs,
+                        config.batchNumMessages,
+                        config.clientId);
+                producerSendThread.start();
+                KafkaMetricsReporter.startReporters(config.props);
+                AppInfo.registerInfo();
+        }
+    }
+
+    private AtomicBoolean hasShutdown = new AtomicBoolean(false);
 private LinkedBlockingQueue queue = new LinkedBlockingQueue<KeyedMessage<K,V>>(config.queueBufferingMaxMessages);
 
 private  Boolean sync = true;
 private  ProducerSendThread<K,V> producerSendThread = null;
 private Object lock = new Object();
 
-        config.producerType match {
-        case "sync" ->
-        case "async" ->
-        sync = false;
-        producerSendThread = new ProducerSendThread<K,V>("ProducerSendThread-" + config.clientId,
-        queue,
-        eventHandler,
-        config.queueBufferingMaxMs,
-        config.batchNumMessages,
-        config.clientId);
-        producerSendThread.start();
-        }
 
-private val producerTopicStats = ProducerTopicStatsRegistry.getProducerTopicStats(config.clientId);
+private ProducerTopicStats producerTopicStats = ProducerTopicStatsRegistry.getProducerTopicStats(config.clientId);
 
-        KafkaMetricsReporter.startReporters(config.props);
-        AppInfo.registerInfo();
 
-       public void this(ProducerConfig config) =
-        this(config,
-        new DefaultEventHandler<K,V>(config,
-        Utils.createObject<Partitioner>(config.partitionerClass, config.props),
-        Utils.createObject<Encoder<V>>(config.serializerClass, config.props),
-        Utils.createObject<Encoder<K>>(config.keySerializerClass, config.props),
-        new ProducerPool(config)));
+
+       public  Producer(ProducerConfig config){
+           this(config,
+                   new DefaultEventHandler<K, V>(config,
+                           Utils.createObject<Partitioner>(config.partitionerClass, config.props),
+                   Utils.createObject<Encoder<V>>(config.serializerClass, config.props),
+                   Utils.createObject<Encoder<K>>(config.keySerializerClass, config.props),
+           new ProducerPool(config)));
+    }
+
 
         /**
          * Sends the data, partitioned by key to the topic using either the
@@ -66,14 +77,14 @@ private val producerTopicStats = ProducerTopicStatsRegistry.getProducerTopicStat
         }
         }
 
-privatepublic void recordStats(Seq messages<KeyedMessage<K,V>>) {
+private  void recordStats(Seq messages<KeyedMessage<K,V>>) {
         for (message <- messages) {
         producerTopicStats.getProducerTopicStats(message.topic).messageRate.mark();
         producerTopicStats.getProducerAllTopicsStats.messageRate.mark();
         }
         }
 
-privatepublic void asyncSend(Seq messages<KeyedMessage<K,V>>) {
+private  void asyncSend(Seq messages<KeyedMessage<K,V>>) {
         for (message <- messages) {
         val added = config.queueEnqueueTimeoutMs match {
         case 0  ->
@@ -108,7 +119,7 @@ privatepublic void asyncSend(Seq messages<KeyedMessage<K,V>>) {
          * Close API to close the producer pool connections to all Kafka brokers. Also closes
          * the zookeeper client connection if one exists
          */
-       public void close() = {
+       public void close()  {
         lock synchronized {
         val canShutdown = hasShutdown.compareAndSet(false, true);
         if(canShutdown) {
