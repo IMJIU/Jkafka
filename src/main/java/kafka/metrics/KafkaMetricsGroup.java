@@ -5,6 +5,10 @@ import com.google.common.collect.Maps;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.*;
 import com.yammer.metrics.core.Timer;
+import kafka.consumer.ConsumerTopicStatsRegistry;
+import kafka.producer.ProducerRequestStatsRegistry;
+import kafka.producer.ProducerStatsRegistry;
+import kafka.producer.ProducerTopicStatsRegistry;
 import kafka.utils.Logging;
 
 import java.util.*;
@@ -63,7 +67,7 @@ public class KafkaMetricsGroup extends Logging {
         return Metrics.defaultRegistry().newMeter(metricName(name, Maps.newHashMap()), eventType, timeUnit);
     }
 
-    public  static Meter newMeter(String name, String eventType, TimeUnit timeUnit, Map<String, String> tags) {
+    public static Meter newMeter(String name, String eventType, TimeUnit timeUnit, Map<String, String> tags) {
         return Metrics.defaultRegistry().newMeter(metricName(name, tags), eventType, timeUnit);
     }
 
@@ -74,9 +78,11 @@ public class KafkaMetricsGroup extends Logging {
         }
         return Metrics.defaultRegistry().newHistogram(metricName(name, tags), biased);
     }
-    public static Timer newTimer(String name, TimeUnit durationUnit, TimeUnit rateUnit){
-        return newTimer(name,durationUnit,rateUnit, ImmutableMap.of());
+
+    public static Timer newTimer(String name, TimeUnit durationUnit, TimeUnit rateUnit) {
+        return newTimer(name, durationUnit, rateUnit, ImmutableMap.of());
     }
+
     public static Timer newTimer(String name, TimeUnit durationUnit, TimeUnit rateUnit, Map<String, String> tags) {
         return Metrics.defaultRegistry().newTimer(metricName(name, tags), durationUnit, rateUnit);
     }
@@ -198,41 +204,42 @@ public class KafkaMetricsGroup extends Logging {
             return Optional.empty();
         }
     }
-//
-//        def removeAllConsumerMetrics(String clientId){
-//        FetchRequestAndResponseStatsRegistry.removeConsumerFetchRequestAndResponseStats(clientId);
-//        ConsumerTopicStatsRegistry.removeConsumerTopicStat(clientId);
-//        ProducerRequestStatsRegistry.removeProducerRequestStats(clientId);
-//        removeAllMetricsInList(KafkaMetricsGroup.consumerMetricNameList,clientId);
-//        }
-//
-        public void  removeAllProducerMetrics(String clientId){
+
+    public  static void removeAllConsumerMetrics(String clientId) {
+        FetchRequestAndResponseStatsRegistry.removeConsumerFetchRequestAndResponseStats(clientId);
+        ConsumerTopicStatsRegistry.removeConsumerTopicStat(clientId);
+        ProducerRequestStatsRegistry.removeProducerRequestStats(clientId);
+        removeAllMetricsInList(KafkaMetricsGroup.consumerMetricNameList, clientId);
+    }
+
+    //
+    public static void removeAllProducerMetrics(String clientId) {
         ProducerRequestStatsRegistry.removeProducerRequestStats(clientId);
         ProducerTopicStatsRegistry.removeProducerTopicStats(clientId);
         ProducerStatsRegistry.removeProducerStats(clientId);
-        removeAllMetricsInList(KafkaMetricsGroup.producerMetricNameList,clientId);
-        }
-//
-//private def removeAllMetricsInList(immutable metricNameList.List[MetricName],String clientId){
-//        metricNameList.foreach(metric=>{
-//        Integer pattern=(".*clientId="+clientId+".*").r;
-//        Integer registeredMetrics=scala.collection.JavaConversions.asScalaSet(Metrics.defaultRegistry().allMetrics().keySet());
-//        for(registeredMetric<-registeredMetrics){
-//        if(registeredMetric.getGroup==metric.getGroup&&;
-//        registeredMetric.getName==metric.getName&&;
-//        registeredMetric.getType==metric.getType){
-//        pattern.findFirstIn(registeredMetric.getMBeanName)match{
-//        case Some(_)=>{
-//        Integer beforeRemovalSize=Metrics.defaultRegistry().allMetrics().keySet().size;
-//        Metrics.defaultRegistry().removeMetric(registeredMetric);
-//        Integer afterRemovalSize=Metrics.defaultRegistry().allMetrics().keySet().size;
-//        trace(String.format("Removing metric %s. Metrics registry size reduced from %d to %d",
-//        registeredMetric,beforeRemovalSize,afterRemovalSize));
-//        }
-//        case _=>
-//        }
-//        }
-//        }
-//        });
-//        }
+        removeAllMetricsInList(KafkaMetricsGroup.producerMetricNameList, clientId);
+    }
+
+    private  static void removeAllMetricsInList(List<MetricName> metricNameList, String clientId) {
+        metricNameList.forEach(metric -> {
+            Integer pattern = (".*clientId=" + clientId + ".*").r;
+            Set<MetricName> registeredMetrics = Metrics.defaultRegistry().allMetrics().keySet();
+            for (MetricName registeredMetric:registeredMetrics) {
+                if (registeredMetric.getGroup() == metric.getGroup() &&
+                        registeredMetric.getName() == metric.getName() &&
+                        registeredMetric.getType() == metric.getType()) {
+                    pattern.findFirstIn(registeredMetric.getMBeanName) match {
+                        case Some(_) =>{
+                            Integer beforeRemovalSize = Metrics.defaultRegistry().allMetrics().keySet().size();
+                            Metrics.defaultRegistry().removeMetric(registeredMetric);
+                            Integer afterRemovalSize = Metrics.defaultRegistry().allMetrics().keySet().size();
+                            trace(String.format("Removing metric %s. Metrics registry size reduced from %d to %d",
+                                    registeredMetric, beforeRemovalSize, afterRemovalSize));
+                        }
+                        case _ =>
+                    }
+                }
+            }
+        });
+    }
 }

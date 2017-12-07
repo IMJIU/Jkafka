@@ -175,24 +175,29 @@ public class Utils {
     public static void swallow(ActionWithThrow action) {
         swallow(action, null);
     }
+
+    public static void swallowError(ActionWithThrow action) {
+        logger.swallowError(action);
+    }
 //
-//        /**
-//         * Test if two byte buffers are equal. In this case equality means having
-//         * the same bytes from the current position to the limit
-//         */
-//        public Boolean  equal(ByteBuffer b1, ByteBuffer b2) {
-//        // two byte buffers are equal if their position is the same,
-//        // their remaining bytes are the same, and their contents are the same;
-//        if(b1.position != b2.position)
-//            return false;
-//        if(b1.remaining != b2.remaining)
-//            return false;
-//        for(i <- 0 until b1.remaining);
-//        if(b1.get(i) != b2.get(i))
-//            return false;
-//        return true;
-//  }
-//
+
+    /**
+     * Test if two byte buffers are equal. In this case equality means having
+     * the same bytes from the current position to the limit
+     */
+    public Boolean equal(ByteBuffer b1, ByteBuffer b2) {
+        // two byte buffers are equal if their position is the same,
+        // their remaining bytes are the same, and their contents are the same;
+        if (b1.position() != b2.position())
+            return false;
+        if (b1.remaining() != b2.remaining())
+            return false;
+        for (int i = 0; i < b1.remaining(); i++)
+            if (b1.get(i) != b2.get(i))
+                return false;
+        return true;
+    }
+
 
     /**
      * Translate the given buffer into a string

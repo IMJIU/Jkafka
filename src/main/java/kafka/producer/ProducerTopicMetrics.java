@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit;
  **/
 
 @threadsafe
-class ProducerTopicMetrics extends KafkaMetricsGroup {
+public class ProducerTopicMetrics extends KafkaMetricsGroup {
     public ClientIdTopic metricId;
     public Map<String, String> tags;
     public Meter messageRate;
