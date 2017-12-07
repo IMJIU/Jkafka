@@ -10,7 +10,7 @@ public interface AsyncProducerConfig {
     VerifiableProperties props();
 
     /* maximum time, in milliseconds, for buffering data on the producer queue */
-    default int queueBufferingMaxMs(){
+    default Integer queueBufferingMaxMs(){
         return props().getInt("queue.buffering.max.ms", 5000);
     }
 

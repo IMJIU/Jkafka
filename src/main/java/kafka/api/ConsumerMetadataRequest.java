@@ -21,6 +21,13 @@ public class ConsumerMetadataRequest extends RequestOrResponse {
     public Integer correlationId = 0;
     public String clientId = ConsumerMetadataRequest.DefaultClientId;
 
+    public ConsumerMetadataRequest(String group) {
+        super(Optional.of(RequestKeys.ConsumerMetadataKey));
+        this.group = group;
+        this.versionId = ConsumerMetadataRequest.CurrentVersion;
+        this.correlationId = 0;
+        this.clientId = ConsumerMetadataRequest.DefaultClientId;
+    }
     public ConsumerMetadataRequest(String group, Short versionId, Integer correlationId, String clientId) {
         super(Optional.of(RequestKeys.ConsumerMetadataKey));
         this.group = group;

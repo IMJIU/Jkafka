@@ -1,66 +1,78 @@
 package kafka.producer;
 
+import com.google.common.collect.Sets;
+import kafka.api.TopicMetadata;
+import kafka.cluster.Broker;
+import kafka.common.UnavailableProducerException;
+import kafka.utils.Logging;
+
+import java.util.*;
+
 /**
  * @author zhoulf
  * @create 2017-12-01 25 18
  **/
 
 
-public class ProducerPool {
-        /**
-         * Used in ProducerPool to initiate a SyncProducer connection with a broker.
-         */
-       public static SyncProducer   createSyncProducer(ProducerConfig config, Broker broker) {
-        val props = new Properties();
+public class ProducerPool extends Logging {
+    ProducerConfig config;
+    private HashMap<Integer, SyncProducer> syncProducers = new HashMap<Integer, SyncProducer>();
+    private Object lock = new Object();
+
+    public ProducerPool(ProducerConfig config) {
+        this.config = config;
+    }
+
+    /**
+     * Used in ProducerPool to initiate a SyncProducer connection with a broker.
+     */
+    public static SyncProducer createSyncProducer(ProducerConfig config, Broker broker) {
+        Properties props = new Properties();
         props.put("host", broker.host);
-        props.put("port", broker.port.toString);
+        props.put("port", broker.port.toString());
         props.putAll(config.props.props);
-        new SyncProducer(new SyncProducerConfig(props));
-        }
-        }
+        return new SyncProducer(new SyncProducerConfig(props));
+    }
 
-class ProducerPool(val ProducerConfig config) extends Logging {
-private val syncProducers = new HashMap<Integer, SyncProducer>
-private val lock = new Object();
-
-       public void updateProducer(Seq topicMetadata<TopicMetadata>) {
-        val newBrokers = new collection.mutable.HashSet<Broker>
-        topicMetadata.foreach(tmd -> {
-        tmd.partitionsMetadata.foreach(pmd -> {
-        if(pmd.leader.isDefined)
-        newBrokers+=(pmd.leader.get);
+    public void updateProducer(List<TopicMetadata> topicMetadata) {
+        HashSet<Broker> newBrokers = Sets.newHashSet();
+        topicMetadata.forEach(tmd -> {
+            tmd.partitionsMetadata.forEach(pmd -> {
+                if (pmd.leader != null)
+                    newBrokers.add(pmd.leader);
+            });
         });
-        });
-        lock synchronized {
-        newBrokers.foreach(b -> {
-        if(syncProducers.contains(b.id)){
-        syncProducers(b.id).close();
-        syncProducers.put(b.id, ProducerPool.createSyncProducer(config, b));
-        } else;
-        syncProducers.put(b.id, ProducerPool.createSyncProducer(config, b));
-        });
+        synchronized (lock) {
+            newBrokers.forEach(b -> {
+                if (syncProducers.containsKey(b.id)) {
+                    syncProducers.get(b.id).close();
+                    syncProducers.put(b.id, ProducerPool.createSyncProducer(config, b));
+                } else
+                    syncProducers.put(b.id, ProducerPool.createSyncProducer(config, b));
+            });
         }
-        }
+    }
 
-       public SyncProducer  void getProducer(Int brokerId)  {
-        lock.synchronized {
-        val producer = syncProducers.get(brokerId);
-        producer match {
-        case Some(p) -> p;
-        case None -> throw new UnavailableProducerException(String.format("Sync producer for broker id %d does not exist",brokerId))
+    public SyncProducer getProducer(Integer brokerId) {
+        synchronized (lock) {
+            SyncProducer producer = syncProducers.get(brokerId);
+            if (producer != null) {
+                return producer;
+            } else {
+                throw new UnavailableProducerException(String.format("Sync producer for broker id %d does not exist", brokerId));
+            }
         }
-        }
-        }
+    }
 
-        /**
-         * Closes all the producers in the pool
-         */
-       public void close() = {
-        lock.synchronized {
-        info("Closing all sync producers");
-        val iter = syncProducers.values.iterator;
-        while(iter.hasNext);
-        iter.next.close;
+    /**
+     * Closes all the producers in the pool
+     */
+    public void close() {
+        synchronized (lock) {
+            info("Closing all sync producers");
+            Iterator<SyncProducer> iter = syncProducers.values().iterator();
+            while (iter.hasNext())
+                iter.next().close();
         }
-        }
-        }
+    }
+}

@@ -16,7 +16,7 @@ public interface KafkaMetricsReporter {
     void init(VerifiableProperties props);
 
 
-    public default void startReporters(VerifiableProperties verifiableProps) {
+     static void startReporters(VerifiableProperties verifiableProps) {
         synchronized (ReporterStarted) {
             if (ReporterStarted.get() == false) {
                 KafkaMetricsConfig metricsConfig = new KafkaMetricsConfig(verifiableProps);

@@ -697,4 +697,13 @@ public class Sc {
         }
         return sb.toString();
     }
+
+    public static <T> Map<T, Integer> zipWithIndex(List<T> list) {
+        Map<T, Integer> result = new HashMap<>(list.size());
+        Integer i = 0;
+        for (T e : list) {
+            result.put(e, i++);
+        }
+        return result;
+    }
 }

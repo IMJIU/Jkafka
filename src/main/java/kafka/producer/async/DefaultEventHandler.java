@@ -1,11 +1,15 @@
 package kafka.producer.async;
 
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import kafka.api.TopicMetadata;
-import kafka.producer.Partitioner;
+import kafka.producer.*;
+import kafka.serializer.Encoder;
 import kafka.utils.Logging;
-import org.apache.kafka.clients.producer.ProducerConfig;
 
 import java.util.HashMap;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * @author zhoulf
@@ -13,24 +17,35 @@ import java.util.HashMap;
  **/
 
 public class DefaultEventHandler<K,V> extends Logging implements EventHandler<K,V> {
-    ProducerConfig config;
+    public ProducerConfig config;
     private Partitioner partitioner;
-    private  Encoder encoder<V>;
-    private  Encoder keyEncoder<K>;
-    private  ProducerPool producerPool;
-    private  HashMap<String, TopicMetadata> topicPartitionInfos = new HashMap<String, TopicMetadata>
-        val isSync = ("sync" == config.producerType);
+    private Encoder<V> encoder;
+    private  Encoder<K> keyEncoder;
+    private ProducerPool producerPool;
+    private  HashMap<String, TopicMetadata> topicPartitionInfos = new HashMap<String, TopicMetadata>();
+    public  AtomicInteger correlationId = new AtomicInteger(0);
+    public  BrokerPartitionInfo brokerPartitionInfo = new BrokerPartitionInfo(config, producerPool, topicPartitionInfos);
 
-        val correlationId = new AtomicInteger(0);
-        val brokerPartitionInfo = new BrokerPartitionInfo(config, producerPool, topicPartitionInfos);
+    private Integer topicMetadataRefreshInterval = config.topicMetadataRefreshIntervalMs;
+    private Long lastTopicMetadataRefreshTime = 0L;
+    private Set<String> topicMetadataToRefresh = Sets.newHashSet();
+    private HashMap<String, Integer> sendPartitionPerTopicCache = Maps.newHashMap();
 
-private val topicMetadataRefreshInterval = config.topicMetadataRefreshIntervalMs;
-private var lastTopicMetadataRefreshTime = 0L;
-private val topicMetadataToRefresh = Set.empty<String>
-private val sendPartitionPerTopicCache = HashMap.empty<String, Integer>
+    private ProducerStats producerStats = ProducerStatsRegistry.getProducerStats(config.clientId());
+    private ProducerTopicStats producerTopicStats = ProducerTopicStatsRegistry.getProducerTopicStats(config.clientId());
+    public DefaultEventHandler(ProducerConfig config, Partitioner partitioner, Encoder<V> encoder, Encoder<K> keyEncoder, ProducerPool producerPool, HashMap<String, TopicMetadata> topicPartitionInfos) {
+        this.config = config;
+        this.partitioner = partitioner;
+        this.encoder = encoder;
+        this.keyEncoder = keyEncoder;
+        this.producerPool = producerPool;
+        this.topicPartitionInfos = topicPartitionInfos;
+        boolean isSync = ("sync" == config.producerType);
+    }
 
-private val producerStats = ProducerStatsRegistry.getProducerStats(config.clientId);
-private val producerTopicStats = ProducerTopicStatsRegistry.getProducerTopicStats(config.clientId);
+
+
+
 
        public void handle(Seq events<KeyedMessage<K,V>>) {
         val serializedData = serialize(events);

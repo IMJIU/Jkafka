@@ -33,6 +33,15 @@ public class ProducerSendThread<K, V> extends Thread {
     private CountDownLatch shutdownLatch = new CountDownLatch(1);
     private KeyedMessage shutdownCommand = new KeyedMessage<K, V>("shutdown", null, null);
 
+    public ProducerSendThread(String threadName, BlockingQueue<KeyedMessage<K, V>> queue, EventHandler<K, V> handler, Long queueTime, Integer batchSize, String clientId) {
+        this.threadName = threadName;
+        this.queue = queue;
+        this.handler = handler;
+        this.queueTime = queueTime;
+        this.batchSize = batchSize;
+        this.clientId = clientId;
+    }
+
     public ProducerSendThread(String threadName) {
         super(threadName);
         this.threadName = threadName;
