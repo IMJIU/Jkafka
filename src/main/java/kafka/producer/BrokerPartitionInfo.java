@@ -107,14 +107,4 @@ public class BrokerPartitionInfo extends Logging {
 }
 
 
-class PartitionAndLeader {
-    public String topic;
-    public Integer partitionId;
-    public Optional<Integer> leaderBrokerIdOpt;
 
-    public PartitionAndLeader(String topic, Integer partitionId, Optional<Integer> leaderBrokerIdOpt) {
-        this.topic = topic;
-        this.partitionId = partitionId;
-        this.leaderBrokerIdOpt = leaderBrokerIdOpt;
-    }
-};
