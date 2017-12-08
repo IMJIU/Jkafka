@@ -57,7 +57,7 @@ public class Producer<K, V> extends Logging {
                         Utils.createObject(config.partitionerClass, config.props),
                         Utils.createObject(config.serializerClass(), config.props),
                         Utils.createObject(config.keySerializerClass(), config.props),
-                        new ProducerPool(config)));
+                        new ProducerPool(config), null));
     }
 
 

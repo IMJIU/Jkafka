@@ -86,7 +86,11 @@ public class DefaultEventHandler<K, V> extends Logging implements EventHandler<K
             if (outstandingProduceRequests.size() > 0) {
                 info(String.format("Back off for %d ms before retrying send. Remaining retries = %d", config.retryBackoffMs, remainingRetries - 1));
                 // back off and update the topic metadata cache before attempting another send operation;
-                Thread.sleep(config.retryBackoffMs);
+                try {
+                    Thread.sleep(config.retryBackoffMs);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
                 // get topics of the outstanding produce requests and refresh metadata for those;
                 Utils.swallowError(() -> brokerPartitionInfo.updateInfo(Sc.toSet(Sc.map(outstandingProduceRequests, r -> r.topic)), correlationId.getAndIncrement()));
                 sendPartitionPerTopicCache.clear();
@@ -106,6 +110,9 @@ public class DefaultEventHandler<K, V> extends Logging implements EventHandler<K
 
     private List<KeyedMessage<K, Message>> dispatchSerializedData(List<KeyedMessage<K, Message>> messages) {
         Optional<Map<Integer, Map<TopicAndPartition, List<KeyedMessage<K, Message>>>>> partitionedDataOpt = partitionAndCollate(messages);
+        if(partitionedDataOpt.isPresent()){
+
+        }
         partitionedDataOpt match {
             case Some(partitionedData)->
                 val failedProduceRequests = new ArrayBuffer<KeyedMessage<K, Message>>
