@@ -163,6 +163,14 @@ public class Sc {
         return list;
     }
 
+    public static <K, V, V2> List<V2> map(Collection<Tuple<K, V>> it, Handler2<K, V, V2> handler) {
+        List<V2> list = new ArrayList<>(it.size());
+        for (Tuple<K, V> tuple : it) {
+            list.add(handler.handle(tuple.v1, tuple.v2));
+        }
+        return list;
+    }
+
     public static <V, V2> List<V2> map(Collection<V> set, Handler<V, V2> handler) {
         List<V2> list = Lists.newArrayList();
         if (set != null) {

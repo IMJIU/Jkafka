@@ -16,7 +16,7 @@ public class ProducerRequestStatsRegistry {
         return globalStats.getAndMaybePut(clientId);
     }
 
-    public void removeProducerRequestStats(String clientId) {
+    public static  void removeProducerRequestStats(String clientId) {
         globalStats.remove(clientId);
     }
 }

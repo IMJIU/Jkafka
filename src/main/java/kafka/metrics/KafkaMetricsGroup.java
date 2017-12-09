@@ -1,6 +1,7 @@
 package kafka.metrics;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.*;
@@ -87,80 +88,70 @@ public class KafkaMetricsGroup extends Logging {
         return Metrics.defaultRegistry().newTimer(metricName(name, tags), durationUnit, rateUnit);
     }
 
-    //
-//    def removeMetric(String name, scala tags.collection.Map[String, String]=Map.empty);
-//
-//    =
-//            Metrics.defaultRegistry().;
-//
-//    removeMetric(metricName(name, tags);
-//
-//    );
-//
-//
-//}
-//
-//    object KafkaMetricsGroup extends KafkaMetricsGroup with Logging{
-///**
-// * To make sure all the metrics be de-registered after consumer/producer close, the metric names should be
-// * put into the metric name set.
-// */
-//private Integer immutable consumerMetricNameList.List[MetricName]=immutable.List[MetricName](
-//        // kafka.consumer.ZookeeperConsumerConnector;
-//        new MetricName("kafka.consumer","ZookeeperConsumerConnector","FetchQueueSize"),
-//        new MetricName("kafka.consumer","ZookeeperConsumerConnector","KafkaCommitsPerSec"),
-//        new MetricName("kafka.consumer","ZookeeperConsumerConnector","ZooKeeperCommitsPerSec"),
-//        new MetricName("kafka.consumer","ZookeeperConsumerConnector","RebalanceRateAndTime"),
-//        new MetricName("kafka.consumer","ZookeeperConsumerConnector","OwnedPartitionsCount"),
-//
-//        // kafka.consumer.ConsumerFetcherManager;
-//        new MetricName("kafka.consumer","ConsumerFetcherManager","MaxLag"),
-//        new MetricName("kafka.consumer","ConsumerFetcherManager","MinFetchRate"),
-//
-//        // kafka.server.AbstractFetcherThread <-- kafka.consumer.ConsumerFetcherThread;
-//        new MetricName("kafka.server","FetcherLagMetrics","ConsumerLag"),
-//
-//        // kafka.consumer.ConsumerTopicStats <-- kafka.consumer.{ConsumerIterator, PartitionTopicInfo}
-//        new MetricName("kafka.consumer","ConsumerTopicMetrics","MessagesPerSec"),
-//
-//        // kafka.consumer.ConsumerTopicStats;
-//        new MetricName("kafka.consumer","ConsumerTopicMetrics","BytesPerSec"),
-//
-//        // kafka.server.AbstractFetcherThread <-- kafka.consumer.ConsumerFetcherThread;
-//        new MetricName("kafka.server","FetcherStats","BytesPerSec"),
-//        new MetricName("kafka.server","FetcherStats","RequestsPerSec"),
-//
-//        // kafka.consumer.FetchRequestAndResponseStats <-- kafka.consumer.SimpleConsumer;
-//        new MetricName("kafka.consumer","FetchRequestAndResponseMetrics","FetchResponseSize"),
-//        new MetricName("kafka.consumer","FetchRequestAndResponseMetrics","FetchRequestRateAndTimeMs"),
-//
-//        /**
-//         * ProducerRequestStats <-- SyncProducer
-//         * metric for SyncProducer in fetchTopicMetaData() needs to be removed when consumer is closed.
-//         */
-//        new MetricName("kafka.producer","ProducerRequestMetrics","ProducerRequestRateAndTimeMs"),
-//        new MetricName("kafka.producer","ProducerRequestMetrics","ProducerRequestSize");
-//        );
-//
-//private Integer immutable producerMetricNameList.List[MetricName]=immutable.List[MetricName](
-//        // kafka.producer.ProducerStats <-- DefaultEventHandler <-- Producer;
-//        new MetricName("kafka.producer","ProducerStats","SerializationErrorsPerSec"),
-//        new MetricName("kafka.producer","ProducerStats","ResendsPerSec"),
-//        new MetricName("kafka.producer","ProducerStats","FailedSendsPerSec"),
-//
-//        // kafka.producer.ProducerSendThread;
-//        new MetricName("kafka.producer.async","ProducerSendThread","ProducerQueueSize"),
-//
-//        // kafka.producer.ProducerTopicStats <-- kafka.producer.{Producer, async.DefaultEventHandler}
-//        new MetricName("kafka.producer","ProducerTopicMetrics","MessagesPerSec"),
-//        new MetricName("kafka.producer","ProducerTopicMetrics","DroppedMessagesPerSec"),
-//        new MetricName("kafka.producer","ProducerTopicMetrics","BytesPerSec"),
-//
-//        // kafka.producer.ProducerRequestStats <-- SyncProducer;
-//        new MetricName("kafka.producer","ProducerRequestMetrics","ProducerRequestRateAndTimeMs"),
-//        new MetricName("kafka.producer","ProducerRequestMetrics","ProducerRequestSize");
-//        );
-//
+
+    public void removeMetric(String name, Map<String, String> tags) {
+        Metrics.defaultRegistry().removeMetric(metricName(name, tags));
+    }
+
+    /**
+     * To make sure all the metrics be de-registered after consumer/producer close, the metric names should be
+     * put into the metric name set.
+     */
+    private static final  List<MetricName> consumerMetricNameList = Lists.newArrayList(
+            // kafka.consumer.ZookeeperConsumerConnector;
+            new MetricName("kafka.consumer", "ZookeeperConsumerConnector", "FetchQueueSize"),
+            new MetricName("kafka.consumer", "ZookeeperConsumerConnector", "KafkaCommitsPerSec"),
+            new MetricName("kafka.consumer", "ZookeeperConsumerConnector", "ZooKeeperCommitsPerSec"),
+            new MetricName("kafka.consumer", "ZookeeperConsumerConnector", "RebalanceRateAndTime"),
+            new MetricName("kafka.consumer", "ZookeeperConsumerConnector", "OwnedPartitionsCount"),
+
+            // kafka.consumer.ConsumerFetcherManager;
+            new MetricName("kafka.consumer", "ConsumerFetcherManager", "MaxLag"),
+            new MetricName("kafka.consumer", "ConsumerFetcherManager", "MinFetchRate"),
+
+            // kafka.server.AbstractFetcherThread <-- kafka.consumer.ConsumerFetcherThread;
+            new MetricName("kafka.server", "FetcherLagMetrics", "ConsumerLag"),
+
+            // kafka.consumer.ConsumerTopicStats <-- kafka.consumer.{ConsumerIterator, PartitionTopicInfo}
+            new MetricName("kafka.consumer", "ConsumerTopicMetrics", "MessagesPerSec"),
+
+            // kafka.consumer.ConsumerTopicStats;
+            new MetricName("kafka.consumer", "ConsumerTopicMetrics", "BytesPerSec"),
+
+            // kafka.server.AbstractFetcherThread <-- kafka.consumer.ConsumerFetcherThread;
+            new MetricName("kafka.server", "FetcherStats", "BytesPerSec"),
+            new MetricName("kafka.server", "FetcherStats", "RequestsPerSec"),
+
+            // kafka.consumer.FetchRequestAndResponseStats <-- kafka.consumer.SimpleConsumer;
+            new MetricName("kafka.consumer", "FetchRequestAndResponseMetrics", "FetchResponseSize"),
+            new MetricName("kafka.consumer", "FetchRequestAndResponseMetrics", "FetchRequestRateAndTimeMs"),
+
+            /**
+             * ProducerRequestStats <-- SyncProducer
+             * metric for SyncProducer in fetchTopicMetaData() needs to be removed when consumer is closed.
+             */
+            new MetricName("kafka.producer", "ProducerRequestMetrics", "ProducerRequestRateAndTimeMs"),
+            new MetricName("kafka.producer", "ProducerRequestMetrics", "ProducerRequestSize")
+    );
+    private static final List<MetricName> producerMetricNameList = Lists.newArrayList(
+            // kafka.producer.ProducerStats <-- DefaultEventHandler <-- Producer;
+            new MetricName("kafka.producer", "ProducerStats", "SerializationErrorsPerSec"),
+            new MetricName("kafka.producer", "ProducerStats", "ResendsPerSec"),
+            new MetricName("kafka.producer", "ProducerStats", "FailedSendsPerSec"),
+
+            // kafka.producer.ProducerSendThread;
+            new MetricName("kafka.producer.async", "ProducerSendThread", "ProducerQueueSize"),
+
+            // kafka.producer.ProducerTopicStats <-- kafka.producer.{Producer, async.DefaultEventHandler}
+            new MetricName("kafka.producer", "ProducerTopicMetrics", "MessagesPerSec"),
+            new MetricName("kafka.producer", "ProducerTopicMetrics", "DroppedMessagesPerSec"),
+            new MetricName("kafka.producer", "ProducerTopicMetrics", "BytesPerSec"),
+
+            // kafka.producer.ProducerRequestStats <-- SyncProducer;
+            new MetricName("kafka.producer", "ProducerRequestMetrics", "ProducerRequestRateAndTimeMs"),
+            new MetricName("kafka.producer", "ProducerRequestMetrics", "ProducerRequestSize")
+    );
+
     private static Optional<String> toMBeanName(Map<String, String> tags) {
         Map<String, String> filteredTags = tags;
         Iterator<Map.Entry<String, String>> it = filteredTags.entrySet().iterator();
@@ -205,8 +196,8 @@ public class KafkaMetricsGroup extends Logging {
         }
     }
 
-    public  static void removeAllConsumerMetrics(String clientId) {
-        FetchRequestAndResponseStatsRegistry.removeConsumerFetchRequestAndResponseStats(clientId);
+    public static void removeAllConsumerMetrics(String clientId) {
+//        FetchRequestAndResponseStatsRegistry.removeConsumerFetchRequestAndResponseStats(clientId);
         ConsumerTopicStatsRegistry.removeConsumerTopicStat(clientId);
         ProducerRequestStatsRegistry.removeProducerRequestStats(clientId);
         removeAllMetricsInList(KafkaMetricsGroup.consumerMetricNameList, clientId);
@@ -220,26 +211,26 @@ public class KafkaMetricsGroup extends Logging {
         removeAllMetricsInList(KafkaMetricsGroup.producerMetricNameList, clientId);
     }
 
-    private  static void removeAllMetricsInList(List<MetricName> metricNameList, String clientId) {
+    private static void removeAllMetricsInList(List<MetricName> metricNameList, String clientId) {
         metricNameList.forEach(metric -> {
-            Integer pattern = (".*clientId=" + clientId + ".*").r;
-            Set<MetricName> registeredMetrics = Metrics.defaultRegistry().allMetrics().keySet();
-            for (MetricName registeredMetric:registeredMetrics) {
-                if (registeredMetric.getGroup() == metric.getGroup() &&
-                        registeredMetric.getName() == metric.getName() &&
-                        registeredMetric.getType() == metric.getType()) {
-                    pattern.findFirstIn(registeredMetric.getMBeanName) match {
-                        case Some(_) =>{
-                            Integer beforeRemovalSize = Metrics.defaultRegistry().allMetrics().keySet().size();
-                            Metrics.defaultRegistry().removeMetric(registeredMetric);
-                            Integer afterRemovalSize = Metrics.defaultRegistry().allMetrics().keySet().size();
-                            trace(String.format("Removing metric %s. Metrics registry size reduced from %d to %d",
-                                    registeredMetric, beforeRemovalSize, afterRemovalSize));
-                        }
-                        case _ =>
-                    }
-                }
-            }
+//            Integer pattern = (".*clientId=" + clientId + ".*").r;
+//            Set<MetricName> registeredMetrics = Metrics.defaultRegistry().allMetrics().keySet();
+//            for (MetricName registeredMetric : registeredMetrics) {
+//                if (registeredMetric.getGroup() == metric.getGroup() &&
+//                        registeredMetric.getName() == metric.getName() &&
+//                        registeredMetric.getType() == metric.getType()) {
+//                    pattern.findFirstIn(registeredMetric.getMBeanName) match {
+//                        case Some(_) =>{
+//                            Integer beforeRemovalSize = Metrics.defaultRegistry().allMetrics().keySet().size();
+//                            Metrics.defaultRegistry().removeMetric(registeredMetric);
+//                            Integer afterRemovalSize = Metrics.defaultRegistry().allMetrics().keySet().size();
+//                            trace(String.format("Removing metric %s. Metrics registry size reduced from %d to %d",
+//                                    registeredMetric, beforeRemovalSize, afterRemovalSize));
+//                        }
+//                        case _ =>
+//                    }
+//                }
+//            }
         });
     }
 }

@@ -11,6 +11,7 @@ import kafka.common.ErrorMapping;
 import kafka.common.FailedToSendMessageException;
 import kafka.common.KafkaException;
 import kafka.common.NoBrokersForPartitionException;
+import kafka.func.Tuple;
 import kafka.log.TopicAndPartition;
 import kafka.message.ByteBufferMessageSet;
 import kafka.message.Message;
@@ -25,6 +26,8 @@ import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import static kafka.message.CompressionCodec.*;
 
 /**
  * @author zhoulf
@@ -91,8 +94,9 @@ public class DefaultEventHandler<K, V> extends Logging implements EventHandler<K
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 }
+                List<KeyedMessage<K, Message>> outstandingProduceRequests2 = outstandingProduceRequests;
                 // get topics of the outstanding produce requests and refresh metadata for those;
-                Utils.swallowError(() -> brokerPartitionInfo.updateInfo(Sc.toSet(Sc.map(outstandingProduceRequests, r -> r.topic)), correlationId.getAndIncrement()));
+                Utils.swallowError(() -> brokerPartitionInfo.updateInfo(Sc.toSet(Sc.map(outstandingProduceRequests2, r -> r.topic)), correlationId.getAndIncrement()));
                 sendPartitionPerTopicCache.clear();
                 remainingRetries -= 1;
                 producerStats.resendRate.mark();
@@ -110,33 +114,33 @@ public class DefaultEventHandler<K, V> extends Logging implements EventHandler<K
 
     private List<KeyedMessage<K, Message>> dispatchSerializedData(List<KeyedMessage<K, Message>> messages) {
         Optional<Map<Integer, Map<TopicAndPartition, List<KeyedMessage<K, Message>>>>> partitionedDataOpt = partitionAndCollate(messages);
-        if(partitionedDataOpt.isPresent()){
+        if (partitionedDataOpt.isPresent()) {
+            Map<Integer, Map<TopicAndPartition, List<KeyedMessage<K, Message>>>> partitionedData = partitionedDataOpt.get();
+            List<KeyedMessage<K, Message>> failedProduceRequests = Lists.newArrayList();
+            try {
+                for (Map.Entry<Integer, Map<TopicAndPartition, List<KeyedMessage<K, Message>>>> entry : partitionedData.entrySet()) {
+                    Integer brokerid = entry.getKey();
+                    Map<TopicAndPartition, List<KeyedMessage<K, Message>>> messagesPerBrokerMap = entry.getValue();
+                    if (logger.isTraceEnabled())
+                        messagesPerBrokerMap.forEach((k, v) ->
+                                trace(String.format("Handling event for Topic: %s, Broker: %d, Partitions: %s", k, brokerid, v)));
+                    Map<TopicAndPartition, ByteBufferMessageSet> messageSetPerBroker = groupMessagesToSet(messagesPerBrokerMap);
 
-        }
-        partitionedDataOpt match {
-            case Some(partitionedData)->
-                val failedProduceRequests = new ArrayBuffer<KeyedMessage<K, Message>>
-                try {
-                    for ((brokerid, messagesPerBrokerMap)<-partitionedData){
-                        if (logger.isTraceEnabled)
-                            messagesPerBrokerMap.foreach(partitionAndEvent ->
-                                    trace(String.format("Handling event for Topic: %s, Broker: %d, Partitions: %s", partitionAndEvent._1, brokerid, partitionAndEvent._2)))
-                        val messageSetPerBroker = groupMessagesToSet(messagesPerBrokerMap);
-
-                        val failedTopicPartitions = send(brokerid, messageSetPerBroker);
-                        failedTopicPartitions.foreach(topicPartition -> {
-                            messagesPerBrokerMap.get(topicPartition) match {
-                                case Some(data)->failedProduceRequests.appendAll(data);
-                                case None -> // nothing;
-                            }
-                        });
-                    }
-                } catch {
-                case Throwable t -> error("Failed to send messages", t);
+                    List<TopicAndPartition> failedTopicPartitions = send(brokerid, messageSetPerBroker);
+                    failedTopicPartitions.forEach(topicPartition -> {
+                        List<KeyedMessage<K, Message>> data = messagesPerBrokerMap.get(topicPartition);
+                        if (data != null) {
+                            failedProduceRequests.addAll(data);
+//                            case None -> // nothing;
+                        }
+                    });
+                }
+            } catch (Throwable t) {
+                error("Failed to send messages", t);
             }
-            failedProduceRequests;
-            case None -> // all produce requests failed;
-                    messages ;
+            return failedProduceRequests;
+        } else { // all produce requests failed;
+            return messages;
         }
     }
 
@@ -155,55 +159,55 @@ public class DefaultEventHandler<K, V> extends Logging implements EventHandler<K
                 } else {
                     // currently, if in async mode, we just log the serialization error. We need to revisit;
                     // this when doing kafka-496;
-                    error(String.format("Error serializing message for topic %s", e.topic), t)
+                    error(String.format("Error serializing message for topic %s", e.topic), t);
                 }
             }
         });
         return serializedMessages;
     }
 
-    public Optional<Map<Integer, Map<TopicAndPartition, List<KeyedMessage<K, Message>>>>> partitionAndCollate(List<KeyedMessage<K, Message>> messages)
-
-    {
+    public Optional<Map<Integer, Map<TopicAndPartition, List<KeyedMessage<K, Message>>>>> partitionAndCollate(List<KeyedMessage<K, Message>> messages) {
         HashMap<Integer, Map<TopicAndPartition, List<KeyedMessage<K, Message>>>> ret = new HashMap<>();
         try {
             for (KeyedMessage<K, Message> message : messages) {
-                val topicPartitionsList = getPartitionListForTopic(message);
-                val partitionIndex = getPartition(message.topic, message.partitionKey, topicPartitionsList);
-                val brokerPartition = topicPartitionsList(partitionIndex);
+                List<PartitionAndLeader> topicPartitionsList = getPartitionListForTopic(message);
+                Integer partitionIndex = getPartition(message.topic, message.partitionKey(), topicPartitionsList);
+                PartitionAndLeader brokerPartition = topicPartitionsList.get(partitionIndex);
 
                 // postpone the failure until the send operation, so that requests for other brokers are handled correctly;
-                val leaderBrokerId = brokerPartition.leaderBrokerIdOpt.getOrElse(-1);
+                Integer leaderBrokerId = brokerPartition.leaderBrokerIdOpt.orElse(-1);
 
-                var HashMap dataPerBroker<TopicAndPartition, Seq<KeyedMessage[K, Message]>>=null;
-                ret.get(leaderBrokerId) match {
-                    case Some(element)->
-                        dataPerBroker = element.asInstanceOf < HashMap < TopicAndPartition, Seq[KeyedMessage[K, Message]]>>
-                    case None ->
-                            dataPerBroker = new HashMap<TopicAndPartition, Seq<KeyedMessage[K,Message]>>
-                        ret.put(leaderBrokerId, dataPerBroker);
+                HashMap<TopicAndPartition, List<KeyedMessage<K, Message>>> dataPerBroker = null;
+                Map<TopicAndPartition, List<KeyedMessage<K, Message>>> element = ret.get(leaderBrokerId);
+                if (element != null) {
+                    dataPerBroker = (HashMap<TopicAndPartition, List<KeyedMessage<K, Message>>>) element;
+                } else {
+                    dataPerBroker = Maps.newHashMap();
+                    ret.put(leaderBrokerId, dataPerBroker);
                 }
 
-                val topicAndPartition = TopicAndPartition(message.topic, brokerPartition.partitionId);
-                var ArrayBuffer dataPerTopicPartition<KeyedMessage<K, Message>>=null;
-                dataPerBroker.get(topicAndPartition) match {
-                    case Some(element)->
-                        dataPerTopicPartition = element.asInstanceOf < ArrayBuffer < KeyedMessage[K, Message]>>
-                    case None ->
-                            dataPerTopicPartition = new ArrayBuffer<KeyedMessage<K, Message>>
-                        dataPerBroker.put(topicAndPartition, dataPerTopicPartition);
+                TopicAndPartition topicAndPartition = new TopicAndPartition(message.topic, brokerPartition.partitionId);
+                List<KeyedMessage<K, Message>> dataPerTopicPartition = null;
+                List<KeyedMessage<K, Message>> element2 = dataPerBroker.get(topicAndPartition);
+                if (element2 != null) {
+                    dataPerTopicPartition = element2;
+                } else {
+                    dataPerTopicPartition = Lists.newArrayList();
+                    dataPerBroker.put(topicAndPartition, dataPerTopicPartition);
                 }
-                dataPerTopicPartition.append(message);
+                dataPerTopicPartition.add(message);
             }
-            Some(ret);
-        } catch {    // Swallow recoverable exceptions and return None so that they can be retried.;
-        case UnknownTopicOrPartitionException ute -> warn("Failed to collate messages by topic,partition due to: " + ute.getMessage);
-            None;
-        case LeaderNotAvailableException lnae -> warn("Failed to collate messages by topic,partition due to: " + lnae.getMessage);
-            None;
-        case Throwable oe -> error("Failed to collate messages by topic, partition due to: " + oe.getMessage);
-            None;
-    }
+            return Optional.of(ret);
+        } catch (UnknownTopicOrPartitionException ute) {    // Swallow recoverable exceptions and return None so that they can be retried.;
+            warn("Failed to collate messages by topic,partition due to: " + ute.getMessage());
+            return Optional.empty();
+        } catch (LeaderNotAvailableException lnae) {
+            warn("Failed to collate messages by topic,partition due to: " + lnae.getMessage());
+            return Optional.empty();
+        } catch (Throwable oe) {
+            error("Failed to collate messages by topic, partition due to: " + oe.getMessage());
+            return Optional.empty();
+        }
     }
 
     private List<PartitionAndLeader> getPartitionListForTopic(KeyedMessage<K, Message> m) {
@@ -267,7 +271,7 @@ public class DefaultEventHandler<K, V> extends Logging implements EventHandler<K
      */
     private List<TopicAndPartition> send(Integer brokerId, Map<TopicAndPartition, ByteBufferMessageSet> messagesPerTopic) {
         if (brokerId < 0) {
-            warn(String.format("Failed to send data since partitions %s don't have a leader", messagesPerTopic.map(_._1).mkString(",")))
+            warn(String.format("Failed to send data since partitions %s don't have a leader", Sc.mkString(Sc.map(messagesPerTopic, (k, v) -> k), ",")));
             return Sc.toList(messagesPerTopic.keySet());
         } else if (messagesPerTopic.size() > 0) {
             int currentCorrelationId = correlationId.getAndIncrement();
@@ -290,17 +294,16 @@ public class DefaultEventHandler<K, V> extends Logging implements EventHandler<K
                                 trace(String.format("Successfully sent message: %s",
                                         (message.message.isNull()) ? null : Utils.readString(message.message.payload())))));
                     }
-                    Map<TopicAndPartition, ProducerResponseStatus> failedPartitionsAndStatus = Sc.filter(response.status, (k, v) -> v.error != ErrorMapping.NoError);
-                    failedTopicPartitions = Sc.map(failedPartitionsAndStatus, (k, v) -> k);
+                    List<Tuple<TopicAndPartition, ProducerResponseStatus>> failedPartitionsAndStatus = Sc.toList(Sc.filter(response.status, (k, v) -> v.error != ErrorMapping.NoError));
+                    failedTopicPartitions = Sc.map(failedPartitionsAndStatus, s -> s.v1);
                     if (failedTopicPartitions.size() > 0) {
-                        Map<TopicAndPartition, ProducerResponseStatus> errorString = failedPartitionsAndStatus;
-                        .sortWith((p1, p2) -> p1._1.topic.compareTo(p2._1.topic) < 0 ||;
-                        (p1._1.topic.compareTo(p2._1.topic) == 0 && p1._1.partition < p2._1.partition));
-                        .map {
-                            case (topicAndPartition, status) ->
-                                    topicAndPartition.toString + ": " + ErrorMapping.exceptionFor(status.error).getClass.getName ;
-                        }.mkString(",");
-                        warn(String.format("Produce request with correlation id %d failed due to %s", currentCorrelationId, errorString))
+                        List<Tuple<TopicAndPartition, ProducerResponseStatus>> list = Sc.sortWith(failedPartitionsAndStatus, (p1, p2) -> p1.v1.topic.compareTo(p2.v1.topic) < 0
+                                || (p1.v1.topic.compareTo(p2.v1.topic) == 0
+                                && p1.v1.partition < p2.v1.partition));
+                        String errorString = Sc.mkString(Sc.map(list, (topicAndPartition, status) ->
+                                topicAndPartition.toString() + ": " + ErrorMapping.exceptionFor(status.error).getClass().getName()), ",");
+
+                        warn(String.format("Produce request with correlation id %d failed due to %s", currentCorrelationId, errorString));
                     }
                     return failedTopicPartitions;
                 } else {
@@ -316,51 +319,48 @@ public class DefaultEventHandler<K, V> extends Logging implements EventHandler<K
         }
     }
 
-    private void groupMessagesToSet(collection messagesPerTopicAndPartition.mutable.Map<TopicAndPartition, Seq<KeyedMessage[K, Message]>>)
-
-    =
-
-    {
+    private Map<TopicAndPartition, ByteBufferMessageSet> groupMessagesToSet(Map<TopicAndPartition, List<KeyedMessage<K, Message>>> messagesPerTopicAndPartition) {
         /** enforce the compressed.topics config here.
          *  If the compression codec is anything other than NoCompressionCodec,
          *    Enable compression only for specified topics if any
          *    If the list of compressed topics is empty, then enable the specified compression codec for all topics
          *  If the compression codec is NoCompressionCodec, compression is disabled for all topics
          */
-
-        val messagesPerTopicPartition = messagesPerTopicAndPartition.map {
-        case (topicAndPartition, messages) ->
-                val rawMessages = messages.map(_.message);
-            (topicAndPartition,
-                    config.compressionCodec match {
-            case NoCompressionCodec ->
-                    debug(String.format("Sending %d messages with no compression to %s", messages.size, topicAndPartition))
-                new ByteBufferMessageSet(NoCompressionCodec, _ rawMessages *);
-            case _ ->
-                    config.compressedTopics.size match {
-                case 0->
-                    debug("Sending %d messages with compression codec %d to %s";
-                    .format(messages.size, config.compressionCodec.codec, topicAndPartition))
-                    new ByteBufferMessageSet(config.compressionCodec, _ rawMessages *);
-                case _ ->
-                    if (config.compressedTopics.contains(topicAndPartition.topic)) {
-                        debug("Sending %d messages with compression codec %d to %s";
-                        .format(messages.size, config.compressionCodec.codec, topicAndPartition))
-                        new ByteBufferMessageSet(config.compressionCodec, _ rawMessages *);
+        List<Tuple<TopicAndPartition, ByteBufferMessageSet>> list = Sc.map(messagesPerTopicAndPartition, (topicAndPartition, messages) -> {
+            List<Message> rawMessages = Sc.map(messages, m -> m.message);
+            ByteBufferMessageSet byteBufferMessageSet = null;
+            switch (config.compressionCodec) {
+                case NoCompressionCodec:
+                    debug(String.format("Sending %d messages with no compression to %s", messages.size(), topicAndPartition));
+                    byteBufferMessageSet = new ByteBufferMessageSet(NoCompressionCodec, rawMessages);
+                    break;
+                case GZIPCompressionCodec:
+                case LZ4CompressionCodec:
+                case SnappyCompressionCodec:
+                    if (config.compressedTopics.size() == 0) {
+                        debug(String.format("Sending %d messages with compression codec %d to %s",
+                                messages.size(), config.compressionCodec.codec, topicAndPartition));
+                        byteBufferMessageSet = new ByteBufferMessageSet(config.compressionCodec, rawMessages);
                     } else {
-                        debug("Sending %d messages to %s with no compression as it is not in compressed.topics - %s";
-                        .format(messages.size, topicAndPartition, config.compressedTopics.toString))
-                        new ByteBufferMessageSet(NoCompressionCodec, _ rawMessages *);
+                        if (config.compressedTopics.contains(topicAndPartition.topic)) {
+                            debug(String.format("Sending %d messages with compression codec %d to %s",
+                                    messages.size(), config.compressionCodec.codec, topicAndPartition));
+                            byteBufferMessageSet = new ByteBufferMessageSet(config.compressionCodec, rawMessages);
+                        } else {
+                            debug(String.format("Sending %d messages to %s with no compression as it is not in compressed.topics - %s",
+                                    messages.size(), topicAndPartition, config.compressedTopics.toString()));
+                            byteBufferMessageSet = new ByteBufferMessageSet(NoCompressionCodec, rawMessages);
+                        }
                     }
             }
-        }
-        );
-    }
-        messagesPerTopicPartition;
+            return Tuple.of(topicAndPartition, byteBufferMessageSet);
+        });
+        Map<TopicAndPartition, ByteBufferMessageSet> messagesPerTopicPartition = Sc.toMap(list);
+        return messagesPerTopicPartition;
     }
 
     public void close() {
         if (producerPool != null)
-            producerPool.close;
+            producerPool.close();
     }
 }
