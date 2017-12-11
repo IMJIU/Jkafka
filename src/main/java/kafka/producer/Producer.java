@@ -1,5 +1,6 @@
 package kafka.producer;
 
+import com.google.common.collect.Lists;
 import kafka.common.AppInfo;
 import kafka.common.ProducerClosedException;
 import kafka.common.QueueFullException;
@@ -67,26 +68,26 @@ public class Producer<K, V> extends Logging {
      *
      * @param messages the producer data object that encapsulates the topic, key and message data
      */
-    public void send(List<KeyedMessage<K, V>> messages) {
+    public void send(KeyedMessage<K, V>... messages) {
         synchronized (lock) {
             if (hasShutdown.get())
                 throw new ProducerClosedException();
             recordStats(messages);
             if (sync)
-                eventHandler.handle(messages);
+                eventHandler.handle(Lists.newArrayList(messages));
             else
                 asyncSend(messages);
         }
     }
 
-    private void recordStats(List<KeyedMessage<K, V>> messages) {
+    private void recordStats(KeyedMessage<K, V>... messages) {
         for (KeyedMessage<K, V> message : messages) {
             producerTopicStats.getProducerTopicStats(message.topic).messageRate.mark();
             producerTopicStats.getProducerAllTopicsStats().messageRate.mark();
         }
     }
 
-    private void asyncSend(List<KeyedMessage<K, V>> messages) {
+    private void asyncSend(KeyedMessage<K, V>... messages) {
         for (KeyedMessage<K, V> message : messages) {
             boolean added = false;
             if (config.queueEnqueueTimeoutMs() == 0) {

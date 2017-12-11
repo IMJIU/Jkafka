@@ -9,6 +9,7 @@ import kafka.metrics.KafkaMetricsGroup;
 import kafka.producer.async.EventHandler;
 import kafka.utils.Logging;
 import kafka.utils.Time;
+
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
@@ -127,6 +128,10 @@ public class ProducerSendThread<K, V> extends Thread {
         } catch (Throwable e) {
             log.error("Error in handling batch of " + size + " events", e);
         }
+    }
+
+    public void tryToHandle(KeyedMessage<K, V>... events) {
+        tryToHandle(Lists.newArrayList(events));
     }
 
 }

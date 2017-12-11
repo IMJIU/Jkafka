@@ -15,6 +15,8 @@ import kafka.message.ByteBufferMessageSet;
 import kafka.message.CompressionCodec;
 import kafka.message.Message;
 import kafka.message.MessageAndOffset;
+import kafka.producer.Producer;
+import kafka.producer.ProducerConfig;
 import kafka.server.BrokerState;
 import kafka.server.KafkaConfig;
 import kafka.server.KafkaServer;
@@ -475,11 +477,14 @@ public class TestUtils {
      * Create a producer with a few pre-configured properties.
      * If certain properties need to be overridden, they can be provided in producerProps.
      */
-    public <K, V> Producer<K, V> createProducer(String brokerList,
-                                                String encoder = classOf<DefaultEncoder>.getName,
-                                                String keyEncoder = classOf<DefaultEncoder>.getName,
-                                                String partitioner = classOf<DefaultPartitioner>.getName,
-                                                Properties producerProps = null) {
+    public static <K, V> Producer<K, V> createProducer(String brokerList,
+                                                String encoder ,
+                                                String keyEncoder ,
+                                                String partitioner ,
+                                                Properties producerProps) {
+//        String encoder = classOf<DefaultEncoder>.getName,
+//                String keyEncoder = classOf<DefaultEncoder>.getName,
+//                String partitioner = classOf<DefaultPartitioner>.getName,
          Properties props = getProducerConfig(brokerList);
 
         //override any explicitly specified properties;
@@ -491,19 +496,18 @@ public class TestUtils {
         props.put("partitioner.class", partitioner);
         return new Producer(new ProducerConfig(props));
     }
-//
-//    /**
-//     * Create a (new) producer with a few pre-configured properties.
-//     */
+
+    /**
+     * Create a (new) producer with a few pre-configured properties.
+     */
 //    public void  createNewProducer(String brokerList,
 //                          Integer acks = -1,
 //                          Long metadataFetchTimeout = 3000L,
 //                          Boolean blockOnBufferFull = true,
 //                          Long bufferSize = 1024L * 1024L,
 //                          Integer retries = 0) : KafkaProducer<Array[Byte],Array[Byte]> = {
-//        import org.apache.kafka.clients.producer.ProducerConfig;
 //
-//        val producerProps = new Properties();
+//        Properties producerProps = new Properties();
 //        producerProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, brokerList);
 //        producerProps.put(ProducerConfig.ACKS_CONFIG, acks.toString);
 //        producerProps.put(ProducerConfig.METADATA_FETCH_TIMEOUT_CONFIG, metadataFetchTimeout.toString);
@@ -516,23 +520,23 @@ public class TestUtils {
 //        producerProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.ByteArraySerializer");
 //        return new KafkaProducer<Array[Byte],Array[Byte]>(producerProps);
 //    }
-//
-//    /**
-//     * Create a default producer config properties map with the given metadata broker list
-//     */
-//    public void  getProducerConfig(String brokerList): Properties = {
-//        val props = new Properties();
-//        props.put("metadata.broker.list", brokerList);
-//        props.put("message.send.max.retries", "5");
-//        props.put("retry.backoff.ms", "1000");
-//        props.put("request.timeout.ms", "2000");
-//        props.put("request.required.acks", "-1");
-//        props.put("send.buffer.bytes", "65536");
-//        props.put("connect.timeout.ms", "100000");
-//        props.put("reconnect.interval", "10000");
-//
-//        props;
-//    }
+
+    /**
+     * Create a default producer config properties map with the given metadata broker list
+     */
+    public static Properties  getProducerConfig(String brokerList){
+        Properties props = new Properties();
+        props.put("metadata.broker.list", brokerList);
+        props.put("message.send.max.retries", "5");
+        props.put("retry.backoff.ms", "1000");
+        props.put("request.timeout.ms", "2000");
+        props.put("request.required.acks", "-1");
+        props.put("send.buffer.bytes", "65536");
+        props.put("connect.timeout.ms", "100000");
+        props.put("reconnect.interval", "10000");
+
+       return props;
+    }
 //
 //    public void  getSyncProducerConfig Integer port): Properties = {
 //        val props = new Properties();
