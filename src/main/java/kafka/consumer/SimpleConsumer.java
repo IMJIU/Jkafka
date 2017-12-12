@@ -36,6 +36,9 @@ public class SimpleConsumer extends Logging {
         this.soTimeout = soTimeout;
         this.bufferSize = bufferSize;
         this.clientId = clientId;
+        blockingChannel = new BlockingChannel(host, port, bufferSize, BlockingChannel.UseDefaultBufferSize, soTimeout);
+        fetchRequestAndResponseStats = FetchRequestAndResponseStatsRegistry.getFetchRequestAndResponseStats(clientId);
+
     }
 
     public void init() {
@@ -43,8 +46,8 @@ public class SimpleConsumer extends Logging {
     }
 
     private Object lock = new Object();
-    private BlockingChannel blockingChannel = new BlockingChannel(host, port, bufferSize, BlockingChannel.UseDefaultBufferSize, soTimeout);
-    private FetchRequestAndResponseStats fetchRequestAndResponseStats = FetchRequestAndResponseStatsRegistry.getFetchRequestAndResponseStats(clientId);
+    private BlockingChannel blockingChannel ;
+    private FetchRequestAndResponseStats fetchRequestAndResponseStats ;
     private boolean isClosed = false;
 
     private BlockingChannel connect() {

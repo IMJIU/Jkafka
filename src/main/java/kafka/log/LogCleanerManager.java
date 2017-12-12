@@ -42,11 +42,7 @@ public class LogCleanerManager extends KafkaMetricsGroup {
     public void init() {
         checkpoints = Maps.newHashMap();
         for (File dir : logDirs) {
-            try {
-                checkpoints.put(dir, new OffsetCheckpoint(new File(dir, offsetCheckpointFile)));
-            } catch (IOException e) {
-                error(e.getMessage(),e);
-            }
+            checkpoints.put(dir, new OffsetCheckpoint(new File(dir, offsetCheckpointFile)));
         }
         newGauge("max-dirty-percent", new Gauge<Integer>() {
             @Override
@@ -161,7 +157,7 @@ public class LogCleanerManager extends KafkaMetricsGroup {
                 try {
                     pausedCleaningCond.await(100, TimeUnit.MILLISECONDS);
                 } catch (InterruptedException e) {
-                    error(e.getMessage(),e);
+                    error(e.getMessage(), e);
                 }
             }
             info(String.format("The cleaning for partition %s is aborted and paused", topicAndPartition));
@@ -223,7 +219,7 @@ public class LogCleanerManager extends KafkaMetricsGroup {
                 }
                 checkpoint.write(existing);
             } catch (IOException e) {
-                error(e.getMessage(),e);
+                error(e.getMessage(), e);
             }
         });
     }
@@ -246,6 +242,7 @@ public class LogCleanerManager extends KafkaMetricsGroup {
         });
     }
 }
+
 enum LogCleaningState {
     LogCleaningInProgress,
     LogCleaningAborted,

@@ -16,6 +16,7 @@ import org.apache.log4j.Logger;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
 
@@ -43,7 +44,8 @@ public class ProducerTest extends ZooKeeperTestHarness {
     private KafkaConfig config2;
 
     @Before
-    public void setUp() {
+    public void setUp() throws IOException, InterruptedException {
+        super.setUp();
         props2.put("num.partitions", "4");
         props1.put("num.partitions", "4");
         config1 = new KafkaConfig(props1);

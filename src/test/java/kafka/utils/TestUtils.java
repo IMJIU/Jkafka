@@ -166,7 +166,7 @@ public class TestUtils {
             for (int i = 0; i < count; i++) {
                 socketList.add(new ServerSocket(0));
             }
-            List<Integer> ports = socketList.stream().map(s -> s.getLocalPort()).collect(Collectors.toList());
+            List<Integer> ports = Sc.map(socketList, s -> s.getLocalPort());
             socketList.forEach(s -> {
                 try {
                     s.close();
@@ -277,11 +277,11 @@ public class TestUtils {
      * Return the leader for each partition.
      */
     public static Map<Integer, Optional<Integer>> createTopic(ZkClient zkClient,
-                                                       String topic,
-                                                       Integer numPartitions,
-                                                       Integer replicationFactor,
-                                                       List<KafkaServer> servers,
-                                                       Properties topicConfig) {
+                                                              String topic,
+                                                              Integer numPartitions,
+                                                              Integer replicationFactor,
+                                                              List<KafkaServer> servers,
+                                                              Properties topicConfig) {
         if (numPartitions == null) {
             numPartitions = 1;
         }
@@ -294,10 +294,10 @@ public class TestUtils {
         // create topic;
         AdminUtils.createTopic(zkClient, topic, numPartitions, replicationFactor, topicConfig);
         // wait until the update metadata request for new topic reaches all servers;
-      return Sc.toMap(Sc.itToList(0, numPartitions, i -> {
+        return Sc.toMap(Sc.itToList(0, numPartitions, i -> {
             TestUtils.waitUntilMetadataIsPropagated(servers, topic, i);
-            return Tuple.of(i , TestUtils.waitUntilLeaderIsElectedOrChanged(zkClient, topic, i,null,null,null));
-        })) ;
+            return Tuple.of(i, TestUtils.waitUntilLeaderIsElectedOrChanged(zkClient, topic, i, null, null, null));
+        }));
     }
 //
 
@@ -307,13 +307,13 @@ public class TestUtils {
      * Return the leader for each partition.
      */
     public static Map<Integer, Optional<Integer>> createTopic(ZkClient zkClient, String topic, Map<Integer, List<Integer>> partitionReplicaAssignment,
-                                                       List<KafkaServer> servers) {
+                                                              List<KafkaServer> servers) {
         // create topic;
         AdminUtils.createOrUpdateTopicPartitionAssignmentPathInZK(zkClient, topic, partitionReplicaAssignment);
         // wait until the update metadata request for new topic reaches all servers;
         return Sc.mapToMap(partitionReplicaAssignment.keySet(), i -> {
             TestUtils.waitUntilMetadataIsPropagated(servers, topic, i);
-            return Tuple.of(i , TestUtils.waitUntilLeaderIsElectedOrChanged(zkClient, topic, i,null,null,null));
+            return Tuple.of(i, TestUtils.waitUntilLeaderIsElectedOrChanged(zkClient, topic, i, null, null, null));
         });
     }
 //
@@ -473,19 +473,20 @@ public class TestUtils {
 //        builder.toString;
 //    }
 //
+
     /**
      * Create a producer with a few pre-configured properties.
      * If certain properties need to be overridden, they can be provided in producerProps.
      */
     public static <K, V> Producer<K, V> createProducer(String brokerList,
-                                                String encoder ,
-                                                String keyEncoder ,
-                                                String partitioner ,
-                                                Properties producerProps) {
+                                                       String encoder,
+                                                       String keyEncoder,
+                                                       String partitioner,
+                                                       Properties producerProps) {
 //        String encoder = classOf<DefaultEncoder>.getName,
 //                String keyEncoder = classOf<DefaultEncoder>.getName,
 //                String partitioner = classOf<DefaultPartitioner>.getName,
-         Properties props = getProducerConfig(brokerList);
+        Properties props = getProducerConfig(brokerList);
 
         //override any explicitly specified properties;
         if (producerProps != null)
@@ -524,7 +525,7 @@ public class TestUtils {
     /**
      * Create a default producer config properties map with the given metadata broker list
      */
-    public static Properties  getProducerConfig(String brokerList){
+    public static Properties getProducerConfig(String brokerList) {
         Properties props = new Properties();
         props.put("metadata.broker.list", brokerList);
         props.put("message.send.max.retries", "5");
@@ -535,7 +536,7 @@ public class TestUtils {
         props.put("connect.timeout.ms", "100000");
         props.put("reconnect.interval", "10000");
 
-       return props;
+        return props;
     }
 //
 //    public void  getSyncProducerConfig Integer port): Properties = {
@@ -647,9 +648,9 @@ public class TestUtils {
      * @return The new leader or assertion failure if timeout is reached.
      */
     public static Optional<Integer> waitUntilLeaderIsElectedOrChanged(ZkClient zkClient, String topic,
-                                                               Integer partition, Long timeoutMs,
-                                                               Optional<Integer> oldLeaderOpt,
-                                                               Optional<Integer> newLeaderOpt) {
+                                                                      Integer partition, Long timeoutMs,
+                                                                      Optional<Integer> oldLeaderOpt,
+                                                                      Optional<Integer> newLeaderOpt) {
         if (timeoutMs == null) {
             timeoutMs = 5000L;
         }
@@ -784,7 +785,7 @@ public class TestUtils {
      * @param servers   The list of servers that the metadata should reach to
      * @param topic     The topic name
      * @param partition The partition Id
-     * param timeout   The amount of time waiting on this condition before assert to fail
+     *                  param timeout   The amount of time waiting on this condition before assert to fail
      * @return The leader of the partition.
      */
     public static Integer waitUntilMetadataIsPropagated(List<KafkaServer> servers, String topic, Integer partition) {

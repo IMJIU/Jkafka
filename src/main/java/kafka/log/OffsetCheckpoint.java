@@ -16,10 +16,14 @@ public class OffsetCheckpoint extends Logging {
     public File file;
     private Object lock = new Object();
 
-    public OffsetCheckpoint(File file) throws IOException {
+    public OffsetCheckpoint(File file) {
         this.file = file;
         new File(file + ".tmp").delete(); // try to delete any existing temp files for cleanliness;
-        file.createNewFile(); // in case the file doesn't exist;
+        try {
+            file.createNewFile(); // in case the file doesn't exist;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
 

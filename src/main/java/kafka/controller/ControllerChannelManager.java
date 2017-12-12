@@ -127,11 +127,14 @@ class ControllerBrokerRequestBatch extends Logging {
 
     public ControllerBrokerRequestBatch(KafkaController controller) {
         this.controller = controller;
+        controllerContext = controller.controllerContext;
+        controllerId = controller.config.brokerId;
+        clientId = controller.clientId();
     }
 
-    public ControllerContext controllerContext = controller.controllerContext;
-    public Integer controllerId = controller.config.brokerId;
-    public String clientId = controller.clientId();
+    public ControllerContext controllerContext;
+    public Integer controllerId;
+    public String clientId;
     public Map<Integer, Map<Tuple<String, Integer>, PartitionStateInfo>> leaderAndIsrRequestMap = Maps.newHashMap();
     public Map<Integer, List<StopReplicaRequestInfo>> stopReplicaRequestMap = Maps.newHashMap();
     public Map<Integer, HashMap<TopicAndPartition, PartitionStateInfo>> updateMetadataRequestMap = Maps.newHashMap();
@@ -215,9 +218,9 @@ class ControllerBrokerRequestBatch extends Logging {
         if (controller.deleteTopicManager.partitionsToBeDeleted.isEmpty())
             filteredPartitions = givenPartitions;
         else
-            filteredPartitions = Sc.subtract(givenPartitions,controller.deleteTopicManager.partitionsToBeDeleted);
+            filteredPartitions = Sc.subtract(givenPartitions, controller.deleteTopicManager.partitionsToBeDeleted);
         filteredPartitions.forEach(partition -> updateMetadataRequestMapFor(brokerIds, partition, false));
-        controller.deleteTopicManager.partitionsToBeDeleted.forEach(partition -> updateMetadataRequestMapFor(brokerIds,partition, true));
+        controller.deleteTopicManager.partitionsToBeDeleted.forEach(partition -> updateMetadataRequestMapFor(brokerIds, partition, true));
     }
 
     public void sendRequestsToBrokers(Integer controllerEpoch, Integer correlationId) {
@@ -248,7 +251,6 @@ class ControllerBrokerRequestBatch extends Logging {
         });
         stopReplicaRequestMap.clear();
     }
-
 
 
     class StopReplicaRequestInfo {

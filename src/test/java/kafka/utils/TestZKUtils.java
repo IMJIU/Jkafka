@@ -7,15 +7,12 @@ import java.io.IOException;
  */
 public class TestZKUtils {
     public static String zookeeperConnect;
-    public static String zookeeperConnect(){
-        if(zookeeperConnect!=null){
+
+    public static String zookeeperConnect() {
+        if (zookeeperConnect != null) {
             return zookeeperConnect;
         }
-        try {
-            zookeeperConnect = "127.0.0.1:" + TestUtils.choosePort();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        zookeeperConnect = "127.0.0.1:" + TestUtils.choosePort();
         return zookeeperConnect;
     }
 }

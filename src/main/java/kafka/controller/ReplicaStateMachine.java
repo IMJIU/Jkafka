@@ -40,12 +40,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * ReplicaDeletionSuccessful
  */
 public class ReplicaStateMachine extends Logging {
-    KafkaController controller;
+    public KafkaController controller;
     private ControllerContext controllerContext;
     private Integer controllerId;
     private ZkClient zkClient;
     private Map<PartitionAndReplica, ReplicaState> replicaState = Maps.newHashMap();
-    private BrokerChangeListener brokerChangeListener = new BrokerChangeListener();
+    private BrokerChangeListener brokerChangeListener;
     private ControllerBrokerRequestBatch brokerRequestBatch;
     private AtomicBoolean hasStarted = new AtomicBoolean(false);
     private StateChangeLogger stateChangeLogger = KafkaController.stateChangeLogger;
@@ -57,6 +57,7 @@ public class ReplicaStateMachine extends Logging {
         controllerId = controller.config.brokerId;
         zkClient = controllerContext.zkClient;
         brokerRequestBatch = new ControllerBrokerRequestBatch(controller);
+        brokerChangeListener = new BrokerChangeListener();
     }
 
 

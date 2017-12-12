@@ -49,7 +49,7 @@ import java.util.concurrent.TimeUnit;
 public class KafkaController extends KafkaMetricsGroup {
     public static Logging logging = Logging.getLogger(KafkaController.class.getName());
     public static StateChangeLogger stateChangeLogger = new StateChangeLogger("state.change.logger");
-    public static final int InitialControllerEpoch = 1;
+    public static final Integer InitialControllerEpoch = 1;
     public static final int InitialControllerEpochZkVersion = 1;
     public KafkaConfig config;
     public ZkClient zkClient;
@@ -664,7 +664,7 @@ public class KafkaController extends KafkaMetricsGroup {
             // the following call can still fail if another controller gets elected between checking if the path exists and;
             // trying to create the controller epoch path;
             try {
-                zkClient.createPersistent(ZkUtils.ControllerEpochPath, KafkaController.InitialControllerEpoch);
+                zkClient.createPersistent(ZkUtils.ControllerEpochPath, KafkaController.InitialControllerEpoch.toString());
                 controllerContext.epoch = KafkaController.InitialControllerEpoch;
                 controllerContext.epochZkVersion = KafkaController.InitialControllerEpochZkVersion;
             } catch (ZkNodeExistsException e) {

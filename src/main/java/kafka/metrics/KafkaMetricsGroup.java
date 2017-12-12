@@ -11,7 +11,9 @@ import kafka.producer.ProducerRequestStatsRegistry;
 import kafka.producer.ProducerStatsRegistry;
 import kafka.producer.ProducerTopicStatsRegistry;
 import kafka.utils.Logging;
+import kafka.utils.Sc;
 
+import javax.swing.text.html.Option;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -29,7 +31,8 @@ public class KafkaMetricsGroup extends Logging {
      * @return Sanitized metric name object.
      */
     private static MetricName metricName(String name, Map<String, String> tags) {
-        Class klass = KafkaMetricsGroup.class;
+        StackTraceElement stack[] = Thread.currentThread().getStackTrace();
+        Class klass =stack[2].getClass();
         String pkg = (klass.getPackage() == null) ? "" : klass.getPackage().getName();
         String simpleName = klass.getSimpleName().replaceAll("\\$$", "");
         return explicitMetricName(pkg, simpleName, name, tags);
@@ -97,7 +100,7 @@ public class KafkaMetricsGroup extends Logging {
      * To make sure all the metrics be de-registered after consumer/producer close, the metric names should be
      * put into the metric name set.
      */
-    private static final  List<MetricName> consumerMetricNameList = Lists.newArrayList(
+    private static final List<MetricName> consumerMetricNameList = Lists.newArrayList(
             // kafka.consumer.ZookeeperConsumerConnector;
             new MetricName("kafka.consumer", "ZookeeperConsumerConnector", "FetchQueueSize"),
             new MetricName("kafka.consumer", "ZookeeperConsumerConnector", "KafkaCommitsPerSec"),
@@ -153,22 +156,10 @@ public class KafkaMetricsGroup extends Logging {
     );
 
     private static Optional<String> toMBeanName(Map<String, String> tags) {
-        Map<String, String> filteredTags = tags;
-        Iterator<Map.Entry<String, String>> it = filteredTags.entrySet().iterator();
-        StringBuilder sb = new StringBuilder();
-        while (it.hasNext()) {
-            Map.Entry<String, String> entry = it.next();
-            if (entry.getValue() == "") {
-                it.remove();
-            } else {
-                sb.append(String.format("%s=%s", entry.getKey(), entry.getValue())).append(",");
-            }
-        }
-        if (filteredTags.size() > 0) {
-            if (sb.charAt(sb.length() - 1) == ',') {
-                return Optional.of(sb.deleteCharAt(sb.length() - 1).toString());
-            }
-            return Optional.of(sb.toString());
+        Map<String, String> filteredTags = Sc.filter(tags, (tagKey, tagValue) -> tagValue != "");
+        if (!filteredTags.isEmpty()) {
+            String tagsString = Sc.mkString(Sc.map(filteredTags, (key, value) -> "%s=%s".format(key, value)), ",");
+            return Optional.of(tagsString);
         } else {
             return Optional.empty();
         }

@@ -54,16 +54,17 @@ public class KafkaServer extends KafkaMetricsGroup {
     public OffsetManager offsetManager = null;
     public KafkaHealthcheck kafkaHealthcheck = null;
     public TopicConfigManager topicConfigManager = null;
-    public  ReplicaManager replicaManager = null;
-    public  KafkaApis apis = null;
+    public ReplicaManager replicaManager = null;
+    public KafkaApis apis = null;
     public KafkaController kafkaController = null;
-    public  KafkaScheduler kafkaScheduler = new KafkaScheduler(config.backgroundThreads);
-    public  ZkClient zkClient = null;
+    public KafkaScheduler kafkaScheduler;
+    public ZkClient zkClient = null;
 
     public KafkaServer(KafkaConfig config, Time time) {
         this.config = config;
         this.time = time;
         this.logIdent = "<Kafka Server " + config.brokerId + ">, ";
+        kafkaScheduler = new KafkaScheduler(config.backgroundThreads);
         newGauge("BrokerState", new Gauge<Object>() {
             public Object value() {
                 return brokerState.currentState;
@@ -159,7 +160,7 @@ public class KafkaServer extends KafkaMetricsGroup {
             zkClientForChrootCreation.close();
         }
 
-        ZkClient zkClient = new ZkClient(config.zkConnect, config.zkSessionTimeoutMs, config.zkConnectionTimeoutMs, new ZKStringSerializer());
+        ZkClient zkClient = new ZkClient(config.zkConnect, config.zkSessionTimeoutMs, config.zkConnectionTimeoutMs);
         ZkUtils.setupCommonPaths(zkClient);
         return zkClient;
     }

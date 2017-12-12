@@ -57,36 +57,25 @@ public class ReplicaManager extends KafkaMetricsGroup {
         this.scheduler = scheduler;
         this.logManager = logManager;
         this.isShuttingDown = isShuttingDown;
+        localBrokerId = config.brokerId;
+        replicaFetcherManager = new ReplicaFetcherManager(config, this);
+        highWatermarkCheckPointThreadStarted = new AtomicBoolean(false);
+        init();
     }
 
     /* epoch of the controller that last changed the leader */
     public volatile Integer controllerEpoch = KafkaController.InitialControllerEpoch - 1;
-    private Integer localBrokerId = config.brokerId;
+    private Integer localBrokerId;
     private Pool<Tuple<String, Integer>, Partition> allPartitions = new Pool<>();
     private Object replicaStateChangeLock = new Object();
-    public ReplicaFetcherManager replicaFetcherManager = new ReplicaFetcherManager(config, this);
-    private AtomicBoolean highWatermarkCheckPointThreadStarted = new AtomicBoolean(false);
-    public Map<File, OffsetCheckpoint> highWatermarkCheckpoints = null;
+    public ReplicaFetcherManager replicaFetcherManager;
+    private AtomicBoolean highWatermarkCheckPointThreadStarted;
+    public Map<String, OffsetCheckpoint> highWatermarkCheckpoints = null;
 
     public void init() {
-        highWatermarkCheckpoints = Sc.toMap(Sc.map(config.logDirs, dir -> {
-                    try {
-                        Tuple.of(new File(dir).getAbsolutePath(),
-                                new OffsetCheckpoint(new File(dir, ReplicaManager.HighWatermarkFilename)));
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    }
-                    return null;
-                }
-        ));
-//        highWatermarkCheckpoints = Utils.toMap(config.logDirs.stream().map(dir -> {
-//            try {
-//                return Tuple.of(new File(dir).getAbsolutePath(), new OffsetCheckpoint(new File(dir, ReplicaManager.HighWatermarkFilename)));
-//            } catch (IOException e) {
-//                e.printStackTrace();
-//            }
-//            return Tuple.EMPTY;
-//        }).collect(Collectors.toList()));
+        highWatermarkCheckpoints = Sc.toMap(Sc.map(config.logDirs, dir ->
+                Tuple.of(new File(dir).getAbsolutePath(),
+                        new OffsetCheckpoint(new File(dir, ReplicaManager.HighWatermarkFilename)))));
         this.logIdent = "[Replica Manager on Broker " + localBrokerId + "]: ";
 
         newGauge("LeaderCount", new Gauge<Integer>() {
@@ -355,7 +344,7 @@ public class ReplicaManager extends KafkaMetricsGroup {
         }
     }
 
-    public Tuple<Map<Tuple<String, Integer>, Short>, Short> becomeLeaderOrFollower(LeaderAndIsrRequest leaderAndISRRequest, OffsetManager offsetManager)  {
+    public Tuple<Map<Tuple<String, Integer>, Short>, Short> becomeLeaderOrFollower(LeaderAndIsrRequest leaderAndISRRequest, OffsetManager offsetManager) {
         Utils.foreach(leaderAndISRRequest.partitionStateInfos, (topicPartition, stateInfo) -> {
             stateChangeLogger.trace(String.format("Broker %d received LeaderAndIsr request %s correlation id %d from controller %d epoch %d for partition <%s,%d>",
                     localBrokerId, stateInfo, leaderAndISRRequest.correlationId,
@@ -498,7 +487,7 @@ public class ReplicaManager extends KafkaMetricsGroup {
      */
     private void makeFollowers(Integer controllerId, Integer epoch, Map<Partition, PartitionStateInfo> partitionState,
                                Set<Broker> leaders, Integer correlationId,
-                               Map<Tuple<String, Integer>, Short> responseMap, OffsetManager offsetManager)  {
+                               Map<Tuple<String, Integer>, Short> responseMap, OffsetManager offsetManager) {
         partitionState.forEach((state, v) ->
                 stateChangeLogger.trace(String.format("Broker %d handling LeaderAndIsr request correlationId %d from controller %d epoch %d " +
                                 "starting the become-follower transition for partition %s",

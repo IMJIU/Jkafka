@@ -16,7 +16,7 @@ import java.io.IOException;
  **/
 
 public abstract class ZooKeeperTestHarness  {
-    public String zkConnect = TestZKUtils.zookeeperConnect;
+    public String zkConnect = TestZKUtils.zookeeperConnect();
     public EmbeddedZookeeper zookeeper = null;
     public ZkClient zkClient = null;
     public int zkConnectionTimeout = 6000;

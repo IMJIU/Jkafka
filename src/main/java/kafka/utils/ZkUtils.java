@@ -466,13 +466,12 @@ public class ZkUtils {
     public static Tuple<Optional<String>, Stat> readDataMaybeNull(ZkClient client, String path) {
         Stat stat = new Stat();
         try {
-            return Tuple.of(Optional.of(client.readData(path, stat).toString()), stat);
+            return Tuple.of(Optional.of(client.readData(path, stat)), stat);
         } catch (ZkNoNodeException e) {
-            Tuple.of(Optional.empty(), stat);
+            return Tuple.of(Optional.empty(), stat);
         } catch (Throwable e2) {
             throw e2;
         }
-        return null;
     }
 
     public static List<String> getChildren(ZkClient client, String path) {
@@ -483,13 +482,12 @@ public class ZkUtils {
     public static List<String> getChildrenParentMayNotExist(ZkClient client, String path) {
         // triggers implicit conversion from java list to scala Seq;
         try {
-            client.getChildren(path);
+            return client.getChildren(path);
         } catch (ZkNoNodeException e) {
             return null;
         } catch (Throwable e2) {
             throw e2;
         }
-        return null;
     }
 
     /**

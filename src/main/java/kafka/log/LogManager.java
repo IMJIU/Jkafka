@@ -92,14 +92,7 @@ public class LogManager extends Logging {
     public void init() throws IOException {
         createAndValidateLogDirs(logDirs);
         dirLocks = lockLogDirs(logDirs);
-        recoveryPointCheckpoints = logDirs.stream().map(dir -> {
-            try {
-                return Tuple.of(dir, new OffsetCheckpoint(new File(dir, RecoveryPointCheckpointFile)));
-            } catch (IOException e) {
-               error(e.getMessage(),e);
-            }
-            return null;
-        }).collect(Collectors.toMap(t -> t.v1, t -> t.v2));
+        recoveryPointCheckpoints=Sc.mapToMap(logDirs,dir -> Tuple.of(dir, new OffsetCheckpoint(new File(dir, RecoveryPointCheckpointFile))));
         loadLogs();
 
         if (cleanerConfig.enableCleaner)
@@ -123,7 +116,7 @@ public class LogManager extends Logging {
             try {
                 return dir.getCanonicalPath();
             } catch (IOException e) {
-                error(e.getMessage(),e);
+                error(e.getMessage(), e);
             }
             return "";
         }).collect(Collectors.toSet()).size() < dirs.size()) {
