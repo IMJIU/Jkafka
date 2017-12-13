@@ -33,7 +33,7 @@ public class Mx4jLoader {
             logger.debug("Will try to load MX4j now, if it's in the classpath");
 
             MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
-            ObjectName processorName = new ObjectName("name Server=XSLTProcessor");
+            ObjectName processorName = new ObjectName("Server:name=XSLTProcessor");
 
             Class httpAdaptorClass = null;
 

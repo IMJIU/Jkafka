@@ -13,6 +13,7 @@ import kafka.producer.ProducerTopicStatsRegistry;
 import kafka.utils.Logging;
 import kafka.utils.Sc;
 
+import javax.management.MalformedObjectNameException;
 import javax.swing.text.html.Option;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -21,6 +22,7 @@ import java.util.concurrent.TimeUnit;
  * Created by Administrator on 2017/3/29.
  */
 public class KafkaMetricsGroup extends Logging {
+    private static final Logging log = Logging.getLogger(KafkaMetricsGroup.class.getName());
 
     /**
      * Creates a new MetricName object for gauges, meters, etc. created for this
@@ -31,8 +33,20 @@ public class KafkaMetricsGroup extends Logging {
      * @return Sanitized metric name object.
      */
     private static MetricName metricName(String name, Map<String, String> tags) {
+        Class klass = null;
         StackTraceElement stack[] = Thread.currentThread().getStackTrace();
-        Class klass =stack[2].getClass();
+        for (int i = 1; i < stack.length; i++) {
+            String c = stack[i].getClassName();
+            if (c.indexOf("KafkaMetricsGroup") == -1) {
+                System.out.println(c);
+                try {
+                    klass = Class.forName(c);
+                    break;
+                } catch (ClassNotFoundException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }
         String pkg = (klass.getPackage() == null) ? "" : klass.getPackage().getName();
         String simpleName = klass.getSimpleName().replaceAll("\\$$", "");
         return explicitMetricName(pkg, simpleName, name, tags);
@@ -158,7 +172,7 @@ public class KafkaMetricsGroup extends Logging {
     private static Optional<String> toMBeanName(Map<String, String> tags) {
         Map<String, String> filteredTags = Sc.filter(tags, (tagKey, tagValue) -> tagValue != "");
         if (!filteredTags.isEmpty()) {
-            String tagsString = Sc.mkString(Sc.map(filteredTags, (key, value) -> "%s=%s".format(key, value)), ",");
+            String tagsString = Sc.mkString(Sc.map(filteredTags, (key, value) -> String.format("%s=%s",key, value)), ",");
             return Optional.of(tagsString);
         } else {
             return Optional.empty();
