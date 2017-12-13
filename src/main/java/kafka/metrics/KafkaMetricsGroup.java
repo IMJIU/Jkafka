@@ -38,7 +38,6 @@ public class KafkaMetricsGroup extends Logging {
         for (int i = 1; i < stack.length; i++) {
             String c = stack[i].getClassName();
             if (c.indexOf("KafkaMetricsGroup") == -1) {
-                System.out.println(c);
                 try {
                     klass = Class.forName(c);
                     break;

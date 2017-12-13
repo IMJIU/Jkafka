@@ -31,7 +31,7 @@ public class Topic {
         Matcher match = pattern.matcher(topic);
         if (match.matches()) {
             String t = match.group(1);
-            if (t != topic) {
+            if (!t.equals(topic)) {
                 throw new InvalidTopicException("topic name " + topic + " is illegal, contains a character other than ASCII alphanumerics, '.', '_' and '-'");
             }
         } else {
