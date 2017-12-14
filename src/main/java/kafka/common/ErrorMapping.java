@@ -76,13 +76,13 @@ public class ErrorMapping {
             }
     }
 
-    public static Exception exceptionFor(Short code) {
+    public static RuntimeException exceptionFor(Short code) {
         try {
             Class<Exception> c = codeToException.get(code);
             if (c == null) {
                 return UnknownCodecException.class.newInstance();
             }
-            return c.newInstance();
+            return new RuntimeException(c.newInstance());
         } catch (InstantiationException e) {
             throw new RuntimeException(e);
         } catch (IllegalAccessException e) {

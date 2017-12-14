@@ -46,8 +46,8 @@ public class SimpleConsumer extends Logging {
     }
 
     private Object lock = new Object();
-    private BlockingChannel blockingChannel ;
-    private FetchRequestAndResponseStats fetchRequestAndResponseStats ;
+    private BlockingChannel blockingChannel;
+    private FetchRequestAndResponseStats fetchRequestAndResponseStats;
     private boolean isClosed = false;
 
     private BlockingChannel connect() {
@@ -73,7 +73,7 @@ public class SimpleConsumer extends Logging {
         }
     }
 
-    private Receive sendRequest(RequestOrResponse request) throws IOException {
+    private Receive sendRequest(RequestOrResponse request) {
         synchronized (lock) {
             Receive response = null;
             try {
@@ -89,21 +89,20 @@ public class SimpleConsumer extends Logging {
                     response = blockingChannel.receive();
                 } catch (Throwable e2) {
                     disconnect();
-                    throw e2;
+                    throw new RuntimeException(e2);
                 }
             }
             return response;
         }
     }
 
-    public TopicMetadataResponse send(TopicMetadataRequest request) throws IOException {
+    public TopicMetadataResponse send(TopicMetadataRequest request){
         Receive response = sendRequest(request);
         return TopicMetadataResponse.readFrom(response.buffer());
     }
 
-    public ConsumerMetadataResponse send(ConsumerMetadataRequest request) throws IOException {
-        Receive response = null;
-        response = sendRequest(request);
+    public ConsumerMetadataResponse send(ConsumerMetadataRequest request){
+        Receive response = sendRequest(request);
         return ConsumerMetadataResponse.readFrom(response.buffer());
     }
 
@@ -118,13 +117,7 @@ public class SimpleConsumer extends Logging {
         KafkaTimer specificTimer = fetchRequestAndResponseStats.getFetchRequestAndResponseStats(host, port).requestTimer;
         KafkaTimer aggregateTimer = fetchRequestAndResponseStats.getFetchRequestAndResponseAllBrokersStats().requestTimer;
         response = aggregateTimer.time(() ->
-                specificTimer.time(() -> {
-                    try {
-                        return sendRequest(request);
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    }
-                })
+                specificTimer.time(() -> sendRequest(request))
         );
         FetchResponse fetchResponse = FetchResponse.readFrom(response.buffer());
         Integer fetchedSize = fetchResponse.sizeInBytes();
@@ -139,7 +132,7 @@ public class SimpleConsumer extends Logging {
      * @param request a <<kafka.api.OffsetRequest>> object.
      * @return a <<kafka.api.OffsetResponse>> object.
      */
-    public OffsetResponse getOffsetsBefore(OffsetRequest request) throws IOException {
+    public OffsetResponse getOffsetsBefore(OffsetRequest request) {
         return OffsetResponse.readFrom(sendRequest(request).buffer());
     }
 
@@ -150,7 +143,7 @@ public class SimpleConsumer extends Logging {
      * @param request a <<kafka.api.OffsetCommitRequest>> object.
      * @return a <<kafka.api.OffsetCommitResponse>> object.
      */
-    public OffsetCommitResponse commitOffsets(OffsetCommitRequest request) throws IOException {
+    public OffsetCommitResponse commitOffsets(OffsetCommitRequest request)  {
         // With TODO KAFKA-1012, we have to first issue a ConsumerMetadataRequest and connect to the coordinator before;
         // we can commit offsets.;
         return OffsetCommitResponse.readFrom(sendRequest(request).buffer());
@@ -163,7 +156,7 @@ public class SimpleConsumer extends Logging {
      * @param request a <<kafka.api.OffsetFetchRequest>> object.
      * @return a <<kafka.api.OffsetFetchResponse>> object.
      */
-    public OffsetFetchResponse fetchOffsets(OffsetFetchRequest request) throws IOException {
+    public OffsetFetchResponse fetchOffsets(OffsetFetchRequest request)  {
         return OffsetFetchResponse.readFrom(sendRequest(request).buffer());
     }
 
@@ -181,11 +174,11 @@ public class SimpleConsumer extends Logging {
      * @param consumerId        Id of the consumer which could be a consumer client, SimpleConsumerShell or a follower broker.
      * @return Requested offset.
      */
-    public Long earliestOrLatestOffset(TopicAndPartition topicAndPartition, Long earliestOrLatest, Integer consumerId) throws Throwable{
+    public Long earliestOrLatestOffset(TopicAndPartition topicAndPartition, Long earliestOrLatest, Integer consumerId) {
         OffsetRequest request = new OffsetRequest(ImmutableMap.of(topicAndPartition, new PartitionOffsetRequestInfo(earliestOrLatest, 1)),
                 clientId, consumerId);
         PartitionOffsetsResponse partitionErrorAndOffset = getOffsetsBefore(request).partitionErrorAndOffsets.get(topicAndPartition);
-        if(ErrorMapping.NoError == partitionErrorAndOffset.error){
+        if (ErrorMapping.NoError == partitionErrorAndOffset.error) {
             return partitionErrorAndOffset.offsets.get(0);
         }
         throw ErrorMapping.exceptionFor(partitionErrorAndOffset.error);

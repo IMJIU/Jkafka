@@ -16,6 +16,15 @@ public class MessageAndMetadata<K, V> {
     public Decoder<K> keyDecoder;
     public Decoder<V> valueDecoder;
 
+    public MessageAndMetadata(String topic, Integer partition, Message rawMessage, Long offset, Decoder<K> keyDecoder, Decoder<V> valueDecoder) {
+        this.topic = topic;
+        this.partition = partition;
+        this.rawMessage = rawMessage;
+        this.offset = offset;
+        this.keyDecoder = keyDecoder;
+        this.valueDecoder = valueDecoder;
+    }
+
     /**
      * Return the decoded message key and payload
      */

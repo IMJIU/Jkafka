@@ -135,12 +135,4 @@ class BrokerAndFetcherId {
     }
 }
 
-class BrokerAndInitialOffset {
-    Broker broker;
-    Long initOffset;
 
-    public BrokerAndInitialOffset(Broker broker, Long initOffset) {
-        this.broker = broker;
-        this.initOffset = initOffset;
-    }
-}

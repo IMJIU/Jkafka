@@ -67,9 +67,7 @@ public abstract class IteratorTemplate<T> implements Iterator {
     }
 }
 
-enum State {
-    DONE, READY, NOT_READY, FAILED
-}
+
 
 
 

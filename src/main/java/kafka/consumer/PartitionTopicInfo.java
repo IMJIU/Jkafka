@@ -41,7 +41,7 @@ public class PartitionTopicInfo extends Logging {
         consumerTopicStats = ConsumerTopicStatsRegistry.getConsumerTopicStat(clientId);
     }
 
-    private ConsumerTopicStats consumerTopicStats ;
+    private ConsumerTopicStats consumerTopicStats;
 
     public Long getConsumeOffset() {
         return consumedOffset.get();
@@ -64,18 +64,24 @@ public class PartitionTopicInfo extends Logging {
     /**
      * Enqueue a message set for processing.
      */
-    public void enqueue(ByteBufferMessageSet messages) throws InterruptedException {
+    public void enqueue(ByteBufferMessageSet messages) {
         Integer size = messages.validBytes();
-        if (size > 0) {
-            Long next = Sc.last(messages.shallowIterator()).nextOffset();
-            trace("Updating fetch offset = " + fetchedOffset.get() + " to " + next);
-            chunkQueue.put(new FetchedDataChunk(messages, this, fetchedOffset.get()));
-            fetchedOffset.set(next);
-            debug(String.format("updated fetch offset of (%s) to %d", this, next));
-            consumerTopicStats.getConsumerTopicStats(topic).byteRate.mark(size);
-            consumerTopicStats.getConsumerAllTopicStats().byteRate.mark(size);
-        } else if (messages.sizeInBytes() > 0) {
-            chunkQueue.put(new FetchedDataChunk(messages, this, fetchedOffset.get()));
+        try {
+            if (size > 0) {
+                Long next = Sc.last(messages.shallowIterator()).nextOffset();
+                trace("Updating fetch offset = " + fetchedOffset.get() + " to " + next);
+
+                chunkQueue.put(new FetchedDataChunk(messages, this, fetchedOffset.get()));
+
+                fetchedOffset.set(next);
+                debug(String.format("updated fetch offset of (%s) to %d", this, next));
+                consumerTopicStats.getConsumerTopicStats(topic).byteRate.mark(size);
+                consumerTopicStats.getConsumerAllTopicStats().byteRate.mark(size);
+            } else if (messages.sizeInBytes() > 0) {
+                chunkQueue.put(new FetchedDataChunk(messages, this, fetchedOffset.get()));
+            }
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
         }
     }
 

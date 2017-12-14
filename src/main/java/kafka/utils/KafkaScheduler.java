@@ -34,6 +34,7 @@ public class KafkaScheduler extends Logging implements Scheduler {
      * @param daemon           If true the scheduler threads will be "daemon" threads and will not block jvm shutdown.
      */
     public KafkaScheduler(Integer threads, String threadNamePrefix, Boolean daemon) {
+        if (daemon == null) daemon = true;
         this.threads = threads;
         this.threadNamePrefix = threadNamePrefix;
         this.daemon = daemon;
@@ -61,7 +62,7 @@ public class KafkaScheduler extends Logging implements Scheduler {
         try {
             executor.awaitTermination(1, TimeUnit.DAYS);
         } catch (InterruptedException e) {
-            error(e.getMessage(),e);
+            error(e.getMessage(), e);
         }
         this.executor = null;
     }

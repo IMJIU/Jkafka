@@ -12,7 +12,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public abstract class ShutdownableThread extends Thread {
     public String name;
     public Boolean isInterruptible = true;
-    public Logging logger = new Logging();
+    public Logging logger = new Logging(this.getClass().getName());
+    public AtomicBoolean isRunning = new AtomicBoolean(true);
+    private CountDownLatch shutdownLatch = new CountDownLatch(1);
 
     public ShutdownableThread(String name) {
         this(name, true);
@@ -26,8 +28,7 @@ public abstract class ShutdownableThread extends Thread {
     }
 
 
-    public AtomicBoolean isRunning = new AtomicBoolean(true);
-    private CountDownLatch shutdownLatch = new CountDownLatch(1);
+
 
     public void shutdown()  {
         initiateShutdown();

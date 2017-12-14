@@ -1,5 +1,20 @@
 package kafka.consumer;
 
+import com.yammer.metrics.core.Meter;
+import kafka.func.Tuple;
+import kafka.log.TopicAndPartition;
+import kafka.metrics.KafkaMetricsGroup;
+import kafka.metrics.KafkaTimer;
+import kafka.network.BlockingChannel;
+import kafka.utils.KafkaScheduler;
+import kafka.utils.Pool;
+import org.I0Itec.zkclient.ZkClient;
+
+import java.util.Optional;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 /**
  * This class handles the consumers interaction with zookeeper
  *
@@ -35,35 +50,40 @@ package kafka.consumer;
  * Each consumer tracks the offset of the latest message consumed for each partition.
  *
  */
-public class ZookeeperConsumerConnector extends ConsumerConnector with Logging with KafkaMetricsGroup {
+public class ZookeeperConsumerConnector extends KafkaMetricsGroup implements ConsumerConnector {
         public static final FetchedDataChunk shutdownCommand = new FetchedDataChunk(null, null, -1L);
-    val ConsumerConfig config,
-    val Boolean enableFetcher
-) // for testing only;
+    public ConsumerConfig config;
+    public Boolean enableFetcher;
 
-private val isShuttingDown = new AtomicBoolean(false);
-private val rebalanceLock = new Object;
-private var Option fetcher<ConsumerFetcherManager> = Optional.empty();
-private var ZkClient zkClient = null;
-private var topicRegistry = new Pool<String, Pool<Int, PartitionTopicInfo>>
-private val checkpointedZkOffsets = new Pool<TopicAndPartition, Long>
-private val topicThreadIdAndQueues = new Pool<(String, ConsumerThreadId), BlockingQueue<FetchedDataChunk>>
-private val scheduler = new KafkaScheduler(threads = 1, threadNamePrefix = "kafka-consumer-scheduler-");
-private val messageStreamCreated = new AtomicBoolean(false);
+    public ZookeeperConsumerConnector(ConsumerConfig config, Boolean enableFetcher) {
+        this.config = config;
+        this.enableFetcher = enableFetcher;
+    }
+    // for testing only;
 
-private var ZKSessionExpireListener sessionExpirationListener = null;
-private var ZKTopicPartitionChangeListener topicPartitionChangeListener = null;
-private var ZKRebalancerListener loadBalancerListener = null;
+private AtomicBoolean isShuttingDown = new AtomicBoolean(false);
+private Object rebalanceLock = new Object();
+private  Optional<ConsumerFetcherManager> fetcher = Optional.empty();
+private ZkClient zkClient = null;
+private Pool<String, Pool<Integer, PartitionTopicInfo>> topicRegistry = new Pool<>();
+private Pool<TopicAndPartition, Long> checkpointedZkOffsets = new Pool<TopicAndPartition, Long>();
+private Pool<Tuple<String, ConsumerThreadId>, BlockingQueue<FetchedDataChunk>> topicThreadIdAndQueues = new Pool<>();
+private KafkaScheduler scheduler = new KafkaScheduler(1,  "kafka-consumer-scheduler-",true);
+private AtomicBoolean messageStreamCreated = new AtomicBoolean(false);
 
-private var BlockingChannel offsetsChannel = null;
-private val offsetsChannelLock = new Object;
+private  ZKSessionExpireListener sessionExpirationListener = null;
+private  ZKTopicPartitionChangeListener topicPartitionChangeListener = null;
+private  ZKRebalancerListener loadBalancerListener = null;
 
-private var ZookeeperTopicEventWatcher wildcardTopicWatcher = null;
+private BlockingChannel offsetsChannel = null;
+private Object offsetsChannelLock = new Object();
+
+private  ZookeeperTopicEventWatcher wildcardTopicWatcher = null;
 
 // useful for tracking migration of consumers to store offsets in kafka;
-private val kafkaCommitMeter = newMeter("KafkaCommitsPerSec", "commits", TimeUnit.SECONDS, Map("clientId" -> config.clientId));
-private val zkCommitMeter = newMeter("ZooKeeperCommitsPerSec", "commits", TimeUnit.SECONDS, Map("clientId" -> config.clientId));
-private val rebalanceTimer = new KafkaTimer(newTimer("RebalanceRateAndTime", TimeUnit.MILLISECONDS, TimeUnit.SECONDS, Map("clientId" -> config.clientId)));
+private Meter kafkaCommitMeter = newMeter("KafkaCommitsPerSec", "commits", TimeUnit.SECONDS, Map("clientId" -> config.clientId));
+private Meter zkCommitMeter = newMeter("ZooKeeperCommitsPerSec", "commits", TimeUnit.SECONDS, Map("clientId" -> config.clientId));
+private KafkaTimer rebalanceTimer = new KafkaTimer(newTimer("RebalanceRateAndTime", TimeUnit.MILLISECONDS, TimeUnit.SECONDS, Map("clientId" -> config.clientId)));
 
         val consumerIdString = {
         var consumerUuid : String = null;

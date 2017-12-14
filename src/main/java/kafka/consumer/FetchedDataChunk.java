@@ -7,12 +7,12 @@ import kafka.message.ByteBufferMessageSet;
  * @create 2017-10-30 17:30
  **/
 public class FetchedDataChunk {
-    public ByteBufferMessageSet cmessages;
+    public ByteBufferMessageSet messages;
     public PartitionTopicInfo topicInfo;
     public Long fetchOffset;
 
-    public FetchedDataChunk(ByteBufferMessageSet cmessages, PartitionTopicInfo topicInfo, Long fetchOffset) {
-        this.cmessages = cmessages;
+    public FetchedDataChunk(ByteBufferMessageSet messages, PartitionTopicInfo topicInfo, Long fetchOffset) {
+        this.messages = messages;
         this.topicInfo = topicInfo;
         this.fetchOffset = fetchOffset;
     }
