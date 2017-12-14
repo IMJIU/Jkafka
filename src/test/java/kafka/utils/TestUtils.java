@@ -1,7 +1,6 @@
 package kafka.utils;
 
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import kafka.admin.AdminUtils;
 import kafka.api.PartitionStateInfo;
 import kafka.api.Request;
@@ -9,27 +8,31 @@ import kafka.func.Action;
 import kafka.func.Fun;
 import kafka.func.IntCount;
 import kafka.func.Tuple;
-import kafka.log.LogConfig;
-import kafka.log.LogManager;
 import kafka.message.ByteBufferMessageSet;
 import kafka.message.CompressionCodec;
 import kafka.message.Message;
 import kafka.message.MessageAndOffset;
+import kafka.producer.KeyedMessage;
+import kafka.producer.Partitioner;
 import kafka.producer.Producer;
 import kafka.producer.ProducerConfig;
-import kafka.server.BrokerState;
+import kafka.serializer.Encoder;
+import kafka.serializer.StringEncoder;
 import kafka.server.KafkaConfig;
 import kafka.server.KafkaServer;
 import org.I0Itec.zkclient.ZkClient;
 import org.junit.Assert;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.net.ServerSocket;
 import java.nio.ByteBuffer;
 import java.util.*;
-import java.util.stream.Collectors;
 
-import static org.apache.kafka.common.utils.Utils.*;
+import static org.apache.kafka.common.utils.Utils.formatAddress;
+import static kafka.message.CompressionCodec.*;
 
 /**
  * Created by Administrator on 2017/3/26.
@@ -317,25 +320,26 @@ public class TestUtils {
         });
     }
 //
-//    /**
-//     * Create a test config for a consumer
-//     */
-//    public void  createConsumerProperties(String zkConnect, String groupId, String consumerId,
-//                                 Long consumerTimeout = -1): Properties = {
-//        val props = new Properties;
-//        props.put("zookeeper.connect", zkConnect);
-//        props.put("group.id", groupId);
-//        props.put("consumer.id", consumerId);
-//        props.put("consumer.timeout.ms", consumerTimeout.toString);
-//        props.put("zookeeper.session.timeout.ms", "6000");
-//        props.put("zookeeper.sync.time.ms", "200");
-//        props.put("auto.commit.interval.ms", "1000");
-//        props.put("rebalance.max.retries", "4");
-//        props.put("auto.offset.reset", "smallest");
-//        props.put("num.consumer.fetchers", "2");
-//
-//        props;
-//    }
+
+    /**
+     * Create a test config for a consumer
+     */
+    public static Properties createConsumerProperties(String zkConnect, String groupId, String consumerId,
+                                               Long consumerTimeout) {
+        if (consumerTimeout == null) consumerTimeout = -1L;
+        Properties props = new Properties();
+        props.put("zookeeper.connect", zkConnect);
+        props.put("group.id", groupId);
+        props.put("consumer.id", consumerId);
+        props.put("consumer.timeout.ms", consumerTimeout.toString());
+        props.put("zookeeper.session.timeout.ms", "6000");
+        props.put("zookeeper.sync.time.ms", "200");
+        props.put("auto.commit.interval.ms", "1000");
+        props.put("rebalance.max.retries", "4");
+        props.put("auto.offset.reset", "smallest");
+        props.put("num.consumer.fetchers", "2");
+        return props;
+    }
 //
 //    /**
 //     * Wrap the message in a message set
@@ -861,57 +865,59 @@ public class TestUtils {
 //
 
 
-//
-//    public void  sendMessagesToPartition(Seq configs<KafkaConfig>,
-//                                String topic,
-//                                Integer partition,
-//                                Integer numMessages,
-//                                CompressionCodec compression = NoCompressionCodec): List<String> = {
-//        val header = String.format("test-%d",partition)
-//        val props = new Properties();
-//        props.put("compression.codec", compression.codec.toString);
-//        val Producer producer<Int, String> =
-//        createProducer(TestUtils.getBrokerListStrFromConfigs(configs),
-//                encoder = classOf<StringEncoder>.getName,
-//                keyEncoder = classOf<IntEncoder>.getName,
-//                partitioner = classOf<FixedValuePartitioner>.getName,
-//                producerProps = props);
-//
-//        val ms = 0.until(numMessages).map(x => header + "-" + x);
-//        producer.send(ms.map(m => new KeyedMessage<Int, String>(topic, partition, m)):_*);
-//        debug(String.format("Sent %d messages for partition <%s,%d>",ms.size, topic, partition))
-//        producer.close();
-//        ms.toList;
-//    }
-//
-//    public void  sendMessages(Seq configs<KafkaConfig>,
-//                     String topic,
-//                     String producerId,
-//                     Integer messagesPerNode,
-//                     String header,
-//                     CompressionCodec compression,
-//                     Integer numParts): List<String>= {
-//        var List messages<String> = Nil;
-//        val props = new Properties();
-//        props.put("compression.codec", compression.codec.toString);
-//        props.put("client.id", producerId);
-//        val   Producer producer<Int, String> =
-//        createProducer(brokerList = TestUtils.getBrokerListStrFromConfigs(configs),
-//                encoder = classOf<StringEncoder>.getName,
-//                keyEncoder = classOf<IntEncoder>.getName,
-//                partitioner = classOf<FixedValuePartitioner>.getName,
-//                producerProps = props);
-//
-//        for (partition <- 0 until numParts) {
-//            val ms = 0.until(messagesPerNode).map(x => header + "-" + partition + "-" + x);
-//            producer.send(ms.map(m => new KeyedMessage<Int, String>(topic, partition, m)):_*);
-//            messages ++= ms;
-//            debug(String.format("Sent %d messages for partition <%s,%d>",ms.size, topic, partition))
-//        }
-//        producer.close();
-//        messages;
-//    }
-//
+    public static List<String> sendMessagesToPartition(List<KafkaConfig> configs,
+                                                       String topic,
+                                                       Integer partition,
+                                                       Integer numMessages,
+                                                       CompressionCodec compression) {
+        if (compression == null) {
+            compression = NoCompressionCodec;
+        }
+        String header = String.format("test-%d", partition);
+        Properties props = new Properties();
+        props.put("compression.codec", compression.codec.toString());
+        Producer<Integer, String> producer =
+                createProducer(TestUtils.getBrokerListStrFromConfigs(configs),
+                        StringEncoder.class.getName(),
+                        IntEncoder.class.getName(),
+                        FixedValuePartitioner.class.getName(),
+                        props);
+        List<String> ms = Sc.itToList(0, numMessages, x -> header + "-" + x);
+        producer.send(Sc.map(ms, m -> new KeyedMessage<Integer, String>(topic, partition, m)));
+        log.debug(String.format("Sent %d messages for partition <%s,%d>", ms.size(), topic, partition));
+        producer.close();
+        return ms;
+    }
+
+    public static List<String> sendMessages(List<KafkaConfig> configs,
+                                            String topic,
+                                            String producerId,
+                                            Integer messagesPerNode,
+                                            String header,
+                                            CompressionCodec compression,
+                                            Integer numParts) {
+        List<String> messages = null;
+        Properties props = new Properties();
+        props.put("compression.codec", compression.codec.toString());
+        props.put("client.id", producerId);
+        Producer<Integer, String> producer =
+                createProducer(TestUtils.getBrokerListStrFromConfigs(configs),
+                        StringEncoder.class.getName(),
+                        IntEncoder.class.getName(),
+                        FixedValuePartitioner.class.getName(), props);
+
+        for (int partition = 0; partition < numParts; partition++) {
+            final int partition_f = partition;
+            List<String> ms = Sc.itToList(0, messagesPerNode, x -> header + "-" + partition_f + "-" + x);
+            producer.send(Sc.map(ms, m -> new KeyedMessage<Integer, String>(topic, partition_f, m)));
+            messages.addAll(ms);
+            log.debug(String.format("Sent %d messages for partition <%s,%d>", ms.size(), topic, partition));
+        }
+        producer.close();
+        return messages;
+    }
+
+    //
 //    public void  getMessages Integer nMessagesPerThread,
 //                    Map topicMessageStreams[String, List<KafkaStream[String, String]]>): List<String> = {
 //        var List messages<String> = Nil;
@@ -934,10 +940,20 @@ public class TestUtils {
 //        val zookeeperConnect = "127.0.0.1:" + TestUtils.choosePort();
 //        }
 //
-//class IntEncoder(VerifiableProperties props = null) extends Encoder<Int> {
-//        override public void  toBytes Integer n) = n.toString.getBytes;
-//        }
-//
+    class IntEncoder implements Encoder<Integer> {
+        public VerifiableProperties props = null;
+
+        public IntEncoder(VerifiableProperties props) {
+            this.props = props;
+        }
+
+        public byte[] toBytes(Integer n) {
+            return n.toString().getBytes();
+        }
+
+    }
+
+    //
 //class StaticPartitioner(VerifiableProperties props = null) extends Partitioner{
 //        public void  partition(Any data, Integer numPartitions): Integer = {
 //        (data.asInstanceOf<String>.length % numPartitions);
@@ -950,7 +966,16 @@ public class TestUtils {
 //        }
 //        }
 //
-//class FixedValuePartitioner(VerifiableProperties props = null) extends Partitioner {
-//        public void  partition(Any data, Integer numPartitions): Integer = data.asInstanceOf<Int>;
-//        }
+    class FixedValuePartitioner implements Partitioner {
+        public VerifiableProperties props = null;
+
+        public FixedValuePartitioner(VerifiableProperties props) {
+            this.props = props;
+        }
+
+        @Override
+        public Integer partition(Object data, Integer numPartitions) {
+            return (Integer) data;
+        }
+    }
 }

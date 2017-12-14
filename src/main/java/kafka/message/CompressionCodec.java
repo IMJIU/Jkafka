@@ -11,10 +11,10 @@ public enum CompressionCodec {
     GZIPCompressionCodec(1, "gzip"),
     SnappyCompressionCodec(2, "snappy"),
     LZ4CompressionCodec(3, "none");
-    public int codec;
+    public Integer codec;
     public String name;
 
-    CompressionCodec(int c, String n) {
+    CompressionCodec(Integer c, String n) {
         this.codec = c;
         this.name = n;
     }

@@ -22,9 +22,9 @@ import java.util.List;
  */
 public abstract class KafkaServerTestHarness extends ZooKeeperTestHarness {
 
-    List<KafkaConfig> configs;
-    List<KafkaServer> servers = null;
-    String brokerList = null;
+    public List<KafkaConfig> configs;
+    public List<KafkaServer> servers = null;
+    public String brokerList = null;
 
     @Before
     public void setUp() {

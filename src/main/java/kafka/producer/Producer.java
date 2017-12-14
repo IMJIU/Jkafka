@@ -68,6 +68,18 @@ public class Producer<K, V> extends Logging {
      *
      * @param messages the producer data object that encapsulates the topic, key and message data
      */
+    public void send(List<KeyedMessage<K, V>> messages) {
+        synchronized (lock) {
+            if (hasShutdown.get())
+                throw new ProducerClosedException();
+            recordStats(messages);
+            if (sync)
+                eventHandler.handle(Lists.newArrayList(messages));
+            else
+                asyncSend(messages);
+        }
+    }
+
     public void send(KeyedMessage<K, V>... messages) {
         synchronized (lock) {
             if (hasShutdown.get())
@@ -80,14 +92,18 @@ public class Producer<K, V> extends Logging {
         }
     }
 
-    private void recordStats(KeyedMessage<K, V>... messages) {
+    private void recordStats(List<KeyedMessage<K, V>> messages) {
         for (KeyedMessage<K, V> message : messages) {
             producerTopicStats.getProducerTopicStats(message.topic).messageRate.mark();
             producerTopicStats.getProducerAllTopicsStats().messageRate.mark();
         }
     }
 
-    private void asyncSend(KeyedMessage<K, V>... messages) {
+    private void recordStats(KeyedMessage<K, V>... messages) {
+        recordStats(Lists.newArrayList(messages));
+    }
+
+    private void asyncSend(List<KeyedMessage<K, V>> messages) {
         for (KeyedMessage<K, V> message : messages) {
             boolean added = false;
             if (config.queueEnqueueTimeoutMs() == 0) {
@@ -113,6 +129,10 @@ public class Producer<K, V> extends Logging {
                 trace("Remaining queue size: " + queue.remainingCapacity());
             }
         }
+    }
+
+    private void asyncSend(KeyedMessage<K, V>... messages) {
+        asyncSend(Lists.newArrayList(messages));
     }
 
     /**

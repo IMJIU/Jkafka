@@ -449,17 +449,17 @@ public class Sc {
         return last;
     }
 
-    public static <T> List<T> yield(int i, int numAliveBrokers, Fun<T> fun) {
-        List<T> list = new ArrayList<>(numAliveBrokers);
-        for (; i < numAliveBrokers; i++) {
+    public static <T> List<T> yield(int i, int num, Fun<T> fun) {
+        List<T> list = new ArrayList<>(num);
+        for (; i < num; i++) {
             list.add(fun.invoke());
         }
         return list;
     }
 
-    public static <T> Set<T> yieldSet(int i, int numAliveBrokers, Fun<T> fun) {
-        Set<T> list = new HashSet<>(numAliveBrokers);
-        for (; i < numAliveBrokers; i++) {
+    public static <T> Set<T> yieldSet(int i, int num, Fun<T> fun) {
+        Set<T> list = new HashSet<>(num);
+        for (; i < num; i++) {
             list.add(fun.invoke());
         }
         return list;
