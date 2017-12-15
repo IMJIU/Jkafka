@@ -93,12 +93,12 @@ public abstract class TopicCount extends Logging {
         }
     }
 
-    public TopicCount constructTopicCount(String consumerIdString, Map<String, Integer> topicCount) {
+    public static TopicCount constructTopicCount(String consumerIdString, Map<String, Integer> topicCount) {
         return new StaticTopicCount(consumerIdString, topicCount);
     }
 
 
-    public TopicCount constructTopicCount(String consumerIdString, TopicFilter filter, Integer numStreams, ZkClient zkClient, Boolean excludeInternalTopics) {
+    public static TopicCount constructTopicCount(String consumerIdString, TopicFilter filter, Integer numStreams, ZkClient zkClient, Boolean excludeInternalTopics) {
         return new WildcardTopicCount(zkClient, consumerIdString, filter, numStreams, excludeInternalTopics);
     }
 
