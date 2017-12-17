@@ -11,21 +11,29 @@ public class OffsetAndMetadata {
     public static String NoMetadata = "";
     public static Long InvalidTime = -1L;
     public Long offset;
-    public String metadata ;
+    public String metadata;
     public Long timestamp = -1L;
+
+    public OffsetAndMetadata(java.lang.Long offset) {
+        this(offset, null, null);
+    }
+
+    public OffsetAndMetadata(java.lang.Long offset, String metadata) {
+        this(offset, metadata, null);
+    }
 
     public OffsetAndMetadata(java.lang.Long offset, String metadata, java.lang.Long timestamp) {
         this.offset = offset;
-        this.metadata = metadata;
         this.timestamp = timestamp;
-        if(metadata==null) this.metadata = NoMetadata;
-        if(timestamp==null) this.timestamp = -1L;
+        this.metadata = metadata;
+        if (metadata == null) this.metadata = NoMetadata;
+        if (timestamp == null) this.timestamp = -1L;
     }
 
     @Override
     public String toString() {
-        return String.format("OffsetAndMetadata<%d,%s%s>",offset,
-        metadata != null && metadata.length() > 0?metadata : "NO_METADATA",
-        timestamp == -1?"" : "," + timestamp.toString());
+        return String.format("OffsetAndMetadata<%d,%s%s>", offset,
+                metadata != null && metadata.length() > 0 ? metadata : "NO_METADATA",
+                timestamp == -1 ? "" : "," + timestamp.toString());
     }
 }

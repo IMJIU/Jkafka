@@ -2,20 +2,20 @@ package kafka.utils;
 
 import com.google.common.collect.Lists;
 import kafka.admin.AdminUtils;
-import kafka.api.PartitionStateInfo;
-import kafka.api.Request;
+import kafka.api.*;
+import kafka.cluster.Partition;
+import kafka.cluster.Replica;
+import kafka.common.Topic;
 import kafka.func.Action;
 import kafka.func.Fun;
 import kafka.func.IntCount;
 import kafka.func.Tuple;
+import kafka.log.TopicAndPartition;
 import kafka.message.ByteBufferMessageSet;
 import kafka.message.CompressionCodec;
 import kafka.message.Message;
 import kafka.message.MessageAndOffset;
-import kafka.producer.KeyedMessage;
-import kafka.producer.Partitioner;
-import kafka.producer.Producer;
-import kafka.producer.ProducerConfig;
+import kafka.producer.*;
 import kafka.serializer.Encoder;
 import kafka.serializer.StringEncoder;
 import kafka.server.KafkaConfig;
@@ -241,7 +241,7 @@ public class TestUtils {
     /**
      * Create a test config for the given node id
      */
-    public static List<Properties> createBrokerConfigs(Integer numConfigs, Boolean enableControlledShutdown) throws IOException {
+    public static List<Properties> createBrokerConfigs(Integer numConfigs, Boolean enableControlledShutdown) {
         enableControlledShutdown = enableControlledShutdown == null ? true : enableControlledShutdown;
         List<Integer> ports = choosePorts(numConfigs);
         List<Properties> properties = Lists.newArrayList();
@@ -324,8 +324,12 @@ public class TestUtils {
     /**
      * Create a test config for a consumer
      */
+    public static Properties createConsumerProperties(String zkConnect, String groupId, String consumerId) {
+        return createConsumerProperties(zkConnect, groupId, consumerId, null);
+    }
+
     public static Properties createConsumerProperties(String zkConnect, String groupId, String consumerId,
-                                               Long consumerTimeout) {
+                                                      Long consumerTimeout) {
         if (consumerTimeout == null) consumerTimeout = -1L;
         Properties props = new Properties();
         props.put("zookeeper.connect", zkConnect);
@@ -542,16 +546,17 @@ public class TestUtils {
 
         return props;
     }
-//
-//    public void  getSyncProducerConfig Integer port): Properties = {
-//        val props = new Properties();
-//        props.put("host", "localhost");
-//        props.put("port", port.toString);
-//        props.put("request.timeout.ms", "500");
-//        props.put("request.required.acks", "1");
-//        props.put("serializer.class", classOf<StringEncoder>.getName);
-//        props;
-//    }
+
+    //
+    public static Properties getSyncProducerConfig(Integer port) {
+        Properties props = new Properties();
+        props.put("host", "localhost");
+        props.put("port", port.toString());
+        props.put("request.timeout.ms", "500");
+        props.put("request.required.acks", "1");
+        props.put("serializer.class", StringEncoder.class.getName());
+        return props;
+    }
 //
 //    public void  updateConsumerOffset(config : ConsumerConfig, path : String, offset : Long) = {
 //        val zkClient = new ZkClient(config.zkConnect, config.zkSessionTimeoutMs, config.zkConnectionTimeoutMs, ZKStringSerializer);
@@ -589,60 +594,57 @@ public class TestUtils {
 //        buffer;
 //    }
 //
-//    /**
-//     * Create a wired format request based on simple basic information
-//     */
-//    public void  produceRequest(String topic,
-//                       Integer partition,
-//                       ByteBufferMessageSet message,
-//                       Integer acks = SyncProducerConfig.DefaultRequiredAcks,
-//                       Integer timeout = SyncProducerConfig.DefaultAckTimeoutMs,
-//                       Integer correlationId = 0,
-//                       String clientId = SyncProducerConfig.DefaultClientId): ProducerRequest = {
-//        produceRequestWithAcks(Seq(topic), Seq(partition), message, acks, timeout, correlationId, clientId);
-//    }
-//
-//    public void  produceRequestWithAcks(Seq topics<String>,
-//                               Seq partitions<Int>,
-//                               ByteBufferMessageSet message,
-//                               Integer acks = SyncProducerConfig.DefaultRequiredAcks,
-//                               Integer timeout = SyncProducerConfig.DefaultAckTimeoutMs,
-//                               Integer correlationId = 0,
-//                               String clientId = SyncProducerConfig.DefaultClientId): ProducerRequest = {
-//        val data = topics.flatMap(topic =>
-//        partitions.map(partition => (TopicAndPartition(topic,  partition), message));
-//        );
-//        new ProducerRequest(correlationId, clientId, acks.toShort, timeout, collection.mutable.Map(_ data*));
-//    }
-//
-//    public void  makeLeaderForPartition(ZkClient zkClient, String topic,
-//                               scala leaderPerPartitionMap.collection.immutable.Map<Int, Int>,
-//                               Integer controllerEpoch) {
-//        leaderPerPartitionMap.foreach;
-//        {
-//            leaderForPartition => {
-//            val partition = leaderForPartition._1;
-//            val leader = leaderForPartition._2;
-//            try{
-//                val currentLeaderAndIsrOpt = ZkUtils.getLeaderAndIsrForPartition(zkClient, topic, partition);
-//                var LeaderAndIsr newLeaderAndIsr = null;
-//                if(currentLeaderAndIsrOpt == None)
-//                    newLeaderAndIsr = new LeaderAndIsr(leader, List(leader));
-//                else{
-//                    newLeaderAndIsr = currentLeaderAndIsrOpt.get;
-//                    newLeaderAndIsr.leader = leader;
-//                    newLeaderAndIsr.leaderEpoch += 1;
-//                    newLeaderAndIsr.zkVersion += 1;
-//                }
-//                ZkUtils.updatePersistentPath(zkClient, ZkUtils.getTopicPartitionLeaderAndIsrPath(topic, partition),
-//                        ZkUtils.leaderAndIsrZkData(newLeaderAndIsr, controllerEpoch));
-//            } catch {
-//                case Throwable oe => error(String.format("Error while electing leader for partition <%s,%d>",topic, partition), oe)
-//            }
-//        }
-//        }
-//    }
-//
+
+    /**
+     * Create a wired format request based on simple basic information
+     */
+    public ProducerRequest produceRequest(String topic,
+                                          Integer partition,
+                                          ByteBufferMessageSet message,
+                                          Integer acks=SyncProducerConfig.DefaultRequiredAcks,
+                                          Integer timeout=SyncProducerConfig.DefaultAckTimeoutMs,
+                                          Integer correlationId=0,
+                                          String clientId=SyncProducerConfig.DefaultClientId) {
+        produceRequestWithAcks(Seq(topic), Seq(partition), message, acks, timeout, correlationId, clientId);
+    }
+
+    //
+    public ProducerRequest produceRequestWithAcks(List<String> topics, List<Integer> partitions,
+                                                  ByteBufferMessageSet message,
+                                                  Integer acks=SyncProducerConfig.DefaultRequiredAcks,
+                                                  Integer timeout=SyncProducerConfig.DefaultAckTimeoutMs,
+                                                  Integer correlationId=0,
+                                                  String clientId=SyncProducerConfig.DefaultClientId) {
+        List<Tuple<TopicAndPartition,ByteBufferMessageSet>> list = Sc.flatMap(topics, topic ->
+                Sc.map(partitions, partition -> Tuple.of(new TopicAndPartition(topic, partition),message).stream())
+        );
+        Map<TopicAndPartition,ByteBufferMessageSet> data = Sc.toMap(list);
+        return new ProducerRequest(correlationId, clientId, acks, timeout, data);
+    }
+
+    public void  makeLeaderForPartition(ZkClient zkClient, String topic,
+                                        Map<Integer, Integer> leaderPerPartitionMap,
+                               Integer controllerEpoch) {
+        leaderPerPartitionMap.forEach((partition,leader) -> {
+            try{
+                Optional<LeaderAndIsr> currentLeaderAndIsrOpt = ZkUtils.getLeaderAndIsrForPartition(zkClient, topic, partition);
+                 LeaderAndIsr newLeaderAndIsr = null;
+                if(!currentLeaderAndIsrOpt.isPresent())
+                    newLeaderAndIsr = new LeaderAndIsr(leader, Lists.newArrayList(leader));
+                else{
+                    newLeaderAndIsr = currentLeaderAndIsrOpt.get();
+                    newLeaderAndIsr.leader = leader;
+                    newLeaderAndIsr.leaderEpoch += 1;
+                    newLeaderAndIsr.zkVersion += 1;
+                }
+                ZkUtils.updatePersistentPath(zkClient, ZkUtils.getTopicPartitionLeaderAndIsrPath(topic, partition),
+                        ZkUtils.leaderAndIsrZkData(newLeaderAndIsr, controllerEpoch));
+            } catch (Throwable oe){
+                log.error(String.format("Error while electing leader for partition <%s,%d>",topic, partition), oe);
+            }
+        });
+    }
+
 
     /**
      * If neither oldLeaderOpt nor newLeaderOpt is defined, wait until the leader of a partition is elected.
@@ -759,26 +761,26 @@ public class TestUtils {
     }
 
     //
-//    public void  isLeaderLocalOnBroker(String topic, Integer partitionId, KafkaServer server): Boolean = {
-//        val partitionOpt = server.replicaManager.getPartition(topic, partitionId);
-//        partitionOpt match {
-//            case None => false;
-//            case Some(partition) =>
-//                val replicaOpt = partition.leaderReplicaIfLocal;
-//                replicaOpt match {
-//                case None => false;
-//                case Some(_) => true;
-//            }
-//        }
-//    }
+    public Boolean  isLeaderLocalOnBroker(String topic, Integer partitionId, KafkaServer server){
+        Optional<Partition> partitionOpt = server.replicaManager.getPartition(topic, partitionId);
+        if(partitionOpt.isPresent()){
+                Optional<Replica> replicaOpt = partitionOpt.get().leaderReplicaIfLocal();
+            if(replicaOpt.isPresent()){
+                return true;
+            }
+            return false;
+        }else{
+            return false;
+        }
+    }
 //
-//    public void  createRequestByteBuffer(RequestOrResponse request): ByteBuffer = {
-//        val byteBuffer = ByteBuffer.allocate(request.sizeInBytes + 2);
-//        byteBuffer.putShort(request.requestId.get);
-//        request.writeTo(byteBuffer);
-//        byteBuffer.rewind();
-//        byteBuffer;
-//    }
+    public ByteBuffer  createRequestByteBuffer(RequestOrResponse request){
+        ByteBuffer byteBuffer = ByteBuffer.allocate(request.sizeInBytes() + 2);
+        byteBuffer.putShort(request.requestId.get());
+        request.writeTo(byteBuffer);
+        byteBuffer.rewind();
+        return byteBuffer;
+    }
 //
 //
 

@@ -307,6 +307,20 @@ public class Sc {
         return list;
     }
 
+    public static <T,V> List<V> flatMap(Iterable<T> it, Handler<T, Collection<V>> handler) {
+        List<V> list = Lists.newArrayList();
+        Iterator<T> iterator = it.iterator();
+        while (iterator.hasNext()) {
+            T t = iterator.next();
+            Collection<V> collection = handler.handle(t);
+            if (collection.size() > 0) {
+                list.addAll(collection);
+            }
+        }
+        return list;
+    }
+
+
     public static <T, V> Set<V> flatMap(Set<T> it, Handler<T, Collection<V>> handler) {
         Set<V> set = Sets.newHashSet();
         Iterator<T> iterator = it.iterator();

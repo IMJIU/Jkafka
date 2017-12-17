@@ -21,17 +21,17 @@ import java.util.concurrent.atomic.AtomicInteger;
  * M Handler threads that handle requests and produce responses back to the processor threads for writing.
  */
 public class SocketServer extends KafkaMetricsGroup {
-    Integer brokerId;
-    String host;
-    Integer port;
-    Integer numProcessorThreads;
-    Integer maxQueuedRequests;
-    Integer sendBufferSize;
-    Integer recvBufferSize;
-    Integer maxRequestSize = Integer.MAX_VALUE;
-    Integer maxConnectionsPerIp = Integer.MAX_VALUE;
-    Long connectionsMaxIdleMs;
-    Map<String, Integer> maxConnectionsPerIpOverrides;
+    public Integer brokerId;
+    public String host;
+    public Integer port;
+    public Integer numProcessorThreads;
+    public Integer maxQueuedRequests;
+    public Integer sendBufferSize;
+    public Integer recvBufferSize;
+    public Integer maxRequestSize = Integer.MAX_VALUE;
+    public Integer maxConnectionsPerIp = Integer.MAX_VALUE;
+    public Long connectionsMaxIdleMs;
+    public Map<String, Integer> maxConnectionsPerIpOverrides;
 
     public SocketServer(Integer brokerId, String host, Integer port, Integer numProcessorThreads, Integer maxQueuedRequests, Integer sendBufferSize, Integer recvBufferSize, Integer maxRequestSize, Integer maxConnectionsPerIp, Long connectionsMaxIdleMs, Map<String, Integer> maxConnectionsPerIpOverrides) {
         this.brokerId = brokerId;

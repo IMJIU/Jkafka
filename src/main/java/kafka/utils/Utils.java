@@ -506,20 +506,19 @@ public class Utils {
 //
 //    :Boolean=s==null||s.equals("");
 //
-//    /**
-//     * Create a circular (looping) iterator over a collection.
-//     *
-//     * @param coll An iterable over the underlying collection.
-//     * @return A circular iterator over the collection.
-//     */
-//    def circularIterator[
-//    T](Iterable coll[T])=
-//
-//    {
-//        Integer Stream stream[T] =
-//        for (forever< -Stream.continually(1); t < -coll) yield t;
-//        stream.iterator;
-//    }
+    /**
+     * Create a circular (looping) iterator over a collection.
+     *
+     * @param coll An iterable over the underlying collection.
+     * @return A circular iterator over the collection.
+     */
+    public static <T>Iterator<T> circularIterator(Iterable<T> coll) {
+        Stream<T> stream;
+
+
+        for (forever< -Stream.continually(1); t < -coll) yield t;
+        stream.iterator;
+    }
 //
 //    /**
 //     * Attempt to read a file as a string

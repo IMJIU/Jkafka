@@ -29,8 +29,8 @@ import java.util.stream.Collectors;
 
 
 public class RequestChannel extends KafkaMetricsGroup {
-    Integer numProcessors;
-    Integer queueSize;
+    public Integer numProcessors;
+    public Integer queueSize;
     private List<ActionP<Integer>> responseListeners = Lists.newArrayList();
     private ArrayBlockingQueue<Request> requestQueue;
     private BlockingQueue<Response>[] responseQueues;

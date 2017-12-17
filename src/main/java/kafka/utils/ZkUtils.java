@@ -277,8 +277,10 @@ public class ZkUtils {
      * If the checker function returns true then the above bug might be encountered, back off and retry;
      * otherwise re-throw the exception
      */
-    public static void createEphemeralPathExpectConflictHandleZKBug(
-            ZkClient zkClient, String path, String data, Object expectedCallerData, Checker<String, Object, Boolean> checker, Integer backoffTime) throws Throwable {
+    public static void createEphemeralPathExpectConflictHandleZKBug( ZkClient zkClient, String path, String data,
+                                                                     Object expectedCallerData,
+                                                                     Checker<String, Object, Boolean> checker,
+                                                                     Integer backoffTime) {
         while (true) {
             try {
                 createEphemeralPathExpectConflict(zkClient, path, data);
@@ -293,7 +295,11 @@ public class ZkUtils {
                     if (checker.check(writtenData, expectedCallerData)) {
                         log.info(String.format("I wrote this conflicted ephemeral node <%s> at %s a while back in a different session, ", data, path)
                                 + "hence I will backoff for this node to be deleted by Zookeeper and retry");
-                        Thread.sleep(backoffTime);
+                        try {
+                            Thread.sleep(backoffTime);
+                        } catch (InterruptedException e1) {
+                            throw  new RuntimeException(e1);
+                        }
                     } else {
                         throw e;
                     }
