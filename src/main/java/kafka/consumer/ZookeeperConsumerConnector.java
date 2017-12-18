@@ -11,6 +11,7 @@ import kafka.client.ClientUtils;
 import kafka.cluster.Broker;
 import kafka.cluster.Cluster;
 import kafka.common.*;
+import kafka.func.Handler;
 import kafka.func.Tuple;
 import kafka.log.TopicAndPartition;
 import kafka.metrics.KafkaMetricsGroup;
@@ -139,9 +140,9 @@ public class ZookeeperConsumerConnector extends KafkaMetricsGroup implements Con
             scheduler.startup();
             info("starting auto committer every " + config.autoCommitIntervalMs + " ms");
             scheduler.schedule("kafka-consumer-autocommit",
-                    autoCommit(),
-                    config.autoCommitIntervalMs,
-                    config.autoCommitIntervalMs,
+                    () -> autoCommit(),
+                    config.autoCommitIntervalMs.longValue(),
+                    config.autoCommitIntervalMs.longValue(),
                     TimeUnit.MILLISECONDS);
         }
 
@@ -167,10 +168,10 @@ public class ZookeeperConsumerConnector extends KafkaMetricsGroup implements Con
                                                     Integer numStreams,
                                                     Decoder<K> keyDecoder,
                                                     Decoder<V> valueDecoder) {
-        if (keyDecoder == null) keyDecoder = new DefaultDecoder();
-        if (valueDecoder == null) valueDecoder = new DefaultDecoder();
+        if (keyDecoder == null) keyDecoder = (Decoder<K>) new DefaultDecoder();
+        if (valueDecoder == null) valueDecoder = (Decoder<V>) new DefaultDecoder();
         WildcardStreamsHandler<K, V> wildcardStreamsHandler = new WildcardStreamsHandler<>(topicFilter, numStreams, keyDecoder, valueDecoder);
-        return wildcardStreamsHandler.streams;
+        return wildcardStreamsHandler.streams();
     }
 
     private void createFetcher() {
@@ -308,33 +309,26 @@ public class ZookeeperConsumerConnector extends KafkaMetricsGroup implements Con
             boolean committed;
             synchronized (offsetsChannelLock) { // committed when we receive either no error codes or only MetadataTooLarge errors;
                 List<Tuple<TopicAndPartition, OffsetAndMetadata>> offsetsToCommitList = Sc.flatMap(topicRegistry, t -> {
-                    List<Tuple<TopicAndPartition, OffsetAndMetadata>> list = Sc.map(t.v2, partitionInfos -> {
-                        return Tuple.of(new TopicAndPartition(partitionInfos.v2.topic, partitionInfos.v2.partitionId),
-                                new OffsetAndMetadata(partitionInfos.v2.getConsumeOffset()));
-                    });
+                    List<Tuple<TopicAndPartition, OffsetAndMetadata>> list = Sc.map(t.v2, partitionInfos ->
+                         Tuple.of(new TopicAndPartition(partitionInfos.v2.topic, partitionInfos.v2.partitionId),
+                                new OffsetAndMetadata(partitionInfos.v2.getConsumeOffset()))
+                    );
                     return list;
                 });
                 Map<TopicAndPartition, OffsetAndMetadata> offsetsToCommit = Sc.toMap(offsetsToCommitList);
-//                val offsetsToCommit = immutable.Map(topicRegistry.flatMap {
-//                    case (topic, partitionTopicInfos) ->
-//                            partitionTopicInfos.map {
-//                        case (partition, info) ->
-//                                TopicAndPartition(info.topic, info.partitionId)->OffsetAndMetadata(info.getConsumeOffset());
-//                    }
-//                }._ toSeq*);
 
                 if (offsetsToCommit.size() > 0) {
                     if (config.offsetsStorage == "zookeeper") {
                         offsetsToCommit.forEach((topicAndPartition, offsetAndMetadata) ->
                                 commitOffsetToZooKeeper(topicAndPartition, offsetAndMetadata.offset));
-                        return true;
+                        committed= true;
                     } else {
-                        OffsetCommitRequest offsetCommitRequest = new OffsetCommitRequest(config.groupId, offsetsToCommit,  config.clientId);
+                        OffsetCommitRequest offsetCommitRequest = new OffsetCommitRequest(config.groupId, offsetsToCommit);
                         ensureOffsetManagerConnected();
                         try {
                             kafkaCommitMeter.mark(offsetsToCommit.size());
                             offsetsChannel.send(offsetCommitRequest);
-                            OffsetCommitResponse offsetCommitResponse = OffsetCommitResponse.readFrom(offsetsChannel.receive().buffer);
+                            OffsetCommitResponse offsetCommitResponse = OffsetCommitResponse.readFrom(offsetsChannel.receive().buffer());
                             trace(String.format("Offset commit response: %s.", offsetCommitResponse));
 
                             val(commitFailed, retryableIfFailed, shouldRefreshCoordinator, errorCount) = {
@@ -373,10 +367,10 @@ public class ZookeeperConsumerConnector extends KafkaMetricsGroup implements Con
                                     false;
                                 else ;
                                 true;
-                        } catch (Throwable t){
-                                    error("Error while committing offsets.", t);
-                                offsetsChannel.disconnect();
-                                false;
+                        } catch (Throwable t) {
+                            error("Error while committing offsets.", t);
+                            offsetsChannel.disconnect();
+                            false;
                         }
                     }
                 } else {
@@ -401,11 +395,11 @@ public class ZookeeperConsumerConnector extends KafkaMetricsGroup implements Con
     /**
      * KAFKA-This 1743 method added for backward compatibility.
      */
-    public void commitOffsets(){
+    public void commitOffsets() {
         commitOffsets(true);
     }
 
-    private Tuple<TopicAndPartition, OffsetMetadataAndError> fetchOffsetFromZooKeeper(TopicAndPartition topicPartition) {
+    private Handler<TopicAndPartition ,Tuple<TopicAndPartition, OffsetMetadataAndError>> fetchOffsetFromZooKeeper=(topicPartition)-> {
         ZKGroupTopicDirs dirs = new ZKGroupTopicDirs(config.groupId, topicPartition.topic);
         Optional<String> offsetString = readDataMaybeNull(zkClient, dirs.consumerOffsetDir() + "/" + topicPartition.partition).v1;
         if (offsetString.isPresent()) {
@@ -413,7 +407,7 @@ public class ZookeeperConsumerConnector extends KafkaMetricsGroup implements Con
         } else {
             return Tuple.of(topicPartition, OffsetMetadataAndError.NoOffset);
         }
-    }
+    };
 
     private void fetchOffsets(List<TopicAndPartition> partitions) {
         if (partitions.isEmpty())
@@ -928,13 +922,13 @@ public class ZookeeperConsumerConnector extends KafkaMetricsGroup implements Con
             newGauge(
                     "FetchQueueSize",
                     new Gauge<Integer>() {
-                public Integer value(){
-                    return q.size();
-                }
-            },
-            ImmutableMap.of("clientId",config.clientId,
-                    "topic",topicThreadId._1,
-                    "threadId",topicThreadId._2.threadId.toString);
+                        public Integer value() {
+                            return q.size();
+                        }
+                    },
+                    ImmutableMap.of("clientId", config.clientId,
+                            "topic", topicThreadId._1,
+                            "threadId", topicThreadId._2.threadId.toString);
             );
         });
 
@@ -992,7 +986,7 @@ class WildcardStreamsHandler<K, V> extends TopicEventHandler<String> {
     // bootstrap with existing topics;
     private List<String> wildcardTopics =
             Sc.filter(getChildrenParentMayNotExist(zkClient, BrokerTopicsPath),
-                    topic ->topicFilter.isTopicAllowed(topic,config.excludeInternalTopics));
+                    topic -> topicFilter.isTopicAllowed(topic, config.excludeInternalTopics));
 
     private TopicCount wildcardTopicCount = TopicCount.constructTopicCount(
             consumerIdString, topicFilter, numStreams, zkClient, config.excludeInternalTopics);
@@ -1017,7 +1011,7 @@ class WildcardStreamsHandler<K, V> extends TopicEventHandler<String> {
 
         List<String> updatedTopics = Sc.filter(allTopics, topic -> topicFilter.isTopicAllowed(topic, config.excludeInternalTopics));
 
-        List<String> addedTopics = Sc.filterNot(updatedTopics,w->wildcardTopics.contains(w));
+        List<String> addedTopics = Sc.filterNot(updatedTopics, w -> wildcardTopics.contains(w));
         if (CollectionUtils.isNotEmpty(addedTopics))
             info(String.format("Topic added event topics = %s", addedTopics));
 
@@ -1026,7 +1020,7 @@ class WildcardStreamsHandler<K, V> extends TopicEventHandler<String> {
        * 0.8 release). We may need to remove these topics from the rebalance
        * listener's map in reinitializeConsumer.
        */
-        List<String> deletedTopics =Sc.filterNot( wildcardTopics ,w->updatedTopics.contains(w));
+        List<String> deletedTopics = Sc.filterNot(wildcardTopics, w -> updatedTopics.contains(w));
         if (CollectionUtils.isNotEmpty(deletedTopics))
             info(String.format("Topic deleted event topics = %s", deletedTopics));
 
@@ -1038,6 +1032,6 @@ class WildcardStreamsHandler<K, V> extends TopicEventHandler<String> {
     }
 
     public List<KafkaStream<K, V>> streams() {
-        return Sc.map(wildcardQueuesAndStreams,s->s.v2);
+        return Sc.map(wildcardQueuesAndStreams, s -> s.v2);
     }
 }

@@ -33,10 +33,18 @@ public class OffsetCommitRequest extends RequestOrResponse {
     public Short versionId;
     public Integer correlationId;
     public String clientId;
-    public Integer groupGenerationId = org.apache.kafka.common.requests.OffsetCommitRequest.DEFAULT_GENERATION_ID;
-    public String consumerId = org.apache.kafka.common.requests.OffsetCommitRequest.DEFAULT_CONSUMER_ID;
+    public Integer groupGenerationId;
+    public String consumerId;
     //lazy
     public Map<String, Map<TopicAndPartition, OffsetAndMetadata>> requestInfoGroupedByTopic;
+
+    public OffsetCommitRequest(java.lang.String groupId, Map<TopicAndPartition, OffsetAndMetadata> requestInfo) {
+        this(groupId, requestInfo, requestInfo, , OffsetCommitRequest.CurrentVersion, 0);
+    }
+
+    public OffsetCommitRequest(java.lang.String groupId, Map<TopicAndPartition, OffsetAndMetadata> requestInfo, Short versionId, Integer correlationId, java.lang.String clientId) {
+        this(groupId, requestInfo, versionId, correlationId, clientId, org.apache.kafka.common.requests.OffsetCommitRequest.DEFAULT_GENERATION_ID, org.apache.kafka.common.requests.OffsetCommitRequest.DEFAULT_CONSUMER_ID)
+    }
 
     public OffsetCommitRequest(java.lang.String groupId, Map<TopicAndPartition, OffsetAndMetadata> requestInfo, Short versionId, Integer correlationId, java.lang.String clientId, Integer groupGenerationId, java.lang.String consumerId) {
         this.groupId = groupId;
@@ -48,6 +56,7 @@ public class OffsetCommitRequest extends RequestOrResponse {
         this.consumerId = consumerId;
         requestInfoGroupedByTopic = Utils.groupByKey(requestInfo, t -> t.topic);
     }
+
     public final static Handler<ByteBuffer, OffsetCommitRequest> readFrom = (buffer) -> {
         // Read values from the envelope;
         Short versionId = buffer.getShort();

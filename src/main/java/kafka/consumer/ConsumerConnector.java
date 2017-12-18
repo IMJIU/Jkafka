@@ -1,6 +1,8 @@
 package kafka.consumer;
 
 
+import kafka.serializer.Decoder;
+
 import java.util.*;
 
 /**
@@ -28,9 +30,7 @@ public interface ConsumerConnector {
          *          The number of items in the list is #streams. Each stream supports
          *          an iterator over message/metadata pairs.
          */
-        <K,V> Map<String,List<KafkaStream<K,V>>> createMessageStreams<K,V>(Map topicCountMap<String,Integer>,
-        Decoder keyDecoder<K>,
-        Decoder valueDecoder<V>);
+        <K,V> Map<String,List<KafkaStream<K,V>>> createMessageStreams(Map<String,Integer> topicCountMap,Decoder<K> keyDecode, Decoder<V> valueDecoder);
 
         /**
          *  Create a list of message streams for all topics that match a given filter.

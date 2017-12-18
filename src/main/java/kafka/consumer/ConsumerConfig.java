@@ -43,7 +43,7 @@ public class ConsumerConfig extends ZKConfig {//,ZKConfig
     public static final String DefaultPartitionAssignmentStrategy = "range"; /* select between "range", and "roundrobin" */
     public static final String MirrorConsumerNumThreadsProp = "mirror.consumer.numthreads";
     public static final String DefaultClientId = "";
-    private VerifiableProperties props;
+    public VerifiableProperties props;
 
     public ConsumerConfig(VerifiableProperties props) {
         super(props);
