@@ -38,15 +38,15 @@ public class OffsetCommitRequest extends RequestOrResponse {
     //lazy
     public Map<String, Map<TopicAndPartition, OffsetAndMetadata>> requestInfoGroupedByTopic;
 
-    public OffsetCommitRequest(java.lang.String groupId, Map<TopicAndPartition, OffsetAndMetadata> requestInfo) {
-        this(groupId, requestInfo, requestInfo, , OffsetCommitRequest.CurrentVersion, 0);
+    public OffsetCommitRequest(String groupId, Map<TopicAndPartition, OffsetAndMetadata> requestInfo) {
+        this(groupId, requestInfo,  OffsetCommitRequest.CurrentVersion, 0,OffsetCommitRequest.DefaultClientId);
     }
 
-    public OffsetCommitRequest(java.lang.String groupId, Map<TopicAndPartition, OffsetAndMetadata> requestInfo, Short versionId, Integer correlationId, java.lang.String clientId) {
-        this(groupId, requestInfo, versionId, correlationId, clientId, org.apache.kafka.common.requests.OffsetCommitRequest.DEFAULT_GENERATION_ID, org.apache.kafka.common.requests.OffsetCommitRequest.DEFAULT_CONSUMER_ID)
+    public OffsetCommitRequest(String groupId, Map<TopicAndPartition, OffsetAndMetadata> requestInfo, Short versionId, Integer correlationId, java.lang.String clientId) {
+        this(groupId, requestInfo, versionId, correlationId, clientId, org.apache.kafka.common.requests.OffsetCommitRequest.DEFAULT_GENERATION_ID, org.apache.kafka.common.requests.OffsetCommitRequest.DEFAULT_CONSUMER_ID);
     }
 
-    public OffsetCommitRequest(java.lang.String groupId, Map<TopicAndPartition, OffsetAndMetadata> requestInfo, Short versionId, Integer correlationId, java.lang.String clientId, Integer groupGenerationId, java.lang.String consumerId) {
+    public OffsetCommitRequest(String groupId, Map<TopicAndPartition, OffsetAndMetadata> requestInfo, Short versionId, Integer correlationId, java.lang.String clientId, Integer groupGenerationId, java.lang.String consumerId) {
         this.groupId = groupId;
         this.requestInfo = requestInfo;
         this.versionId = versionId;
