@@ -4,6 +4,7 @@ package kafka.log;/**
 
 import kafka.cluster.Partition;
 import kafka.cluster.Replica;
+import kafka.func.Tuple;
 
 /**
  * @author
@@ -29,8 +30,8 @@ public class TopicAndPartition {
     }
 
 
-    public TopicAndPartition asTuple() {
-        return new TopicAndPartition(topic, partition);
+    public Tuple<String,Integer> asTuple() {
+        return Tuple.of(topic, partition);
     }
 
     @Override

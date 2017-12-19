@@ -19,7 +19,7 @@ import static kafka.api.ApiUtils.*;
 public class OffsetFetchResponse extends RequestOrResponse {
     public static final Short CurrentVersion = 0;
     public Map<TopicAndPartition, OffsetMetadataAndError> requestInfo;
-    public Integer correlationId = 0;
+    public Integer correlationId;
     // TODO: 2017/10/30 lazy
     private Map<String, Map<TopicAndPartition, OffsetMetadataAndError>> requestInfoGroupedByTopic = Sc.groupByKey(requestInfo, r -> r.topic);
 
@@ -30,6 +30,9 @@ public class OffsetFetchResponse extends RequestOrResponse {
         return requestInfoGroupedByTopic;
     }
 
+    public OffsetFetchResponse(Map<TopicAndPartition, OffsetMetadataAndError> requestInfo) {
+        this(requestInfo, 0);
+    }
 
     public OffsetFetchResponse(Map<TopicAndPartition, OffsetMetadataAndError> requestInfo, Integer correlationId) {
         this.requestInfo = requestInfo;

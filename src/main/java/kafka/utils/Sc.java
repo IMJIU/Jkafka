@@ -3,10 +3,14 @@ package kafka.utils;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import kafka.consumer.ConsumerThreadId;
+import kafka.consumer.FetchedDataChunk;
+import kafka.consumer.KafkaStream;
 import kafka.func.*;
 import org.apache.commons.collections.map.HashedMap;
 
 import java.util.*;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -88,6 +92,18 @@ public class Sc {
         return result;
     }
 
+
+    public static <K, V, V2> Map<V2, Map<K, V>> groupBy(List<Tuple<K, V>> list, Handler2<K, V, V2> handler) {
+        Map<V2, Map<K, V>> maps = Maps.newHashMap();
+        for (Tuple<K, V> entry : list) {
+            V2 tag = handler.handle(entry.v1, entry.v2);
+            Map<K, V> m = maps.getOrDefault(tag, Maps.newHashMap());
+            m.put(entry.v1, entry.v2);
+            maps.put(tag, m);
+        }
+        return maps;
+    }
+
     public static <K, V, V2> Map<V2, Map<K, V>> groupBy(Map<K, V> map, Handler2<K, V, V2> handler) {
         Map<V2, Map<K, V>> maps = Maps.newHashMap();
         for (Map.Entry<K, V> entry : map.entrySet()) {
@@ -116,6 +132,17 @@ public class Sc {
             V2 tag = handler.handle(entry.getValue());
             Map<K, V> m = maps.getOrDefault(tag, Maps.newHashMap());
             m.put(entry.getKey(), entry.getValue());
+            maps.put(tag, m);
+        }
+        return maps;
+    }
+
+    public static <K, V, K2> Map<K2, Map<K, V>> groupByKey(List<Tuple<K, V>> list, Handler<K, K2> handler) {
+        Map<K2, Map<K, V>> maps = Maps.newHashMap();
+        for (Tuple<K, V> entry : list) {
+            K2 tag = handler.handle(entry.v1);
+            Map<K, V> m = maps.getOrDefault(tag, Maps.newHashMap());
+            m.put(entry.v1, entry.v2);
             maps.put(tag, m);
         }
         return maps;
@@ -280,20 +307,29 @@ public class Sc {
         return stream.collect(Collectors.toList());
     }
 
-    //    public static <T> List<T> flatMap(Iterable<T> it, Handler<T, Stream<T>> handler) {
-//        Stream<T> stream = null;
-//        Iterator<T> iterator = it.iterator();
-//        while (iterator.hasNext()) {
-//            T t = iterator.next();
-//            Stream<T> s = handler.handle(t);
-//            if (stream == null) {
-//                stream = s;
-//            } else {
-//                Stream.concat(stream, s);
-//            }
-//        }
-//        return stream.collect(Collectors.toList());
-//    }
+    public static <T> List<T> flatten(Iterable<Iterable<T>> it) {
+        List<T> result = Lists.newArrayList();
+        Iterator<Iterable<T>> iterator = it.iterator();
+        while (iterator.hasNext()) {
+            Iterable<T> subIt = iterator.next();
+            Iterator<T> subItor = subIt.iterator();
+            while (subItor.hasNext()) {
+                result.add(subItor.next());
+            }
+        }
+        return result;
+    }
+
+    public static <T> List<T> flatten2(Collection<Collection<T>> it) {
+        List<T> result = Lists.newArrayList();
+        for (Collection<T> collection : it) {
+            for (T i : collection) {
+                result.add(i);
+            }
+        }
+        return result;
+    }
+
     public static <T> List<T> flatMap(List<T> it, Handler<T, Collection<T>> handler) {
         List<T> list = Lists.newArrayList();
         Iterator<T> iterator = it.iterator();
@@ -307,7 +343,7 @@ public class Sc {
         return list;
     }
 
-    public static <T,V> List<V> flatMap(Iterable<T> it, Handler<T, Collection<V>> handler) {
+    public static <T, V> List<V> flatMap(Iterable<T> it, Handler<T, Collection<V>> handler) {
         List<V> list = Lists.newArrayList();
         Iterator<T> iterator = it.iterator();
         while (iterator.hasNext()) {
@@ -725,6 +761,14 @@ public class Sc {
         Integer i = 0;
         for (T e : list) {
             result.put(e, i++);
+        }
+        return result;
+    }
+
+    public static <V1, V2> List zip(List<V1> list1, List<V2> list2) {
+        List<Tuple<V1, V2>> result = new ArrayList<>(list1.size());
+        for (int i = 0; i < list1.size(); i++) {
+            result.add(Tuple.of(list1.get(i), list2.get(i)));
         }
         return result;
     }
