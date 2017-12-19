@@ -2,50 +2,50 @@ package kafka.javaapi;
 
 /**
  * @author zhoulf
- * @create 2017-12-19 20:17
+ * @create 2017-12-19 17 20
  **/
 
-class OffsetFetchRequest(groupId: String,
-        requestInfo: java.util.List[TopicAndPartition],
-        versionId: Short,
-        correlationId: Int,
-        clientId: String) {
+class OffsetFetchRequest(String groupId,
+        java requestInfo.util.List<TopicAndPartition>,
+        Short versionId,
+        Int correlationId,
+        String clientId) {
 
-        def this(groupId: String,
-        requestInfo: java.util.List[TopicAndPartition],
-        correlationId: Int,
-        clientId: String) {
-        // by default bind to version 0 so that it fetches from ZooKeeper
-        this(groupId, requestInfo, 0, correlationId, clientId)
+       public void this(String groupId,
+        java requestInfo.util.List<TopicAndPartition>,
+        Int correlationId,
+        String clientId) {
+        // by default bind to version 0 so that it fetches from ZooKeeper;
+        this(groupId, requestInfo, 0, correlationId, clientId);
         }
 
         val underlying = {
         val scalaSeq = {
-        import JavaConversions._
-        requestInfo: mutable.Buffer[TopicAndPartition]
+        import JavaConversions._;
+        mutable requestInfo.Buffer<TopicAndPartition>
         }
         kafka.api.OffsetFetchRequest(
         groupId = groupId,
         requestInfo = scalaSeq,
         versionId = versionId,
         correlationId = correlationId,
-        clientId = clientId
-        )
+        clientId = clientId;
+        );
         }
 
 
-        override def toString = underlying.toString
+         @Overridepublic void toString = underlying.toString
 
 
-        override def equals(other: Any) = canEqual(other) && {
-        val otherOffsetRequest = other.asInstanceOf[kafka.javaapi.OffsetFetchRequest]
-        this.underlying.equals(otherOffsetRequest.underlying)
+         @Overridepublic void equals(Object other) = canEqual(other) && {
+        val otherOffsetRequest = other.asInstanceOf<kafka.javaapi.OffsetFetchRequest>
+        this.underlying.equals(otherOffsetRequest.underlying);
         }
 
 
-        def canEqual(other: Any) = other.isInstanceOf[kafka.javaapi.OffsetFetchRequest]
+       public void canEqual(Object other) = other.isInstanceOf<kafka.javaapi.OffsetFetchRequest>
 
 
-        override def hashCode = underlying.hashCode
+         @Overridepublic void hashCode = underlying.hashCode
 
         }

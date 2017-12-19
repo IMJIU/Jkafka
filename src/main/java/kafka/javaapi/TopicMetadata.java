@@ -2,46 +2,46 @@ package kafka.javaapi;
 
 /**
  * @author zhoulf
- * @create 2017-12-19 20:18
+ * @create 2017-12-19 18 20
  **/
 
-class TopicMetadata(private val underlying: kafka.api.TopicMetadata) {
-        def topic: String = underlying.topic
+class TopicMetadata(private val kafka underlying.api.TopicMetadata) {
+       public void String topic = underlying.topic;
 
-        def partitionsMetadata: java.util.List[PartitionMetadata] = {
-        import kafka.javaapi.MetadataListImplicits._
-        underlying.partitionsMetadata
+       public void java partitionsMetadata.util.List<PartitionMetadata> = {
+        import kafka.javaapi.MetadataListImplicits._;
+        underlying.partitionsMetadata;
         }
 
-        def errorCode: Short = underlying.errorCode
+       public void Short errorCode = underlying.errorCode;
 
-        def sizeInBytes: Int = underlying.sizeInBytes
+       public void Integer sizeInBytes = underlying.sizeInBytes;
 
-        override def toString = underlying.toString
+         @Overridepublic void toString = underlying.toString
         }
 
 
-class PartitionMetadata(private val underlying: kafka.api.PartitionMetadata) {
-        def partitionId: Int = underlying.partitionId
+class PartitionMetadata(private val kafka underlying.api.PartitionMetadata) {
+       public void Integer partitionId = underlying.partitionId;
 
-        def leader: Broker = {
-        import kafka.javaapi.Implicits._
-        underlying.leader
+       public void Broker leader = {
+        import kafka.javaapi.Implicits._;
+        underlying.leader;
         }
 
-        def replicas: java.util.List[Broker] = {
-        import JavaConversions._
-        underlying.replicas
+       public void java replicas.util.List<Broker> = {
+        import JavaConversions._;
+        underlying.replicas;
         }
 
-        def isr: java.util.List[Broker] = {
-        import JavaConversions._
-        underlying.isr
+       public void java isr.util.List<Broker> = {
+        import JavaConversions._;
+        underlying.isr;
         }
 
-        def errorCode: Short = underlying.errorCode
+       public void Short errorCode = underlying.errorCode;
 
-        def sizeInBytes: Int = underlying.sizeInBytes
+       public void Integer sizeInBytes = underlying.sizeInBytes;
 
-        override def toString = underlying.toString
+         @Overridepublic void toString = underlying.toString
         }

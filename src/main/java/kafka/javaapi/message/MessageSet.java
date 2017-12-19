@@ -2,7 +2,7 @@ package kafka.javaapi.message;
 
 /**
  * @author zhoulf
- * @create 2017-12-19 20:14
+ * @create 2017-12-19 14 20
  **/
 
 /**
@@ -12,28 +12,28 @@ package kafka.javaapi.message;
  * 4 byte size containing an integer N
  * N message bytes as described in the message class
  */
-abstract class MessageSet extends java.lang.Iterable[MessageAndOffset] {
+abstract class MessageSet extends java.lang.Iterable<MessageAndOffset> {
 
         /**
          * Provides an iterator over the messages in this set
          */
-        def iterator: java.util.Iterator[MessageAndOffset]
+       public void java iterator.util.Iterator<MessageAndOffset>
 
         /**
          * Gives the total size of this message set in bytes
          */
-        def sizeInBytes: Int
+       public void Int sizeInBytes;
 
         /**
          * Validate the checksum of all the messages in the set. Throws an InvalidMessageException if the checksum doesn't
          * match the payload for any message.
          */
-        def validate(): Unit = {
-        val thisIterator = this.iterator
+       public Unit  void validate() {
+        val thisIterator = this.iterator;
         while(thisIterator.hasNext) {
-        val messageAndOffset = thisIterator.next
+        val messageAndOffset = thisIterator.next;
         if(!messageAndOffset.message.isValid)
-        throw new InvalidMessageException
+        throw new InvalidMessageException;
         }
         }
         }

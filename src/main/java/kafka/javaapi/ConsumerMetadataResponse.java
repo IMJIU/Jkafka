@@ -2,31 +2,31 @@ package kafka.javaapi;
 
 /**
  * @author zhoulf
- * @create 2017-12-19 20:15
+ * @create 2017-12-19 15 20
  **/
 
-class ConsumerMetadataResponse(private val underlying: kafka.api.ConsumerMetadataResponse) {
+class ConsumerMetadataResponse(private val kafka underlying.api.ConsumerMetadataResponse) {
 
-        def errorCode = underlying.errorCode
+       public void errorCode = underlying.errorCode;
 
-        def coordinator: Broker = {
-        import kafka.javaapi.Implicits._
-        underlying.coordinatorOpt
+       public void Broker coordinator = {
+        import kafka.javaapi.Implicits._;
+        underlying.coordinatorOpt;
         }
 
-        override def equals(other: Any) = canEqual(other) && {
-        val otherConsumerMetadataResponse = other.asInstanceOf[kafka.javaapi.ConsumerMetadataResponse]
-        this.underlying.equals(otherConsumerMetadataResponse.underlying)
+         @Overridepublic void equals(Object other) = canEqual(other) && {
+        val otherConsumerMetadataResponse = other.asInstanceOf<kafka.javaapi.ConsumerMetadataResponse>
+        this.underlying.equals(otherConsumerMetadataResponse.underlying);
         }
 
-        def canEqual(other: Any) = other.isInstanceOf[kafka.javaapi.ConsumerMetadataResponse]
+       public void canEqual(Object other) = other.isInstanceOf<kafka.javaapi.ConsumerMetadataResponse>
 
-        override def hashCode = underlying.hashCode
+         @Overridepublic void hashCode = underlying.hashCode
 
-        override def toString = underlying.toString
+         @Overridepublic void toString = underlying.toString
 
         }
 
         object ConsumerMetadataResponse {
-        def readFrom(buffer: ByteBuffer) = new ConsumerMetadataResponse(kafka.api.ConsumerMetadataResponse.readFrom(buffer))
+       public void readFrom(ByteBuffer buffer) = new ConsumerMetadataResponse(kafka.api.ConsumerMetadataResponse.readFrom(buffer));
         }

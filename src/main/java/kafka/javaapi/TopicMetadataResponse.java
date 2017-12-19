@@ -2,25 +2,25 @@ package kafka.javaapi;
 
 /**
  * @author zhoulf
- * @create 2017-12-19 20:18
+ * @create 2017-12-19 18 20
  **/
 
-class TopicMetadataResponse(private val underlying: kafka.api.TopicMetadataResponse) {
-        def sizeInBytes: Int = underlying.sizeInBytes
+class TopicMetadataResponse(private val kafka underlying.api.TopicMetadataResponse) {
+       public void Integer sizeInBytes = underlying.sizeInBytes;
 
-        def topicsMetadata: java.util.List[kafka.javaapi.TopicMetadata] = {
-        import kafka.javaapi.MetadataListImplicits._
-        underlying.topicsMetadata
+       public void java topicsMetadata.util.List<kafka.javaapi.TopicMetadata> = {
+        import kafka.javaapi.MetadataListImplicits._;
+        underlying.topicsMetadata;
         }
 
-        override def equals(other: Any) = canEqual(other) && {
-        val otherTopicMetadataResponse = other.asInstanceOf[kafka.javaapi.TopicMetadataResponse]
-        this.underlying.equals(otherTopicMetadataResponse.underlying)
+         @Overridepublic void equals(Object other) = canEqual(other) && {
+        val otherTopicMetadataResponse = other.asInstanceOf<kafka.javaapi.TopicMetadataResponse>
+        this.underlying.equals(otherTopicMetadataResponse.underlying);
         }
 
-        def canEqual(other: Any) = other.isInstanceOf[kafka.javaapi.TopicMetadataResponse]
+       public void canEqual(Object other) = other.isInstanceOf<kafka.javaapi.TopicMetadataResponse>
 
-        override def hashCode = underlying.hashCode
+         @Overridepublic void hashCode = underlying.hashCode
 
-        override def toString = underlying.toString
+         @Overridepublic void toString = underlying.toString
         }

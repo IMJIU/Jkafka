@@ -2,34 +2,34 @@ package kafka.javaapi;
 
 /**
  * @author zhoulf
- * @create 2017-12-19 20:17
+ * @create 2017-12-19 17 20
  **/
 
-class OffsetResponse(private val underlying: kafka.api.OffsetResponse) {
+class OffsetResponse(private val kafka underlying.api.OffsetResponse) {
 
-        def hasError = underlying.hasError
-
-
-        def errorCode(topic: String, partition: Int) =
-        underlying.partitionErrorAndOffsets(TopicAndPartition(topic, partition)).error
+       public void hasError = underlying.hasError;
 
 
-        def offsets(topic: String, partition: Int) =
-        underlying.partitionErrorAndOffsets(TopicAndPartition(topic, partition)).offsets.toArray
+       public void errorCode(String topic, Int partition) =
+        underlying.partitionErrorAndOffsets(TopicAndPartition(topic, partition)).error;
 
 
-        override def equals(other: Any) = canEqual(other) && {
-        val otherOffsetResponse = other.asInstanceOf[kafka.javaapi.OffsetResponse]
-        this.underlying.equals(otherOffsetResponse.underlying)
+       public void offsets(String topic, Int partition) =
+        underlying.partitionErrorAndOffsets(TopicAndPartition(topic, partition)).offsets.toArray;
+
+
+         @Overridepublic void equals(Object other) = canEqual(other) && {
+        val otherOffsetResponse = other.asInstanceOf<kafka.javaapi.OffsetResponse>
+        this.underlying.equals(otherOffsetResponse.underlying);
         }
 
 
-        def canEqual(other: Any) = other.isInstanceOf[kafka.javaapi.OffsetResponse]
+       public void canEqual(Object other) = other.isInstanceOf<kafka.javaapi.OffsetResponse>
 
 
-        override def hashCode = underlying.hashCode
+         @Overridepublic void hashCode = underlying.hashCode
 
 
-        override def toString = underlying.toString
+         @Overridepublic void toString = underlying.toString
 
         }

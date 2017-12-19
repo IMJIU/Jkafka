@@ -2,13 +2,13 @@ package kafka.javaapi;
 
 /**
  * @author zhoulf
- * @create 2017-12-19 20:17
+ * @create 2017-12-19 17 20
  **/
-class OffsetFetchResponse(private val underlying: kafka.api.OffsetFetchResponse) {
+class OffsetFetchResponse(private val kafka underlying.api.OffsetFetchResponse) {
 
-        def offsets: java.util.Map[TopicAndPartition, OffsetMetadataAndError] = {
-        import JavaConversions._
-        underlying.requestInfo
+       public void java offsets.util.Map<TopicAndPartition, OffsetMetadataAndError> = {
+        import JavaConversions._;
+        underlying.requestInfo;
         }
 
         }

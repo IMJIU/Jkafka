@@ -75,7 +75,7 @@ public class ZookeeperConsumerConnector implements ConsumerConnector {
                     " can create message streams at most once", null);
         Map<String, Integer> scalaTopicCountMap = topicCountMap;
         Map<String, List<KafkaStream<K, V>>> scalaReturn = underlying.consume(scalaTopicCountMap, keyDecoder, valueDecoder);
-        Map<String, java.util.List<KafkaStream<K, V>>> ret = Maps.newHashMap();
+        Map<String, List<KafkaStream<K, V>>> ret = Maps.newHashMap();
         scalaReturn.forEach((topic, streams) -> {
             List<KafkaStream<K, V>> javaStreamList = Lists.newArrayList();
             for (KafkaStream<K, V> stream : streams)
@@ -85,7 +85,7 @@ public class ZookeeperConsumerConnector implements ConsumerConnector {
         return ret;
     }
 
-    public Map<String, java.util.List<KafkaStream<byte[], byte[]>>> createMessageStreams(Map<String, java.lang.Integer> topicCountMap) {
+    public Map<String, List<KafkaStream<byte[], byte[]>>> createMessageStreams(Map<String, Integer> topicCountMap) {
         return createMessageStreams(topicCountMap, new DefaultDecoder(), new DefaultDecoder());
     }
 
