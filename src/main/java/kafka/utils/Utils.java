@@ -6,6 +6,10 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import kafka.func.*;
+import kafka.message.ByteBufferMessageSet;
+import kafka.message.InvalidMessageException;
+import kafka.message.Message;
+import kafka.message.MessageAndOffset;
 
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
@@ -506,18 +510,35 @@ public class Utils {
 //
 //    :Boolean=s==null||s.equals("");
 //
+
     /**
      * Create a circular (looping) iterator over a collection.
      *
      * @param coll An iterable over the underlying collection.
      * @return A circular iterator over the collection.
      */
-    public static <T>Iterator<T> circularIterator(Iterable<T> coll) {
-        Stream<T> stream;
+    public static <T> Iterator<T> circularIterator(Iterable<T> coll) {
+        return new IteratorTemplate<T>() {
+            private Iterator<T> it = coll.iterator();
+            private List<T> circule = Lists.newArrayList();
+            private int index = 0;
+            private int length = 0;
 
-
-        for (forever< -Stream.continually(1); t < -coll) yield t;
-        stream.iterator;
+            @Override
+            protected T makeNext() {
+                if (it.hasNext()) {
+                    T t = it.next();
+                    circule.add(t);
+                    length = circule.size();
+                    return t;
+                } else {
+                    if (index >= Integer.MAX_VALUE) {
+                        index = 0;
+                    }
+                    return circule.get(index++ % length);
+                }
+            }
+        };
     }
 //
 //    /**

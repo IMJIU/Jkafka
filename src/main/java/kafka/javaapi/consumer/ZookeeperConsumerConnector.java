@@ -89,26 +89,25 @@ public class ZookeeperConsumerConnector implements ConsumerConnector {
         return createMessageStreams(topicCountMap, new DefaultDecoder(), new DefaultDecoder());
     }
 
-
-    public <K, V>  List<KafkaStream<K, V>> createMessageStreamsByFilter( TopicFilter topicFilter, Integer numStreams,
-                                                     Decoder<K> keyDecoder,   Decoder<V> valueDecoder) {
+    public <K, V> List<KafkaStream<K, V>> createMessageStreamsByFilter(TopicFilter topicFilter, int numStreams, Decoder<K> keyDecoder, Decoder<V> valueDecoder) {
         return underlying.createMessageStreamsByFilter(topicFilter, numStreams, keyDecoder, valueDecoder);
     }
 
-    public  <K, V> List<KafkaStream<K, V>> createMessageStreamsByFilter(TopicFilter topicFilter, Integer numStreams){
+    public List<KafkaStream<byte[], byte[]>> createMessageStreamsByFilter(TopicFilter topicFilter, int numStreams) {
         return createMessageStreamsByFilter(topicFilter, numStreams, new DefaultDecoder(), new DefaultDecoder());
     }
 
-
-
-    public <K, V>  List<KafkaStream<K, V>> createMessageStreamsByFilter(TopicFilter topicFilter){
-        return createMessageStreamsByFilter(topicFilter, 1,new DefaultDecoder(), new DefaultDecoder());
+    public List<KafkaStream<byte[], byte[]>> createMessageStreamsByFilter(TopicFilter topicFilter) {
+        return createMessageStreamsByFilter(topicFilter, 1, new DefaultDecoder(), new DefaultDecoder());
     }
-
-
 
     public void commitOffsets() {
         underlying.commitOffsets(true);
+    }
+
+    @Override
+    public void commitOffsets(boolean retryOnFailure) {
+
     }
 
     public void commitOffsets(Boolean retryOnFailure) {

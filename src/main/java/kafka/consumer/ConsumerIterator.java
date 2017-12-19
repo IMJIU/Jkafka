@@ -75,12 +75,12 @@ public class ConsumerIterator<K, V> extends IteratorTemplate<MessageAndMetadata<
                     }
                 }
             } catch (InterruptedException e) {
-                throw  new RuntimeException(e);
+                throw new RuntimeException(e);
             }
-            if (currentDataChunk eq ZookeeperConsumerConnector.shutdownCommand){
+            if (currentDataChunk.equals(ZookeeperConsumerConnector.shutdownCommand)) {
                 log.debug("Received the shutdown command");
                 return allDone();
-            } else{
+            } else {
                 currentTopicInfo = currentDataChunk.topicInfo;
                 Long cdcFetchOffset = currentDataChunk.fetchOffset;
                 Long ctiConsumeOffset = currentTopicInfo.getConsumeOffset();

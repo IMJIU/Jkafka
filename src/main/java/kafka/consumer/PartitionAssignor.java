@@ -6,6 +6,7 @@ import kafka.log.TopicAndPartition;
 import kafka.utils.*;
 import org.I0Itec.zkclient.ZkClient;
 
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -54,7 +55,7 @@ class AssignmentContext {
     Map<String, List<ConsumerThreadId>> consumersForTopic =
             ZkUtils.getConsumersPerTopic(zkClient, group, excludeInternalTopics);
 
-    List<String> consumers = ZkUtils.getConsumersInGroup(zkClient, group).sorted;
+    List<String> consumers = Sc.sorted(ZkUtils.getConsumersInGroup(zkClient, group));
 }
 
 /**
@@ -86,7 +87,7 @@ class RoundRobinAssignor extends Logging implements PartitionAssignor {
                             String.format("Topic %s has the following available consumer streams: %s\n", headTopic, headThreadIdSet));
         });
 
-        val threadAssignor = Utils.circularIterator(Sc.toList(headThreadIdSet).sorted);
+        Iterator<ConsumerThreadId> threadAssignor = Utils.circularIterator(Sc.sortIterable(Sc.toList(headThreadIdSet)));
 
         info("Starting round-robin assignment with consumers " + ctx.consumers);
         List<TopicAndPartition> allTopicPartitions = Sc.sortWith(Sc.flatMap(ctx.partitionsForTopic, (topic, partitions) -> {

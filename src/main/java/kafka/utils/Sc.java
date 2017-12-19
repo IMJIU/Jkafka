@@ -3,14 +3,9 @@ package kafka.utils;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import kafka.consumer.ConsumerThreadId;
-import kafka.consumer.FetchedDataChunk;
-import kafka.consumer.KafkaStream;
 import kafka.func.*;
 import org.apache.commons.collections.map.HashedMap;
-
 import java.util.*;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -771,5 +766,15 @@ public class Sc {
             result.add(Tuple.of(list1.get(i), list2.get(i)));
         }
         return result;
+    }
+
+    public static <T extends Comparable> Iterable<T> sortIterable(List<T> consumerThreadIds) {
+        Collections.sort(consumerThreadIds);
+        return consumerThreadIds;
+    }
+
+    public static <T extends Comparable> List<T> sorted(List<T> list) {
+        Collections.sort(list);
+        return list;
     }
 }
