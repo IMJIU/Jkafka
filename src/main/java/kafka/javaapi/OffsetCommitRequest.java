@@ -1,52 +1,60 @@
 package kafka.javaapi;
 
+import kafka.common.OffsetAndMetadata;
+import kafka.log.TopicAndPartition;
+
+import java.util.Map;
+
 /**
  * @author zhoulf
  * @create 2017-12-19 16 20
  **/
 
-class OffsetCommitRequest(String groupId,
-        java requestInfo.util.Map<TopicAndPartition, OffsetAndMetadata>,
-        Int correlationId,
-        String clientId,
-        Short versionId) {
-        val underlying = {
-        val collection scalaMap.immutable.Map<TopicAndPartition, OffsetAndMetadata> = {
-        import collection.JavaConversions._;
+public class OffsetCommitRequest {
+    public String groupId;
+    public Map<TopicAndPartition, OffsetAndMetadata> requestInfo;
+    public Integer correlationId;
+    public String clientId;
+    public Short versionId;
+    public kafka.api.OffsetCommitRequest underlying;
 
-        requestInfo.toMap;
-        }
-        kafka.api.OffsetCommitRequest(
-        groupId = groupId,
-        requestInfo = scalaMap,
-        versionId = versionId,
-        correlationId = correlationId,
-        clientId = clientId;
-        );
-        }
+    public OffsetCommitRequest(String groupId, Map<TopicAndPartition, OffsetAndMetadata> requestInfo, Integer correlationId, String clientId, Short versionId) {
+        this.groupId = groupId;
+        this.requestInfo = requestInfo;
+        this.correlationId = correlationId;
+        this.clientId = clientId;
+        this.versionId = versionId;
+    }
 
-       public void this(String groupId,
-        java requestInfo.util.Map<TopicAndPartition, OffsetAndMetadata>,
-        Int correlationId,
-        String clientId) {
+    public OffsetCommitRequest(String groupId,
+                               Map<TopicAndPartition, OffsetAndMetadata> requestInfo,
+                               Integer correlationId,
+                               String clientId) {
 
         // by default bind to version 0 so that it commits to Zookeeper;
-        this(groupId, requestInfo, correlationId, clientId, 0);
-        }
+        this(groupId, requestInfo, correlationId, clientId, (short) 0);
+    }
 
 
-         @Overridepublic void toString = underlying.toString
+    @Override
+    public String toString() {
+        return underlying.toString();
+    }
 
 
-         @Overridepublic void equals(Object other) = canEqual(other) && {
-        val otherOffsetRequest = other.asInstanceOf<kafka.javaapi.OffsetCommitRequest>
-        this.underlying.equals(otherOffsetRequest.underlying);
-        }
+    @Override
+    public boolean equals(Object other) {
+        return canEqual(other) && this.underlying.equals(((kafka.javaapi.OffsetCommitRequest) other).underlying);
+    }
 
 
-       public void canEqual(Object other) = other.isInstanceOf<kafka.javaapi.OffsetCommitRequest>
+    public boolean canEqual(Object other) {
+        return other instanceof kafka.javaapi.OffsetCommitRequest;
+    }
 
+    @Override
+    public int hashCode() {
+        return underlying.hashCode();
+    }
 
-         @Overridepublic void hashCode = underlying.hashCode
-
-        }
+}

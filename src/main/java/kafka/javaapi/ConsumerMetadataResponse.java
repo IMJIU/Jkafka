@@ -5,9 +5,16 @@ package kafka.javaapi;
  * @create 2017-12-19 15 20
  **/
 
-class ConsumerMetadataResponse(private val kafka underlying.api.ConsumerMetadataResponse) {
+public class ConsumerMetadataResponse {
+    private  kafka.api.ConsumerMetadataResponse underlying;
 
-       public void errorCode = underlying.errorCode;
+    public ConsumerMetadataResponse(kafka.api.ConsumerMetadataResponse underlying) {
+        this.underlying = underlying;
+    }
+
+    public Short errorCode (){
+           return underlying.errorCode;
+        }
 
        public void Broker coordinator = {
         import kafka.javaapi.Implicits._;

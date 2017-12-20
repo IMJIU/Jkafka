@@ -1,41 +1,50 @@
 package kafka.javaapi;
 
+import kafka.api.PartitionOffsetRequestInfo;
+import kafka.api.Request;
+import kafka.log.TopicAndPartition;
+
+import java.util.Map;
+
 /**
  * @author zhoulf
  * @create 2017-12-19 17 20
  **/
 
-class OffsetRequest(java requestInfo.util.Map<TopicAndPartition, PartitionOffsetRequestInfo>,
-        Short versionId,
-        String clientId) {
+public class OffsetRequest {
+    public Map<TopicAndPartition, PartitionOffsetRequestInfo> requestInfo;
+    public Short versionId;
+    public String clientId;
 
-        val underlying = {
-        val scalaMap = {
-        import collection.JavaConversions._;
-        (mutable requestInfo.Map<TopicAndPartition, PartitionOffsetRequestInfo>).toMap;
-        }
-        kafka.api.OffsetRequest(
-        requestInfo = scalaMap,
-        versionId = versionId,
-        clientId = clientId,
-        replicaId = Request.OrdinaryConsumerId;
-        );
-        }
+    public OffsetRequest(Map<TopicAndPartition, PartitionOffsetRequestInfo> requestInfo, Short versionId, String clientId) {
+        this.requestInfo = requestInfo;
+        this.versionId = versionId;
+        this.clientId = clientId;
+        underlying = new kafka.api.OffsetRequest(requestInfo, versionId, 0, clientId, Request.OrdinaryConsumerId);
+    }
+
+    public kafka.api.OffsetRequest underlying;
 
 
-
-         @Overridepublic void toString = underlying.toString
-
-
-         @Overridepublic void equals(Object other) = canEqual(other) && {
-        val otherOffsetRequest = other.asInstanceOf<kafka.javaapi.OffsetRequest>
-        this.underlying.equals(otherOffsetRequest.underlying);
-        }
+    @Override
+    public String toString() {
+        return underlying.toString();
+    }
 
 
-       public void canEqual(Object other) = other.isInstanceOf<kafka.javaapi.OffsetRequest>
+    @Override
+    public boolean equals(Object other) {
+        return canEqual(other) && this.underlying.equals(((kafka.javaapi.OffsetRequest) other).underlying);
+    }
 
 
-         @Overridepublic void hashCode = underlying.hashCode
+    public boolean canEqual(Object other) {
+        return other instanceof kafka.javaapi.OffsetRequest;
+    }
 
-        }
+    @Override
+    public int hashCode() {
+        return underlying.hashCode();
+    }
+
+}

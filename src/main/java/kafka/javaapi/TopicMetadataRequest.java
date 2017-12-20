@@ -1,17 +1,20 @@
 package kafka.javaapi;
 
+import kafka.api.RequestOrResponse;
+
+import java.util.Optional;
+
 /**
  * @author zhoulf
  * @create 2017-12-19 18 20
  **/
 
-class TopicMetadataRequest(val Short versionId,
-        val Int correlationId,
-        val String clientId,
-        val java topics.util.List<String>);
-        extends RequestOrResponse(Optional.of(kafka.api.RequestKeys.MetadataKey)) {
+public class TopicMetadataRequest extends RequestOrResponse {
+    public TopicMetadataRequest() {
+        super(Optional.of(s.MetadataKey));
+    }
 
-        val kafka underlying.api.TopicMetadataRequest = {
+    val kafka underlying.api.TopicMetadataRequest = {
         import scala.collection.JavaConversions._;
         new kafka.api.TopicMetadataRequest(versionId, correlationId, clientId, mutable topics.Buffer<String>);
         }

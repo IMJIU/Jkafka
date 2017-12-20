@@ -1,35 +1,52 @@
 package kafka.javaapi;
 
+import kafka.log.TopicAndPartition;
+
+import java.util.List;
+
 /**
  * @author zhoulf
  * @create 2017-12-19 17 20
  **/
 
-class OffsetResponse(private val kafka underlying.api.OffsetResponse) {
+public class OffsetResponse {
+    private kafka.api.OffsetResponse underlying;
 
-       public void hasError = underlying.hasError;
-
-
-       public void errorCode(String topic, Int partition) =
-        underlying.partitionErrorAndOffsets(TopicAndPartition(topic, partition)).error;
-
-
-       public void offsets(String topic, Int partition) =
-        underlying.partitionErrorAndOffsets(TopicAndPartition(topic, partition)).offsets.toArray;
+    public boolean hasError() {
+        return underlying.hasError();
+    }
 
 
-         @Overridepublic void equals(Object other) = canEqual(other) && {
-        val otherOffsetResponse = other.asInstanceOf<kafka.javaapi.OffsetResponse>
-        this.underlying.equals(otherOffsetResponse.underlying);
-        }
+    public Short errorCode(String topic, Integer partition) {
+        return underlying.partitionErrorAndOffsets.get(new TopicAndPartition(topic, partition)).error;
+    }
 
 
-       public void canEqual(Object other) = other.isInstanceOf<kafka.javaapi.OffsetResponse>
+    public List<Long> offsets(String topic, Integer partition) {
+        return underlying.partitionErrorAndOffsets.get(new TopicAndPartition(topic, partition)).offsets;
+    }
 
 
-         @Overridepublic void hashCode = underlying.hashCode
+    @Override
+    public boolean equals(Object other) {
+        return canEqual(other) && this.underlying.equals(((kafka.javaapi.OffsetResponse) other).underlying);
+    }
 
 
-         @Overridepublic void toString = underlying.toString
+    public boolean canEqual(Object other) {
+        return other instanceof kafka.javaapi.OffsetResponse;
+    }
 
-        }
+
+    @Override
+    public int hashCode() {
+        return underlying.hashCode();
+    }
+
+
+    @Override
+    public String toString() {
+        return underlying.toString();
+    }
+
+}

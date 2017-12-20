@@ -1,47 +1,78 @@
 package kafka.javaapi;
 
+import kafka.cluster.Broker;
+import kafka.utils.Sc;
+
+import java.util.List;
+
 /**
  * @author zhoulf
  * @create 2017-12-19 18 20
  **/
 
-class TopicMetadata(private val kafka underlying.api.TopicMetadata) {
-       public void String topic = underlying.topic;
+public class TopicMetadata {
+    private kafka.api.TopicMetadata underlying;
 
-       public void java partitionsMetadata.util.List<PartitionMetadata> = {
-        import kafka.javaapi.MetadataListImplicits._;
-        underlying.partitionsMetadata;
-        }
+    public TopicMetadata(kafka.api.TopicMetadata underlying) {
+        this.underlying = underlying;
+    }
 
-       public void Short errorCode = underlying.errorCode;
+    public String topic() {
+        return underlying.topic;
+    }
 
-       public void Integer sizeInBytes = underlying.sizeInBytes;
+    public List<PartitionMetadata> partitionsMetadata() {
+        return Sc.map(underlying.partitionsMetadata, p -> new PartitionMetadata(p));
+    }
 
-         @Overridepublic void toString = underlying.toString
-        }
+    public Short errorCode() {
+        return underlying.errorCode;
+    }
+
+    public Integer sizeInBytes() {
+        return underlying.sizeInBytes();
+    }
+
+    @Override
+    public String toString() {
+        return underlying.toString();
+    }
+}
 
 
-class PartitionMetadata(private val kafka underlying.api.PartitionMetadata) {
-       public void Integer partitionId = underlying.partitionId;
+class PartitionMetadata {
+    private kafka.api.PartitionMetadata underlying;
 
-       public void Broker leader = {
-        import kafka.javaapi.Implicits._;
-        underlying.leader;
-        }
+    public PartitionMetadata(kafka.api.PartitionMetadata underlying) {
+        this.underlying = underlying;
+        leader = underlying.leader;
+    }
 
-       public void java replicas.util.List<Broker> = {
-        import JavaConversions._;
-        underlying.replicas;
-        }
+    public Integer partitionId() {
+        return underlying.partitionId;
+    }
 
-       public void java isr.util.List<Broker> = {
-        import JavaConversions._;
-        underlying.isr;
-        }
 
-       public void Short errorCode = underlying.errorCode;
+    public Broker leader;
 
-       public void Integer sizeInBytes = underlying.sizeInBytes;
+    public List<Broker> replicas() {
+        return underlying.replicas;
+    }
 
-         @Overridepublic void toString = underlying.toString
-        }
+    public List<Broker> isr() {
+        return underlying.isr;
+    }
+
+    public Short errorCode() {
+        return underlying.errorCode;
+    }
+
+    public Integer sizeInBytes() {
+        return underlying.sizeInBytes();
+    }
+
+    @Override
+    public String toString() {
+        return underlying.toString();
+    }
+}

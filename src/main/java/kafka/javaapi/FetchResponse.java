@@ -5,25 +5,37 @@ package kafka.javaapi;
  * @create 2017-12-19 16 20
  **/
 
-class FetchResponse(private val kafka underlying.api.FetchResponse) {
+public class FetchResponse {
+    private kafka.api.FetchResponse underlying;
 
-       public void messageSet(String topic, Int partition): kafka.javaapi.message.ByteBufferMessageSet = {
-        import Implicits._;
-        underlying.messageSet(topic, partition);
-        }
+    public kafka.javaapi.message.ByteBufferMessageSet messageSet(String topic, Integer partition) {
+        return new kafka.javaapi.message.ByteBufferMessageSet(underlying.messageSet(topic, partition).buffer);
+    }
 
-       public void highWatermark(String topic, Int partition) = underlying.highWatermark(topic, partition);
+    public long highWatermark(String topic, Integer partition) {
+        return underlying.highWatermark(topic, partition);
+    }
 
-       public void hasError = underlying.hasError;
+    public boolean hasError() {
+        return underlying.hasError();
+    }
 
-       public void errorCode(String topic, Int partition) = underlying.errorCode(topic, partition);
+    public short errorCode(String topic, Integer partition) {
+        return underlying.errorCode(topic, partition);
+    }
 
-         @Overridepublic void equals(Object other) = canEqual(other) && {
-        val otherFetchResponse = other.asInstanceOf<kafka.javaapi.FetchResponse>
-        this.underlying.equals(otherFetchResponse.underlying);
-        }
+    @Override
+    public boolean equals(Object other) {
+        return canEqual(other) && this.underlying.equals(((kafka.javaapi.FetchResponse) other).underlying);
+    }
 
-       public void canEqual(Object other) = other.isInstanceOf<kafka.javaapi.FetchResponse>
 
-         @Overridepublic void hashCode = underlying.hashCode
-        }
+    public boolean canEqual(Object other) {
+        return other instanceof kafka.javaapi.FetchResponse;
+    }
+
+    @Override
+    public int hashCode() {
+        return underlying.hashCode();
+    }
+}

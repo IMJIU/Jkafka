@@ -1,23 +1,36 @@
 package kafka.javaapi;
 
+import kafka.log.TopicAndPartition;
+
+import java.nio.ByteBuffer;
+import java.util.Map;
+
 /**
  * @author zhoulf
  * @create 2017-12-19 16 20
  **/
 
-class OffsetCommitResponse(private val kafka underlying.api.OffsetCommitResponse) {
+public class OffsetCommitResponse {
+    private kafka.api.OffsetCommitResponse underlying;
 
-       public void java errors.util.Map<TopicAndPartition, Short> = {
-        import JavaConversions._;
-        underlying.commitStatus;
-        }
+    public OffsetCommitResponse(kafka.api.OffsetCommitResponse underlying) {
+        this.underlying = underlying;
+    }
 
-       public void hasError = underlying.hasError;
+    public static OffsetCommitResponse readFrom(ByteBuffer buffer) {
+        return new OffsetCommitResponse(kafka.api.OffsetCommitResponse.readFrom(buffer));
+    }
 
-       public void errorCode(TopicAndPartition topicAndPartition) = underlying.commitStatus(topicAndPartition);
+    public Map<TopicAndPartition, Short> errors() {
+        return underlying.commitStatus;
+    }
 
-        }
+    public boolean hasError() {
+        return underlying.hasError();
+    }
 
-        object OffsetCommitResponse {
-       public void readFrom(ByteBuffer buffer) = new OffsetCommitResponse(kafka.api.OffsetCommitResponse.readFrom(buffer));
-        }
+    public Short errorCode(TopicAndPartition topicAndPartition) {
+        return underlying.commitStatus.get(topicAndPartition);
+    }
+
+}

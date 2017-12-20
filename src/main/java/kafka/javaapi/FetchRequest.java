@@ -1,40 +1,52 @@
 package kafka.javaapi;
 
+import kafka.api.PartitionFetchInfo;
+import kafka.api.Request;
+import kafka.log.TopicAndPartition;
+
+import java.util.Map;
+
 /**
  * @author zhoulf
  * @create 2017-12-19 15 20
  **/
 
-class FetchRequest(Int correlationId,
-        String clientId,
-        Int maxWait,
-        Int minBytes,
-        java requestInfo.util.Map<TopicAndPartition, PartitionFetchInfo>) {
+public class FetchRequest {
+    public Integer correlationId;
+    public String clientId;
+    public Integer maxWait;
+    public Integer minBytes;
+    public Map<TopicAndPartition, PartitionFetchInfo> requestInfo;
+    public kafka.api.FetchRequest underlying;
 
-        val underlying = {
-        val Map scalaMap<TopicAndPartition, PartitionFetchInfo> = {
-        import scala.collection.JavaConversions._;
-        (mutable requestInfo.Map<TopicAndPartition, PartitionFetchInfo>).toMap;
-        }
-        kafka.api.FetchRequest(
-        correlationId = correlationId,
-        clientId = clientId,
-        replicaId = Request.OrdinaryConsumerId,
-        maxWait = maxWait,
-        minBytes = minBytes,
-        requestInfo = scalaMap;
-        );
-        }
+    public FetchRequest(Integer correlationId, String clientId, Integer maxWait, Integer minBytes, Map<TopicAndPartition, PartitionFetchInfo> requestInfo) {
+        this.correlationId = correlationId;
+        this.clientId = clientId;
+        this.maxWait = maxWait;
+        this.minBytes = minBytes;
+        this.requestInfo = requestInfo;
+        Map<TopicAndPartition, PartitionFetchInfo> scalaMap = requestInfo;
+        underlying = new kafka.api.FetchRequest(kafka.api.FetchRequest.CurrentVersion, correlationId, clientId, Request.OrdinaryConsumerId, maxWait, minBytes, scalaMap);
+    }
 
-         @Overridepublic void toString = underlying.toString
+    @Override
+    public String toString() {
+        return underlying.toString();
+    }
 
-         @Overridepublic void equals(Object other) = canEqual(other) && {
-        val otherFetchRequest = other.asInstanceOf<kafka.javaapi.FetchRequest>
-        this.underlying.equals(otherFetchRequest.underlying);
-        }
+    @Override
+    public boolean equals(Object other) {
+        return canEqual(other) && this.underlying.equals(((kafka.javaapi.FetchRequest) other).underlying);
+    }
 
-       public void canEqual(Object other) = other.isInstanceOf<kafka.javaapi.FetchRequest>
 
-         @Overridepublic void hashCode = underlying.hashCode
+    public boolean canEqual(Object other) {
+        return other instanceof kafka.javaapi.FetchRequest;
+    }
 
-        }
+    @Override
+    public int hashCode() {
+        return underlying.hashCode();
+    }
+
+}

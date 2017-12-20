@@ -1,14 +1,22 @@
 package kafka.javaapi;
 
+import kafka.common.OffsetMetadataAndError;
+import kafka.log.TopicAndPartition;
+
+import java.util.Map;
+
 /**
  * @author zhoulf
  * @create 2017-12-19 17 20
  **/
-class OffsetFetchResponse(private val kafka underlying.api.OffsetFetchResponse) {
+public class OffsetFetchResponse {
+    private kafka.api.OffsetFetchResponse underlying;
 
-       public void java offsets.util.Map<TopicAndPartition, OffsetMetadataAndError> = {
-        import JavaConversions._;
-        underlying.requestInfo;
-        }
+    public OffsetFetchResponse(kafka.api.OffsetFetchResponse underlying) {
+        this.underlying = underlying;
+        offsets = underlying.requestInfo;
+    }
 
-        }
+    public Map<TopicAndPartition, OffsetMetadataAndError> offsets;
+
+}
