@@ -1,7 +1,11 @@
 package kafka.javaapi;
 
+import kafka.api.RequestKeys;
 import kafka.api.RequestOrResponse;
 
+import java.nio.ByteBuffer;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -10,45 +14,62 @@ import java.util.Optional;
  **/
 
 public class TopicMetadataRequest extends RequestOrResponse {
-    public TopicMetadataRequest() {
-        super(Optional.of(s.MetadataKey));
+    public Short versionId;
+    public Integer correlationId;
+    public String clientId;
+    public List<String> topics;
+    public kafka.api.TopicMetadataRequest underlying;
+
+    public TopicMetadataRequest(Short versionId, java.lang.Integer correlationId, String clientId, List<String> topics) {
+        super(Optional.of(RequestKeys.MetadataKey));
+        this.versionId = versionId;
+        this.correlationId = correlationId;
+        this.clientId = clientId;
+        this.topics = topics;
+        underlying = new kafka.api.TopicMetadataRequest(versionId, correlationId, clientId, topics);
     }
 
-    val kafka underlying.api.TopicMetadataRequest = {
-        import scala.collection.JavaConversions._;
-        new kafka.api.TopicMetadataRequest(versionId, correlationId, clientId, mutable topics.Buffer<String>);
-        }
 
-       public void this(java topics.util.List<String>) =
+    public TopicMetadataRequest(List<String> topics) {
         this(kafka.api.TopicMetadataRequest.CurrentVersion, 0, kafka.api.TopicMetadataRequest.DefaultClientId, topics);
+    }
 
-       public void this(java topics.util.List<String>, Int correlationId) =
+
+    public TopicMetadataRequest(List<String> topics, Integer correlationId) {
         this(kafka.api.TopicMetadataRequest.CurrentVersion, correlationId, kafka.api.TopicMetadataRequest.DefaultClientId, topics);
+    }
 
-       public void writeTo(ByteBuffer buffer) = underlying.writeTo(buffer);
 
-       public void Integer sizeInBytes = underlying.sizeInBytes();
+    public void writeTo(ByteBuffer buffer) {
+        underlying.writeTo(buffer);
+    }
 
-         @Overridepublic String  void toString() {
-        describe(true);
-        }
+    public Integer sizeInBytes() {
+        return underlying.sizeInBytes();
+    }
 
-         @Overridepublic String  void describe(Boolean details) {
-        val topicMetadataRequest = new StringBuilder;
-        topicMetadataRequest.append("Name: " + this.getClass.getSimpleName);
+    @Override
+    public String toString() {
+        return describe(true);
+    }
+
+    @Override
+    public String describe(Boolean details) {
+        StringBuilder topicMetadataRequest = new StringBuilder();
+        topicMetadataRequest.append("Name: " + this.getClass().getSimpleName());
         topicMetadataRequest.append("; Version: " + versionId);
         topicMetadataRequest.append("; CorrelationId: " + correlationId);
         topicMetadataRequest.append("; ClientId: " + clientId);
-        if(details) {
-        topicMetadataRequest.append("; Topics: ");
-        val topicIterator = topics.iterator();
-        while (topicIterator.hasNext) {
-        val topic = topicIterator.next();
-        topicMetadataRequest.append(String.format("%s",topic))
-        if(topicIterator.hasNext)
-        topicMetadataRequest.append(",");
+        if (details) {
+            topicMetadataRequest.append("; Topics: ");
+            Iterator<String> topicIterator = topics.iterator();
+            while (topicIterator.hasNext()) {
+                String topic = topicIterator.next();
+                topicMetadataRequest.append(String.format("%s", topic));
+                if (topicIterator.hasNext())
+                    topicMetadataRequest.append(",");
+            }
         }
-        }
-        topicMetadataRequest.toString();
-        }
-        }
+        return topicMetadataRequest.toString();
+    }
+}

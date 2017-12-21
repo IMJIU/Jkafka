@@ -7,6 +7,7 @@ package kafka.javaapi.consumer;
 
 import kafka.annotation.threadsafe;
 import kafka.api.FetchResponse;
+import kafka.javaapi.OffsetRequest;
 
 /**
  * A consumer of kafka messages
@@ -50,7 +51,7 @@ public class SimpleConsumer {
      * @return metadata for each topic in the request.
      */
     public kafka.javaapi.TopicMetadataResponse send(kafka.javaapi.TopicMetadataRequest request) {
-        return underlying.send(request.underlying);
+        return new kafka.javaapi.TopicMetadataResponse(underlying.send(request.underlying));
     }
 
     /**
@@ -60,7 +61,7 @@ public class SimpleConsumer {
      * @return a <<kafka.javaapi.OffsetResponse>> object.
      */
     public kafka.javaapi.OffsetResponse getOffsetsBefore(OffsetRequest request) {
-        return underlying.getOffsetsBefore(request.underlying)
+        return new kafka.javaapi.OffsetResponse(underlying.getOffsetsBefore(request.underlying));
     }
 
     /**
@@ -70,7 +71,7 @@ public class SimpleConsumer {
      * @return a <<kafka.javaapi.OffsetCommitResponse>> object.
      */
     public kafka.javaapi.OffsetCommitResponse commitOffsets(kafka.javaapi.OffsetCommitRequest request) {
-        return underlying.commitOffsets(request.underlying);
+        return new kafka.javaapi.OffsetCommitResponse(underlying.commitOffsets(request.underlying));
     }
 
     /**
@@ -80,7 +81,7 @@ public class SimpleConsumer {
      * @return a <<kafka.javaapi.OffsetFetchResponse>> object.
      */
     public kafka.javaapi.OffsetFetchResponse fetchOffsets(kafka.javaapi.OffsetFetchRequest request) {
-        return underlying.fetchOffsets(request.underlying);
+        return new kafka.javaapi.OffsetFetchResponse(underlying.fetchOffsets(request.underlying));
     }
 
     public void close() {

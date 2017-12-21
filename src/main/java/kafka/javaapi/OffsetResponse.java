@@ -12,6 +12,10 @@ import java.util.List;
 public class OffsetResponse {
     private kafka.api.OffsetResponse underlying;
 
+    public OffsetResponse(kafka.api.OffsetResponse underlying) {
+        this.underlying = underlying;
+    }
+
     public boolean hasError() {
         return underlying.hasError();
     }

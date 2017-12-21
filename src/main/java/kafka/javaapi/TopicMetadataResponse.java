@@ -1,26 +1,45 @@
 package kafka.javaapi;
 
+import kafka.utils.Sc;
+
+import java.util.List;
+
 /**
  * @author zhoulf
  * @create 2017-12-19 18 20
  **/
 
-class TopicMetadataResponse(private val kafka underlying.api.TopicMetadataResponse) {
-       public void Integer sizeInBytes = underlying.sizeInBytes;
+public class TopicMetadataResponse {
+    private kafka.api.TopicMetadataResponse underlying;
 
-       public void java topicsMetadata.util.List<kafka.javaapi.TopicMetadata> = {
-        import kafka.javaapi.MetadataListImplicits._;
-        underlying.topicsMetadata;
-        }
+    public TopicMetadataResponse(kafka.api.TopicMetadataResponse underlying) {
+        this.underlying = underlying;
+    }
 
-         @Overridepublic void equals(Object other) = canEqual(other) && {
-        val otherTopicMetadataResponse = other.asInstanceOf<kafka.javaapi.TopicMetadataResponse>
-        this.underlying.equals(otherTopicMetadataResponse.underlying);
-        }
+    public Integer sizeInBytes() {
+        return underlying.sizeInBytes();
+    }
 
-       public void canEqual(Object other) = other.isInstanceOf<kafka.javaapi.TopicMetadataResponse>
+    public List<kafka.javaapi.TopicMetadata> topicsMetadata() {
+        return Sc.map(underlying.topicsMetadata, t -> new TopicMetadata(t));
+    }
 
-         @Overridepublic void hashCode = underlying.hashCode
+    @Override
+    public boolean equals(Object other) {
+        return canEqual(other) && this.underlying.equals(((kafka.javaapi.TopicMetadataResponse) other).underlying);
+    }
 
-         @Overridepublic void toString = underlying.toString
-        }
+    public boolean canEqual(Object other) {
+        return other instanceof kafka.javaapi.TopicMetadataResponse;
+    }
+
+    @Override
+    public int hashCode() {
+        return underlying.hashCode();
+    }
+
+    @Override
+    public String toString() {
+        return underlying.toString();
+    }
+}
