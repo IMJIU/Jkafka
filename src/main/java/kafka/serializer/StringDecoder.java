@@ -9,8 +9,10 @@ import java.io.UnsupportedEncodingException;
  * an optional property serializer.encoding to control this.
  */
 public class StringDecoder implements Decoder<String> {
-    VerifiableProperties props = null;
-
+    public VerifiableProperties props = null;
+    public StringDecoder() {
+        this(null);
+    }
     public StringDecoder(VerifiableProperties props) {
         this.props = props;
         if (props == null)

@@ -1,39 +1,53 @@
 package kafka.javaapi;
 
+import kafka.cluster.Broker;
+
+import java.nio.ByteBuffer;
+
 /**
  * @author zhoulf
  * @create 2017-12-19 15 20
  **/
 
 public class ConsumerMetadataResponse {
-    private  kafka.api.ConsumerMetadataResponse underlying;
+    private kafka.api.ConsumerMetadataResponse underlying;
 
     public ConsumerMetadataResponse(kafka.api.ConsumerMetadataResponse underlying) {
         this.underlying = underlying;
     }
 
-    public Short errorCode (){
-           return underlying.errorCode;
-        }
+    public Short errorCode() {
+        return underlying.errorCode;
+    }
 
-       public void Broker coordinator = {
-        import kafka.javaapi.Implicits._;
-        underlying.coordinatorOpt;
-        }
+    public Broker coordinator() {
+        return underlying.coordinatorOpt.get();
+    }
 
-         @Overridepublic void equals(Object other) = canEqual(other) && {
-        val otherConsumerMetadataResponse = other.asInstanceOf<kafka.javaapi.ConsumerMetadataResponse>
-        this.underlying.equals(otherConsumerMetadataResponse.underlying);
-        }
+    public ConsumerMetadataResponse readFrom(ByteBuffer buffer) {
+        return new ConsumerMetadataResponse(kafka.api.ConsumerMetadataResponse.readFrom(buffer));
+    }
 
-       public void canEqual(Object other) = other.isInstanceOf<kafka.javaapi.ConsumerMetadataResponse>
+    @Override
+    public boolean equals(Object other) {
+        return canEqual(other) &&
+                this.underlying.equals(((kafka.javaapi.ConsumerMetadataResponse) other).underlying);
+    }
 
-         @Overridepublic void hashCode = underlying.hashCode
+    public boolean canEqual(Object other) {
+        return other instanceof kafka.javaapi.ConsumerMetadataResponse;
 
-         @Overridepublic void toString = underlying.toString
+    }
 
-        }
+    @Override
+    public int hashCode() {
+        return underlying.hashCode();
+    }
 
-        object ConsumerMetadataResponse {
-       public void readFrom(ByteBuffer buffer) = new ConsumerMetadataResponse(kafka.api.ConsumerMetadataResponse.readFrom(buffer));
-        }
+    @Override
+    public String toString() {
+        return underlying.toString();
+    }
+
+}
+

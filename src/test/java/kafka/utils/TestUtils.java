@@ -6,6 +6,8 @@ import kafka.api.*;
 import kafka.cluster.Partition;
 import kafka.cluster.Replica;
 import kafka.common.Topic;
+import kafka.consumer.ConsumerIterator;
+import kafka.consumer.KafkaStream;
 import kafka.func.Action;
 import kafka.func.Fun;
 import kafka.func.IntCount;
@@ -364,17 +366,19 @@ public class TestUtils {
         return bytes;
     }
 //
-//    /**
-//     * Generate a random string of letters and digits of the given length
-//     * @param len The length of the string
-//     * @return The random string
-//     */
-//    public void  randomString Integer len): String = {
-//        val b = new StringBuilder();
-//        for(i <- 0 until len)
-//        b.append(LettersAndDigits.charAt(seededRandom.nextInt(LettersAndDigits.length)));
-//        b.toString;
-//    }
+
+    /**
+     * Generate a random string of letters and digits of the given length
+     *
+     * @param len The length of the string
+     * @return The random string
+     */
+    public static String randomString(Integer len) {
+        StringBuilder b = new StringBuilder();
+        for (int i = 0; i < len; i++)
+            b.append(LettersAndDigits.charAt(seededRandom.nextInt(LettersAndDigits.length())));
+        return b.toString();
+    }
 //
 //    /**
 //     * Check that the buffer content from buffer.position() to buffer.limit() is equal
@@ -600,38 +604,55 @@ public class TestUtils {
      */
     public ProducerRequest produceRequest(String topic,
                                           Integer partition,
+                                          ByteBufferMessageSet message) {
+        return produceRequest(topic, partition, message,
+                SyncProducerConfig.DefaultRequiredAcks.intValue(),
+                SyncProducerConfig.DefaultAckTimeoutMs, 0,
+                SyncProducerConfig.DefaultClientId);
+    }
+
+    public ProducerRequest produceRequest(String topic,
+                                          Integer partition,
                                           ByteBufferMessageSet message,
-                                          Integer acks=SyncProducerConfig.DefaultRequiredAcks,
-                                          Integer timeout=SyncProducerConfig.DefaultAckTimeoutMs,
-                                          Integer correlationId=0,
-                                          String clientId=SyncProducerConfig.DefaultClientId) {
-        produceRequestWithAcks(Seq(topic), Seq(partition), message, acks, timeout, correlationId, clientId);
+                                          Integer acks,
+                                          Integer timeout,
+                                          Integer correlationId,
+                                          String clientId) {
+        return produceRequestWithAcks(Lists.newArrayList(topic), Lists.newArrayList(partition), message, acks, timeout, correlationId, clientId);
     }
 
-    //
-    public ProducerRequest produceRequestWithAcks(List<String> topics, List<Integer> partitions,
+    public ProducerRequest produceRequestWithAcks(List<String> topics, List<Integer> partitions, ByteBufferMessageSet message) {
+        return produceRequestWithAcks(topics, partitions, message,
+                SyncProducerConfig.DefaultRequiredAcks.intValue(),
+                SyncProducerConfig.DefaultAckTimeoutMs,
+                0, SyncProducerConfig.DefaultClientId);
+    }
+
+    public ProducerRequest produceRequestWithAcks(List<String> topics,
+                                                  List<Integer> partitions,
                                                   ByteBufferMessageSet message,
-                                                  Integer acks=SyncProducerConfig.DefaultRequiredAcks,
-                                                  Integer timeout=SyncProducerConfig.DefaultAckTimeoutMs,
-                                                  Integer correlationId=0,
-                                                  String clientId=SyncProducerConfig.DefaultClientId) {
-        List<Tuple<TopicAndPartition,ByteBufferMessageSet>> list = Sc.flatMap(topics, topic ->
-                Sc.map(partitions, partition -> Tuple.of(new TopicAndPartition(topic, partition),message).stream())
-        );
-        Map<TopicAndPartition,ByteBufferMessageSet> data = Sc.toMap(list);
-        return new ProducerRequest(correlationId, clientId, acks, timeout, data);
+                                                  Integer acks,
+                                                  Integer timeout,
+                                                  Integer correlationId,
+                                                  String clientId) {
+        List<Tuple<TopicAndPartition, ByteBufferMessageSet>> list = Lists.newArrayList();
+        for (String topic : topics) {
+            list.addAll(Sc.map(partitions, partition -> Tuple.of(new TopicAndPartition(topic, partition), message)));
+        }
+        Map<TopicAndPartition, ByteBufferMessageSet> data = Sc.toMap(list);
+        return new ProducerRequest(correlationId, clientId, acks.shortValue(), timeout, data);
     }
 
-    public void  makeLeaderForPartition(ZkClient zkClient, String topic,
-                                        Map<Integer, Integer> leaderPerPartitionMap,
-                               Integer controllerEpoch) {
-        leaderPerPartitionMap.forEach((partition,leader) -> {
-            try{
+    public void makeLeaderForPartition(ZkClient zkClient, String topic,
+                                       Map<Integer, Integer> leaderPerPartitionMap,
+                                       Integer controllerEpoch) {
+        leaderPerPartitionMap.forEach((partition, leader) -> {
+            try {
                 Optional<LeaderAndIsr> currentLeaderAndIsrOpt = ZkUtils.getLeaderAndIsrForPartition(zkClient, topic, partition);
-                 LeaderAndIsr newLeaderAndIsr = null;
-                if(!currentLeaderAndIsrOpt.isPresent())
+                LeaderAndIsr newLeaderAndIsr = null;
+                if (!currentLeaderAndIsrOpt.isPresent())
                     newLeaderAndIsr = new LeaderAndIsr(leader, Lists.newArrayList(leader));
-                else{
+                else {
                     newLeaderAndIsr = currentLeaderAndIsrOpt.get();
                     newLeaderAndIsr.leader = leader;
                     newLeaderAndIsr.leaderEpoch += 1;
@@ -639,8 +660,8 @@ public class TestUtils {
                 }
                 ZkUtils.updatePersistentPath(zkClient, ZkUtils.getTopicPartitionLeaderAndIsrPath(topic, partition),
                         ZkUtils.leaderAndIsrZkData(newLeaderAndIsr, controllerEpoch));
-            } catch (Throwable oe){
-                log.error(String.format("Error while electing leader for partition <%s,%d>",topic, partition), oe);
+            } catch (Throwable oe) {
+                log.error(String.format("Error while electing leader for partition <%s,%d>", topic, partition), oe);
             }
         });
     }
@@ -761,20 +782,21 @@ public class TestUtils {
     }
 
     //
-    public Boolean  isLeaderLocalOnBroker(String topic, Integer partitionId, KafkaServer server){
+    public Boolean isLeaderLocalOnBroker(String topic, Integer partitionId, KafkaServer server) {
         Optional<Partition> partitionOpt = server.replicaManager.getPartition(topic, partitionId);
-        if(partitionOpt.isPresent()){
-                Optional<Replica> replicaOpt = partitionOpt.get().leaderReplicaIfLocal();
-            if(replicaOpt.isPresent()){
+        if (partitionOpt.isPresent()) {
+            Optional<Replica> replicaOpt = partitionOpt.get().leaderReplicaIfLocal();
+            if (replicaOpt.isPresent()) {
                 return true;
             }
             return false;
-        }else{
+        } else {
             return false;
         }
     }
-//
-    public ByteBuffer  createRequestByteBuffer(RequestOrResponse request){
+
+    //
+    public ByteBuffer createRequestByteBuffer(RequestOrResponse request) {
         ByteBuffer byteBuffer = ByteBuffer.allocate(request.sizeInBytes() + 2);
         byteBuffer.putShort(request.requestId.get());
         request.writeTo(byteBuffer);
@@ -919,43 +941,44 @@ public class TestUtils {
         return messages;
     }
 
-    //
-//    public void  getMessages Integer nMessagesPerThread,
-//                    Map topicMessageStreams[String, List<KafkaStream[String, String]]>): List<String> = {
-//        var List messages<String> = Nil;
-//        for ((topic, messageStreams) <- topicMessageStreams) {
-//            for (messageStream <- messageStreams) {
-//                val iterator = messageStream.iterator;
-//                for (i <- 0 until nMessagesPerThread) {
-//                    assertTrue(iterator.hasNext);
-//                    val message = iterator.next.message;
-//                    messages ::= message;
-//                    debug("received message: " + message);
-//                }
-//            }
-//        }
-//        messages.reverse;
-//    }
-//}
+
+    public static List<String> getMessages(Integer nMessagesPerThread, Map<String, List<KafkaStream<String, String>>> topicMessageStreams) {
+        List<String> messages = null;
+        topicMessageStreams.forEach((topic, messageStreams) -> {
+            for (KafkaStream<String, String> messageStream : messageStreams) {
+                ConsumerIterator<String, String> iterator = messageStream.iterator();
+                for (int i = 0; i < nMessagesPerThread; i++) {
+                    Assert.assertTrue(iterator.hasNext());
+                    String message = iterator.next().message();
+                    messages.add(message);
+                    log.debug("received message: " + message);
+                }
+            }
+        });
+        Collections.reverse(messages);
+        return messages;
+    }
+}
+
 //
 //    object TestZKUtils {
 //        val zookeeperConnect = "127.0.0.1:" + TestUtils.choosePort();
 //        }
 //
-    class IntEncoder implements Encoder<Integer> {
-        public VerifiableProperties props = null;
+class IntEncoder implements Encoder<Integer> {
+    public VerifiableProperties props = null;
 
-        public IntEncoder(VerifiableProperties props) {
-            this.props = props;
-        }
-
-        public byte[] toBytes(Integer n) {
-            return n.toString().getBytes();
-        }
-
+    public IntEncoder(VerifiableProperties props) {
+        this.props = props;
     }
 
-    //
+    public byte[] toBytes(Integer n) {
+        return n.toString().getBytes();
+    }
+
+}
+
+//
 //class StaticPartitioner(VerifiableProperties props = null) extends Partitioner{
 //        public void  partition(Any data, Integer numPartitions): Integer = {
 //        (data.asInstanceOf<String>.length % numPartitions);
@@ -968,16 +991,15 @@ public class TestUtils {
 //        }
 //        }
 //
-    class FixedValuePartitioner implements Partitioner {
-        public VerifiableProperties props = null;
+class FixedValuePartitioner implements Partitioner {
+    public VerifiableProperties props = null;
 
-        public FixedValuePartitioner(VerifiableProperties props) {
-            this.props = props;
-        }
+    public FixedValuePartitioner(VerifiableProperties props) {
+        this.props = props;
+    }
 
-        @Override
-        public Integer partition(Object data, Integer numPartitions) {
-            return (Integer) data;
-        }
+    @Override
+    public Integer partition(Object data, Integer numPartitions) {
+        return (Integer) data;
     }
 }
