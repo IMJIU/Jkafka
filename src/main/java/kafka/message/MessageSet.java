@@ -116,9 +116,7 @@ public abstract class MessageSet extends Logging implements Iterable<MessageAndO
     }
 
     public List<Message> toMessageList() {
-        List<Message> result = Lists.newLinkedList();
-        Sc.loop(iterator(), m -> result.add(m.message));
-        return result;
+        return Sc.map(iterator(), m -> m.message);
     }
 
     public MessageAndOffset head() {
@@ -148,8 +146,8 @@ public abstract class MessageSet extends Logging implements Iterable<MessageAndO
         return Optional.of(last);
     }
 
-    public void printAll(){
-        Sc.loop(iterator(),m-> System.out.println(m));
+    public void printAll() {
+        Sc.loop(iterator(), m -> System.out.println(m));
         System.out.println("=====================================");
     }
 }

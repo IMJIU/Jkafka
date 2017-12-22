@@ -5,6 +5,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import kafka.func.*;
 import org.apache.commons.collections.map.HashedMap;
+
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -176,11 +177,14 @@ public class Sc {
         return Optional.empty();
     }
 
-    public static <V, RESULT> List<RESULT> map(Iterable<V> it, Handler<V, RESULT> handler) {
-        List<RESULT> list = Lists.newArrayList();
-        Iterator<V> itor = it.iterator();
-        while (itor.hasNext()) {
-            list.add(handler.handle(itor.next()));
+    public static <V, V2> List<V2> map(Iterable<V> it, Handler<V, V2> handler) {
+        return map(it.iterator(), handler);
+    }
+
+    public static <V, V2> List<V2> map(Iterator<V> it, Handler<V, V2> handler) {
+        List<V2> list = Lists.newArrayList();
+        while (it.hasNext()) {
+            list.add(handler.handle(it.next()));
         }
         return list;
     }

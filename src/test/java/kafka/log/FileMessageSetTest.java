@@ -35,7 +35,7 @@ public class FileMessageSetTest extends BaseMessageSetTest {
 
     /**
      * Test that the cached size variable matches the actual file size as we append messages
-     * 增加一条记录，channel实际长度与site是否相等
+     * 增加一条记录，channel实际长度与size是否相等
      */
     @Test
     public void testFileSize() throws IOException {
@@ -59,7 +59,7 @@ public class FileMessageSetTest extends BaseMessageSetTest {
         testPartialWrite(6, messageSet);
     }
 
-    public void testPartialWrite(Integer size, FileMessageSet messageSet) throws IOException {
+    private void testPartialWrite(Integer size, FileMessageSet messageSet) throws IOException {
         ByteBuffer buffer = ByteBuffer.allocate(size);
         for (int i = 0; i < size; i++)
             buffer.put((byte) 0);

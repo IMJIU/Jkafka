@@ -1,5 +1,6 @@
 package kafka.log;
 
+import kafka.annotation.nonthreadsafe;
 import kafka.common.KafkaException;
 import kafka.message.*;
 import kafka.metrics.KafkaMetricsGroup;
@@ -21,7 +22,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * An on-disk message set. An optional start and end position can be applied to the message set
  * which will allow slicing a subset of the file.
  */
-//@nonthreadsafe
+@nonthreadsafe
 public class FileMessageSet extends MessageSet {
     public volatile File file;
     public FileChannel channel;
