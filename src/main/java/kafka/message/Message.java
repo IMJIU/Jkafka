@@ -24,7 +24,7 @@ public class Message {
     public static final int KeyOffset = KeySizeOffset + KeySizeLength;
 
     public static final int MessageOverhead = KeyOffset + ValueSizeLength;
-    public static final int MinHeaderSize = CrcLength + MagicLength + AttributesLength + KeySizeLength + ValueSizeLength;
+    public static final int MinHeaderSize = CrcLength + MagicLength + AttributesLength + KeySizeLength + ValueSizeLength;//14
     public static final byte CurrentMagicValue = 0;
 
     public static final int CompressionCodeMask = 0x07;//0111

@@ -19,6 +19,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public class FileMessageSetTest extends BaseMessageSetTest {
 
     FileMessageSet messageSet = createMessageSet(messages);
+
     //"abcd" "efgh" "ijkl"
     public FileMessageSet createMessageSet(List<Message> messages) {
         try {
@@ -51,7 +52,7 @@ public class FileMessageSetTest extends BaseMessageSetTest {
      * 增加无效字符  是否影响迭代器
      */
     @Test
-    public void testIterationOverPartialAndTruncation() throws IOException  {
+    public void testIterationOverPartialAndTruncation() throws IOException {
         testPartialWrite(0, messageSet);
         testPartialWrite(2, messageSet);
         testPartialWrite(4, messageSet);
@@ -93,11 +94,11 @@ public class FileMessageSetTest extends BaseMessageSetTest {
 
         //读取第二个和之后所有元素
         read = messageSet.read(MessageSet.entrySize(sec.message), messageSet.sizeInBytes());
-        TestUtils.assertEquals("Try a read starting from the second message",items.subList(1,items.size()).iterator(), read.iterator());
+        TestUtils.assertEquals("Try a read starting from the second message", items.subList(1, items.size()).iterator(), read.iterator());
 
         //读取第二个
         read = messageSet.read(MessageSet.entrySize(sec.message), MessageSet.entrySize(sec.message));
-        TestUtils.assertEquals("Try a read of a single message starting from the second message", items.subList(1,2).iterator(), read.iterator());
+        TestUtils.assertEquals("Try a read of a single message starting from the second message", items.subList(1, 2).iterator(), read.iterator());
     }
 
     /**
@@ -112,7 +113,7 @@ public class FileMessageSetTest extends BaseMessageSetTest {
         int position = 0;
         //offset >= targetOffset 直接返回offset
         Assert.assertEquals("Should be able to find the first message by its offset",
-                new OffsetPosition(0L, position),messageSet.searchFor(0L, 0));
+                new OffsetPosition(0L, position), messageSet.searchFor(0L, 0));
         position += MessageSet.entrySize(messageSet.head().message);
 
         Assert.assertEquals("Should be able to find second message when starting from 0",
@@ -153,11 +154,7 @@ public class FileMessageSetTest extends BaseMessageSetTest {
     public void testTruncate() {
         MessageAndOffset message = messageSet.head();
         Integer end = messageSet.searchFor(1L, 0).position;
-        try {
-            messageSet.truncateTo(end);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        messageSet.truncateTo(end);
         Assert.assertEquals(Lists.newArrayList(message.message), messageSet.toMessageList());
         Assert.assertEquals(MessageSet.entrySize(message.message), messageSet.sizeInBytes());
     }

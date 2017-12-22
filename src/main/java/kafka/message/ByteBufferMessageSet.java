@@ -64,7 +64,7 @@ public class ByteBufferMessageSet extends MessageSet {
                 try {
                     output.close();
                 } catch (IOException e) {
-                    logger.error(e.getMessage(),e);
+                    logger.error(e.getMessage(), e);
                 }
             }
             byte[] bytes = byteArrayStream.toByteArray();
@@ -80,23 +80,28 @@ public class ByteBufferMessageSet extends MessageSet {
         return _create0(offsetCounter, compressionCodec, Lists.newArrayList(messages));
     }
 
-    public static ByteBufferMessageSet decompress(Message message) throws IOException {
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        InputStream inputStream = new ByteBufferBackedInputStream(message.payload());
-        byte[] intermediateBuffer = new byte[1024];
-        InputStream compressed = CompressionFactory.inputStream(message.compressionCodec(), inputStream);
+    public static ByteBufferMessageSet decompress(Message message) {
         try {
-            int len;
-            while ((len = compressed.read(intermediateBuffer)) > 0) {
-                outputStream.write(intermediateBuffer, 0, len);
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            InputStream inputStream = new ByteBufferBackedInputStream(message.payload());
+            byte[] intermediateBuffer = new byte[1024];
+            InputStream compressed = CompressionFactory.inputStream(message.compressionCodec(), inputStream);
+            try {
+                int len;
+                while ((len = compressed.read(intermediateBuffer)) > 0) {
+                    outputStream.write(intermediateBuffer, 0, len);
+                }
+            } finally {
+                compressed.close();
             }
-        } finally {
-            compressed.close();
+            ByteBuffer outputBuffer = ByteBuffer.allocate(outputStream.size());
+            outputBuffer.put(outputStream.toByteArray());
+            outputBuffer.rewind();
+            return new ByteBufferMessageSet(outputBuffer);
+        } catch (Throwable e) {
+            throw new RuntimeException(e);
         }
-        ByteBuffer outputBuffer = ByteBuffer.allocate(outputStream.size());
-        outputBuffer.put(outputStream.toByteArray());
-        outputBuffer.rewind();
-        return new ByteBufferMessageSet(outputBuffer);
+
     }
 
     public static void writeMessage(ByteBuffer buffer, Message message, Long offset) {
@@ -162,7 +167,7 @@ public class ByteBufferMessageSet extends MessageSet {
      * ！！！！！！BufferOffset  offset没有用！！！！！！！！！！！！！！！！
      */
     @Override
-    public Integer writeTo(GatheringByteChannel channel, Long offset, Integer maxSize) throws IOException {
+    public Integer writeTo(GatheringByteChannel channel, Long offset, Integer maxSize) {
         // Ignore offset and size from input. We just want to write the whole buffer to the channel.
         buffer.mark();
         int written = 0;
@@ -172,7 +177,7 @@ public class ByteBufferMessageSet extends MessageSet {
             }
             buffer.reset();
         } catch (IOException e) {
-            logger.error(e.getMessage(),e);
+            throw new RuntimeException(e);
         }
         return written;
     }
@@ -245,11 +250,7 @@ public class ByteBufferMessageSet extends MessageSet {
                             innerIterator = null;
                             return new MessageAndOffset(newMessage, offset);
                         default:
-                            try {
-                                innerIterator = ByteBufferMessageSet.decompress(newMessage).internalIterator(false);
-                            } catch (IOException e) {
-                                error(e.getMessage(), e);
-                            }
+                            innerIterator = ByteBufferMessageSet.decompress(newMessage).internalIterator(false);
                             if (!innerIterator.hasNext())
                                 innerIterator = null;
                             return makeNext();

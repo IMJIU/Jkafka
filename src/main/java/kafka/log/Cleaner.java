@@ -157,8 +157,6 @@ public class Cleaner extends Logging {
         } catch (LogCleaningAbortedException e) {
             cleaned.delete();
             throw e;
-        } catch (InterruptedException e) {
-            error(e.getMessage(), e);
         }
     }
 
@@ -174,7 +172,7 @@ public class Cleaner extends Logging {
      *                      Implement TODO proper compression support
      */
     void cleanInto(TopicAndPartition topicAndPartition, LogSegment source,
-                   LogSegment dest, OffsetMap map, Boolean retainDeletes) throws IOException, InterruptedException {
+                   LogSegment dest, OffsetMap map, Boolean retainDeletes) {
         Integer position = 0;
         while (position < source.log.sizeInBytes()) {
             checkDone.invoke(topicAndPartition);

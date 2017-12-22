@@ -61,7 +61,7 @@ public class FileMessageSet extends MessageSet {
                 channel.position(channel.size());
             }
         } catch (IOException e) {
-            error(e.getMessage(),e);
+            error(e.getMessage(), e);
         }
     }
 
@@ -150,10 +150,10 @@ public class FileMessageSet extends MessageSet {
 
                 position += MessageSet.LogOverhead + messageSize;
             }
+            return null;
         } catch (IOException e) {
-            error(e.getMessage(), e);
+            throw new RuntimeException(e);
         }
-        return null;
     }
 
     /**
@@ -164,17 +164,20 @@ public class FileMessageSet extends MessageSet {
      * @param size          The maximum number of bytes to write
      * @return The number of bytes actually written.
      */
-    public Integer writeTo(GatheringByteChannel destChannel, Long writePosition, Integer size) throws IOException {
-        // Ensure that the underlying size has not changed.
-        Integer newSize = Math.min((int) channel.size(), end) - start;
-        if (newSize < _size.get()) {
-            throw new KafkaException("Size of FileMessageSet %s has been truncated during write: old size %d, new size %d"
-                    .format(file.getAbsolutePath(), _size.get(), newSize));
+    public Integer writeTo(GatheringByteChannel destChannel, Long writePosition, Integer size) {
+        try {
+            // Ensure that the underlying size has not changed.
+            Integer newSize = Math.min((int) channel.size(), end) - start;
+            if (newSize < _size.get()) {
+                throw new KafkaException("Size of FileMessageSet %s has been truncated during write: old size %d, new size %d".format(file.getAbsolutePath(), _size.get(), newSize));
+            }
+            Integer bytesTransferred = (int) channel.transferTo(start + writePosition, Math.min(size, sizeInBytes()), destChannel);
+            trace("FileMessageSet " + file.getAbsolutePath() + " : bytes transferred : " + bytesTransferred
+                    + " bytes requested for transfer : " + Math.min(size, sizeInBytes()));
+            return bytesTransferred;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
-        Integer bytesTransferred = (int) channel.transferTo(start + writePosition, Math.min(size, sizeInBytes()), destChannel);
-        trace("FileMessageSet " + file.getAbsolutePath() + " : bytes transferred : " + bytesTransferred
-                + " bytes requested for transfer : " + Math.min(size, sizeInBytes()));
-        return bytesTransferred;
     }
 
     /**
@@ -230,9 +233,8 @@ public class FileMessageSet extends MessageSet {
                     location += size + 12;
                     return new MessageAndOffset(new Message(buffer), offset);
                 } catch (IOException e) {
-                    error(e.getMessage(),e);
+                    throw new RuntimeException(e);
                 }
-                return null;
             }
         };
     }
@@ -248,27 +250,31 @@ public class FileMessageSet extends MessageSet {
      * Append these messages to the message set
      */
     public void append(ByteBufferMessageSet messages) {
-        try {
-            int written = messages.writeTo(channel, 0L, messages.sizeInBytes());
-            _size.getAndAdd(written);
-        } catch (IOException e) {
-            error(e.getMessage(),e);
-        }
+        int written = messages.writeTo(channel, 0L, messages.sizeInBytes());
+        _size.getAndAdd(written);
     }
 
     /**
      * Commit all written data to the physical disk
      */
-    public void flush() throws IOException {
-        channel.force(true);
+    public void flush()  {
+        try {
+            channel.force(true);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**
      * Close this message set
      */
-    public void close() throws IOException {
+    public void close(){
         flush();
-        channel.close();
+        try {
+            channel.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**
@@ -280,7 +286,7 @@ public class FileMessageSet extends MessageSet {
         try {
             channel.close();
         } catch (IOException e) {
-            error(e.getMessage(),e);
+            throw new RuntimeException(e);
         }
         return file.delete();
     }
@@ -292,14 +298,18 @@ public class FileMessageSet extends MessageSet {
      * @param targetSize The size to truncate to.
      * @return The number of bytes truncated off
      */
-    public Integer truncateTo(Integer targetSize) throws IOException {
+    public Integer truncateTo(Integer targetSize) {
         Integer originalSize = sizeInBytes();
         if (targetSize > originalSize || targetSize < 0) {
             throw new KafkaException("Attempt to truncate log segment to " + targetSize + " bytes failed, " +
                     " size of this log segment is " + originalSize + " bytes.");
         }
-        channel.truncate(targetSize);
-        channel.position(targetSize);
+        try {
+            channel.truncate(targetSize);
+            channel.position(targetSize);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
         _size.set(targetSize);
         return originalSize - targetSize;
     }
@@ -307,8 +317,12 @@ public class FileMessageSet extends MessageSet {
     /**
      * Read from the underlying file into the buffer starting at the given position
      */
-    public ByteBuffer readInto(ByteBuffer buffer, Integer relativePosition) throws IOException {
-        channel.read(buffer, relativePosition + this.start);
+    public ByteBuffer readInto(ByteBuffer buffer, Integer relativePosition) {
+        try {
+            channel.read(buffer, relativePosition + this.start);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
         buffer.flip();
         return buffer;
     }

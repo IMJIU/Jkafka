@@ -53,7 +53,7 @@ public class Throttler extends KafkaMetricsGroup {
     private Long periodStartNs;
     private Double observedSoFar = 0.0;
 
-    public void maybeThrottle(Double observed) throws InterruptedException {
+    public void maybeThrottle(Double observed) {
         meter.mark(observed.longValue());
         synchronized (lock) {
             observedSoFar += observed;
@@ -71,7 +71,11 @@ public class Throttler extends KafkaMetricsGroup {
                     long sleepTime = Math.round(observedSoFar / desiredRateMs - elapsedMs);
                     if (sleepTime > 0) {
                         trace(String.format("Natural rate is %f per second but desired rate is %f, sleeping for %d ms to compensate.", rateInSecs, desiredRatePerSec, sleepTime));
-                        time.sleep(sleepTime);
+                        try {
+                            time.sleep(sleepTime);
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
                     }
                 }
                 periodStartNs = now;

@@ -170,7 +170,7 @@ public class LogSegment extends Logging {
      * @return The number of bytes truncated from the log
      */
     @nonthreadsafe
-    public Integer recover(Integer maxMessageSize) throws IOException {
+    public Integer recover(Integer maxMessageSize) {
         index.truncate();
         index.resize(index.maxIndexSize);
         Integer validBytes = 0;
@@ -217,7 +217,7 @@ public class LogSegment extends Logging {
      */
     // truncateTo(offset)就是把end到offset的起始位置;
     @nonthreadsafe
-    public Integer truncateTo(Long offset) throws IOException {
+    public Integer truncateTo(Long offset) {
         OffsetPosition mapping = translateOffset(offset, 0);
         if (mapping == null)
             return 0;
@@ -256,12 +256,8 @@ public class LogSegment extends Logging {
     @threadsafe
     public void flush() {
         LogFlushStats.logFlushTimer.time(() -> {
-            try {
-                log.flush();
-                index.flush();
-            } catch (IOException e) {
-                error(e.getMessage(), e);
-            }
+            log.flush();
+            index.flush();
             return 0;
         });
     }
@@ -285,11 +281,7 @@ public class LogSegment extends Logging {
     public void close() {
         Utils.swallow(() -> index.close(), (e) -> log.debug(e.getMessage(), e));
         // TODO: 2017/3/30 close
-        try {
-            log.close();
-        } catch (IOException e) {
-            error(e.getMessage(), e);
-        }
+        log.close();
     }
 
     /**

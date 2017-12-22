@@ -3,6 +3,7 @@ package kafka.log;/**
  */
 
 import kafka.annotation.nonthreadsafe;
+import kafka.common.KafkaException;
 import kafka.utils.Logging;
 import kafka.utils.Prediction;
 import kafka.utils.Utils;
@@ -21,9 +22,9 @@ import java.util.Arrays;
 public interface OffsetMap {
     Integer slots();
 
-    void put(ByteBuffer key, Long offset) throws UnsupportedEncodingException;
+    void put(ByteBuffer key, Long offset);
 
-    Long get(ByteBuffer key) throws UnsupportedEncodingException;
+    Long get(ByteBuffer key);
 
     void clear();
 
@@ -118,30 +119,26 @@ class SkimpyOffsetMap extends Logging implements OffsetMap {
     public void put(ByteBuffer key, Long offset) {
         Prediction.require(entries < slots(), "Attempt to add a new entry to a full offset map.");
         lookups += 1;
-        try {
-            hashInto(key, hash1);
-            // probe until we find the first empty slot;
-            int attempt = 0;
-            Integer pos = positionOf(hash1, attempt);
-            while (!isEmpty(pos)) {
-                bytes.position(pos);
-                bytes.get(hash2);
-                if (Arrays.equals(hash1, hash2)) {
-                    // we found an existing entry, overwrite it and return (size does not change);
-                    bytes.putLong(offset);
-                    return;
-                }
-                attempt += 1;
-                pos = positionOf(hash1, attempt);
-            }
-            // found an empty slot, update it--size grows by 1;
+        hashInto(key, hash1);
+        // probe until we find the first empty slot;
+        int attempt = 0;
+        Integer pos = positionOf(hash1, attempt);
+        while (!isEmpty(pos)) {
             bytes.position(pos);
-            bytes.put(hash1);
-            bytes.putLong(offset);
-            entries += 1;
-        } catch (DigestException e) {
-            throw new RuntimeException(e);
+            bytes.get(hash2);
+            if (Arrays.equals(hash1, hash2)) {
+                // we found an existing entry, overwrite it and return (size does not change);
+                bytes.putLong(offset);
+                return;
+            }
+            attempt += 1;
+            pos = positionOf(hash1, attempt);
         }
+        // found an empty slot, update it--size grows by 1;
+        bytes.position(pos);
+        bytes.put(hash1);
+        bytes.putLong(offset);
+        entries += 1;
 
     }
 
@@ -161,24 +158,19 @@ class SkimpyOffsetMap extends Logging implements OffsetMap {
     @Override
     public Long get(ByteBuffer key) {
         lookups += 1;
-        try {
-            hashInto(key, hash1);
-            // search for the hash of this key by repeated probing until we find the hash we are looking for or we find an empty slot;
-            Integer attempt = 0;
-            Integer pos = 0;
-            do {
-                pos = positionOf(hash1, attempt);
-                bytes.position(pos);
-                if (isEmpty(pos))
-                    return -1L;
-                bytes.get(hash2);
-                attempt += 1;
-            } while (!Arrays.equals(hash1, hash2));
-           return bytes.getLong();
-        } catch (DigestException e) {
-            error(e.getMessage(), e);
-        }
-        return -1L;
+        hashInto(key, hash1);
+        // search for the hash of this key by repeated probing until we find the hash we are looking for or we find an empty slot;
+        Integer attempt = 0;
+        Integer pos = 0;
+        do {
+            pos = positionOf(hash1, attempt);
+            bytes.position(pos);
+            if (isEmpty(pos))
+                return -1L;
+            bytes.get(hash2);
+            attempt += 1;
+        } while (!Arrays.equals(hash1, hash2));
+        return bytes.getLong();
     }
 
     /**
@@ -230,11 +222,15 @@ class SkimpyOffsetMap extends Logging implements OffsetMap {
      * @param key    The key to hash
      * @param buffer The buffer to store the hash into
      */
-    private void hashInto(ByteBuffer key, byte[] buffer) throws DigestException {
+    private void hashInto(ByteBuffer key, byte[] buffer) {
         key.mark();
         digest.update(key);
         key.reset();
-        digest.digest(buffer, 0, hashSize);
+        try {
+            digest.digest(buffer, 0, hashSize);
+        } catch (DigestException e) {
+            throw new KafkaException(e);
+        }
     }
 
 }

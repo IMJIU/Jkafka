@@ -64,13 +64,7 @@ public class CleanerTest {
         // pretend we have the following keys;
         List<Integer> keys = Lists.newArrayList(1, 3, 5, 7, 9);
         FakeOffsetMap map = new FakeOffsetMap(Integer.MAX_VALUE);
-        keys.forEach(k -> {
-            try {
-                map.put(key(k), Long.MAX_VALUE);
-            } catch (UnsupportedEncodingException e) {
-                throw new RuntimeException(e);
-            }
-        });
+        keys.forEach(k -> map.put(key(k), Long.MAX_VALUE));
 
         // clean the log;
         cleaner.cleanSegments(log, Lists.newArrayList(log.logSegments()).subList(0, 3), map, 0L);
@@ -132,13 +126,7 @@ public class CleanerTest {
 
         List<Integer> keys = keysInLog(log);
         FakeOffsetMap map = new FakeOffsetMap(Integer.MAX_VALUE);
-        Lists.newArrayList(keys).forEach(k -> {
-            try {
-                map.put(key(k), Long.MAX_VALUE);
-            } catch (UnsupportedEncodingException e) {
-                throw new RuntimeException(e);
-            }
-        });
+        Lists.newArrayList(keys).forEach(k -> map.put(key(k), Long.MAX_VALUE));
         thrown.expect(LogCleaningAbortedException.class);
         cleaner.cleanSegments(log, Lists.newArrayList(log.logSegments()).subList(0, 3), map, 0L);
     }
@@ -287,8 +275,12 @@ public class CleanerTest {
             this.slots = slots;
         }
 
-        private String keyFor(ByteBuffer key) throws UnsupportedEncodingException {
-            return new String(Utils.readBytes(key.duplicate()), "UTF-8");
+        private String keyFor(ByteBuffer key) {
+            try {
+                return new String(Utils.readBytes(key.duplicate()), "UTF-8");
+            } catch (UnsupportedEncodingException e) {
+                throw new RuntimeException(e);
+            }
         }
 
         @Override
@@ -296,12 +288,12 @@ public class CleanerTest {
             return slots;
         }
 
-        public void put(ByteBuffer key, Long offset) throws UnsupportedEncodingException {
+        public void put(ByteBuffer key, Long offset)  {
             map.put(keyFor(key), offset);
         }
 
 
-        public Long get(ByteBuffer key) throws UnsupportedEncodingException {
+        public Long get(ByteBuffer key)  {
             String k = keyFor(key);
             if (map.containsKey(k))
                 return map.get(k);
