@@ -38,7 +38,6 @@ public interface OffsetMap {
 /**
  * An hash table used for deduplicating the log. This hash table uses a cryptographicly secure hash of the key as a proxy for the key
  * for comparisons and to save space on object overhead. Collisions are resolved by probing. This hash table does not support deletes.
- *
  */
 @nonthreadsafe
 class SkimpyOffsetMap extends Logging implements OffsetMap {
@@ -50,34 +49,41 @@ class SkimpyOffsetMap extends Logging implements OffsetMap {
         return SkimpyOffsetMap.class.getName();
     }
 
+
+    public SkimpyOffsetMap(Integer memory) {
+        this(memory, "MD5");
+    }
+
     /**
-     *
      * @param memory        The amount of memory this map can use
      * @param hashAlgorithm The hash algorithm instance to MD2 use, MD5, SHA-1, SHA-256, SHA-384, SHA-512
      */
     public SkimpyOffsetMap(Integer memory, String hashAlgorithm) {
         this.memory = memory;
         this.hashAlgorithm = hashAlgorithm;
-        if (hashAlgorithm == null)
-            hashAlgorithm = "MD5";
         try {
             digest = MessageDigest.getInstance(hashAlgorithm);
         } catch (NoSuchAlgorithmException e) {
-            error(e.getMessage(),e);
+            error(e.getMessage(), e);
         }
+        bytes = ByteBuffer.allocate(memory);
+        hashSize = digest.getDigestLength();
+        hash1 = new byte[hashSize];
+        hash2 = new byte[hashSize];
+        bytesPerEntry = hashSize + 8;
     }
 
-    private ByteBuffer bytes = ByteBuffer.allocate(memory);
+    private ByteBuffer bytes;
 
     /* the hash algorithm instance to use, defualt is MD5 */
     private MessageDigest digest;
 
     /* the number of bytes for this hash algorithm */
-    private Integer hashSize = digest.getDigestLength();
+    private Integer hashSize;
 
     /* create some hash buffers to avoid reallocating each time */
-    private byte[] hash1 = new byte[hashSize];
-    private byte[] hash2 = new byte[hashSize];
+    private byte[] hash1;
+    private byte[] hash2;
 
     /* number of entries put into the map */
     private Integer entries = 0;
@@ -91,13 +97,13 @@ class SkimpyOffsetMap extends Logging implements OffsetMap {
     /**
      * The number of bytes of space each entry uses (the number of bytes in the hash plus an 8 byte offset)
      */
-    public Integer bytesPerEntry = hashSize + 8;
+    public Integer bytesPerEntry;
 
     /**
      * The maximum number of entries this map can contain
      */
     @Override
-    public Integer slots(){
+    public Integer slots() {
         return (memory / bytesPerEntry);
     }
 
@@ -134,20 +140,21 @@ class SkimpyOffsetMap extends Logging implements OffsetMap {
             bytes.putLong(offset);
             entries += 1;
         } catch (DigestException e) {
-            error(e.getMessage(),e);
+            throw new RuntimeException(e);
         }
 
     }
 
-/**
- * Check that there is no entry at the given position
- */
-    private  Boolean isEmpty(Integer position){
-        return bytes.getLong(position)==0&&bytes.getLong(position +8)==0&&bytes.getLong(position +16)==0;
+    /**
+     * Check that there is no entry at the given position
+     */
+    private Boolean isEmpty(Integer position) {
+        return bytes.getLong(position) == 0 && bytes.getLong(position + 8) == 0 && bytes.getLong(position + 16) == 0;
     }
 
     /**
      * Get the offset associated with this key.
+     *
      * @param key The key
      * @return The offset associated with this key or -1 if the key is not found
      */
@@ -167,9 +174,9 @@ class SkimpyOffsetMap extends Logging implements OffsetMap {
                 bytes.get(hash2);
                 attempt += 1;
             } while (!Arrays.equals(hash1, hash2));
-            bytes.getLong();
+           return bytes.getLong();
         } catch (DigestException e) {
-            error(e.getMessage(),e);
+            error(e.getMessage(), e);
         }
         return -1L;
     }
@@ -189,15 +196,16 @@ class SkimpyOffsetMap extends Logging implements OffsetMap {
     /**
      * The number of entries put into the map (note that not all may remain)
      */
-    @Override public Integer  size(){
+    @Override
+    public Integer size() {
         return entries;
     }
 
     /**
      * The rate of collisions in the lookups
      */
-    public Double collisionRate(){
-        return (this.probes -this.lookups)/this.lookups.doubleValue();
+    public Double collisionRate() {
+        return (this.probes - this.lookups) / this.lookups.doubleValue();
     }
 
 
@@ -222,7 +230,7 @@ class SkimpyOffsetMap extends Logging implements OffsetMap {
      * @param key    The key to hash
      * @param buffer The buffer to store the hash into
      */
-    private  void hashInto(ByteBuffer key, byte[] buffer) throws DigestException {
+    private void hashInto(ByteBuffer key, byte[] buffer) throws DigestException {
         key.mark();
         digest.update(key);
         key.reset();

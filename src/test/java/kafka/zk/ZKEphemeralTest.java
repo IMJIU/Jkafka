@@ -6,6 +6,7 @@ import kafka.utils.ZKStringSerializer;
 import kafka.utils.ZkUtils;
 import org.I0Itec.zkclient.ZkClient;
 import org.junit.Assert;
+import org.junit.Test;
 
 /**
  * Created by Administrator on 2017/12/17.
@@ -13,6 +14,7 @@ import org.junit.Assert;
 public class ZKEphemeralTest extends ZooKeeperTestHarness {
     public static final int zkSessionTimeoutMs = 1000;
 
+    @Test
     public void testEphemeralNodeCleanup() {
         ConsumerConfig config = new ConsumerConfig(TestUtils.createConsumerProperties(zkConnect, "test", "1"));
         ZkClient zkClient = new ZkClient(zkConnect, zkSessionTimeoutMs, config.zkConnectionTimeoutMs,
