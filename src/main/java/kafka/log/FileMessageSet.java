@@ -151,7 +151,7 @@ public class FileMessageSet extends MessageSet {
                 position += MessageSet.LogOverhead + messageSize;
             }
         } catch (IOException e) {
-            error(e.getMessage(), e);
+           throw new RuntimeException(e);
         }
         return null;
     }
