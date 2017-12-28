@@ -175,10 +175,10 @@ public class LogSegment extends Logging {
         index.resize(index.maxIndexSize);
         Integer validBytes = 0;
         Integer lastIndexEntry = 0;
-        Iterator<MessageAndOffset> iter = log.iterator(maxMessageSize);
+        Iterator<MessageAndOffset> it = log.iterator(maxMessageSize);
         try {
-            while (iter.hasNext()) {
-                MessageAndOffset entry = iter.next();
+            while (it.hasNext()) {
+                MessageAndOffset entry = it.next();
                 entry.message.ensureValid();
                 if (validBytes - lastIndexEntry > indexIntervalBytes) {
                     // we need to decompress the message, if required, to get the offset of the first uncompressed message;
