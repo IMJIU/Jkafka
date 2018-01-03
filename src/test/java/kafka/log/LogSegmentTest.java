@@ -3,6 +3,7 @@ package kafka.log;
 import com.google.common.collect.Lists;
 import kafka.message.*;
 import kafka.server.FetchDataInfo;
+import kafka.utils.Sc;
 import kafka.utils.Time;
 import kafka.utils.TestUtils;
 import org.junit.After;
@@ -38,9 +39,7 @@ public class LogSegmentTest {
 
     /* create a ByteBufferMessageSet for the given messages starting from the given offset */
     public ByteBufferMessageSet messages(Long offset, List<String> messages) {
-        return new ByteBufferMessageSet(CompressionCodec.NoCompressionCodec,
-                new AtomicLong(offset),
-                messages.stream().map(s -> new Message(s.getBytes())).collect(Collectors.toList()));
+        return new ByteBufferMessageSet(CompressionCodec.NoCompressionCodec, new AtomicLong(offset), Sc.map(messages, s -> new Message(s.getBytes())));
     }
 
     @After

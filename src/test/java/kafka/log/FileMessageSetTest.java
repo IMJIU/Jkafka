@@ -139,11 +139,11 @@ public class FileMessageSetTest extends BaseMessageSetTest {
      */
     @Test
     public void testIteratorWithLimits() {
-        MessageAndOffset message = messageSet.tail().next();
+        MessageAndOffset second = messageSet.tail().next();
         Integer start = messageSet.searchFor(1L, 0).position;
-        Integer size = message.message.size();
+        Integer size = second.message.size();
         FileMessageSet slice = messageSet.read(start, size);
-        Assert.assertEquals(Lists.newArrayList(message.message), slice.toMessageList());
+        Assert.assertEquals(Lists.newArrayList(second.message), slice.toMessageList());
     }
 
     /**

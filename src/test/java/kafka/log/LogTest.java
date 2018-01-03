@@ -6,11 +6,8 @@ import kafka.common.MessageSizeTooLargeException;
 import kafka.common.OffsetOutOfRangeException;
 import kafka.message.*;
 import kafka.server.FetchDataInfo;
-import kafka.utils.Logging;
-import kafka.utils.TestUtils;
+import kafka.utils.*;
 import kafka.server.KafkaConfig;
-import kafka.utils.MockTime;
-import kafka.utils.Utils;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -65,6 +62,7 @@ public class LogTest {
 
     /**
      * Test that we can open and append to an empty log
+     * 往空日志里，增加一条msg
      */
     @Test
     public void testLoadEmptyLog() throws IOException {
@@ -78,7 +76,8 @@ public class LogTest {
      * Specifically we create a log where the last message in the first segment has offset 0. If we
      * then read offset 1, we should expect this read to come from the second segment, even though the
      * first segment has the greatest lower bound on the offset.
-     * 两个segement 对之前的segment进行truncate 不影响log read()
+     * 一直插入，直到roll成两个segement 。
+     * 对之前的segment进行truncate 不影响log read()
      */
     @Test
     public void testReadAtLogGap() throws IOException {
@@ -93,12 +92,13 @@ public class LogTest {
         // now manually truncate off all but one message from the first segment to create a gap in the messages;
         log.logSegments().stream().findFirst().get().truncateTo(1L);
         System.out.println(log.logEndOffset() - 1);
+        System.out.println(log.read(1L, 200, Optional.empty()).messageSet.head().offset);
         Assert.assertEquals("A read should now return the last message in the log", new Long(log.logEndOffset() - 1), log.read(1L, 200, Optional.empty()).messageSet.head().offset);
     }
 
     /**
      * 追加空信息
-     * 消息size-1
+     * 消息size为-1
      *
      * @throws IOException
      */
@@ -108,15 +108,15 @@ public class LogTest {
         byte[] b = null;
         log.append(new ByteBufferMessageSet(new Message(b)));
         MessageSet messageSet = log.read(0L, 4096, Optional.empty()).messageSet;
-        Assert.assertEquals(new Long(0), messageSet.head().offset);
-        Assert.assertTrue("Message payload should be null.", messageSet.head().message.isNull());
+        Assert.assertEquals(new Long(0), messageSet.head().offset);//第一条信息offset为0
+        Assert.assertTrue("Message payload should be null.", messageSet.head().message.isNull());//b本来就是null。content为null,size为-1
     }
 
     /**
      * Test reading at the boundary of the log, specifically
      * - reading from the logEndOffset should give an empty message set
      * - reading beyond the log end offset should throw an OffsetOutOfRangeException
-     * 读取边界值（初始1024offset)。
+     * 读取边界值（初始1024offset)。   if (startOffset > next || entry == null) 判断，然后抛异常
      * 在segment内，但正好等于初始1024offset返回空消息
      * 小于初始1024offset 报异常
      * 大于最大nextOffset 报异常

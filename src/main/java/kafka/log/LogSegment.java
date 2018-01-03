@@ -279,9 +279,8 @@ public class LogSegment extends Logging {
      * Close this log segment
      */
     public void close() {
-        Utils.swallow(() -> index.close(), (e) -> log.debug(e.getMessage(), e));
-        // TODO: 2017/3/30 close
-        log.close();
+        Utils.swallow(() -> index.close());
+        Utils.swallow(() -> log.close());
     }
 
     /**

@@ -271,7 +271,7 @@ public class ByteBufferMessageSet extends MessageSet {
             buffer.mark();
             while (position < sizeInBytes() - MessageSet.LogOverhead) {
                 buffer.position(position);
-                buffer.putLong(offsetCounter.getAndIncrement());
+                buffer.putLong(offsetCounter.getAndIncrement());//offset
                 position += MessageSet.LogOverhead + buffer.getInt();
             }
             buffer.reset();

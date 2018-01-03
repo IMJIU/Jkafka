@@ -48,6 +48,7 @@ public class OffsetIndex extends Logging {
     public volatile File file;
     public Long baseOffset;
     public Integer maxIndexSize = -1;
+    public static final int NOT_FIND = -1;
 
     ////////////////////////////////////////////////////////////////
     private ReentrantLock lock = new ReentrantLock();
@@ -82,7 +83,7 @@ public class OffsetIndex extends Logging {
             if (newlyCreated) {
                 if (maxIndexSize < 8)
                     throw new IllegalArgumentException("Invalid max index size: " + maxIndexSize);
-                raf.setLength(roundToExactMultiple(maxIndexSize, 8));
+                raf.setLength(roundToExactMultiple(maxIndexSize, 8));//8的倍数
             }
          /* memory-map the file */
             long len = raf.length();
@@ -102,8 +103,8 @@ public class OffsetIndex extends Logging {
         size = new AtomicInteger(mmap.position() / 8);
         maxEntries = mmap.limit() / 8;
         lastOffset = readLastEntry().offset;
-        debug("Loaded index file %s with maxEntries = %d, maxIndexSize = %d, entries = %d, lastOffset = %d, file position = %d"
-                .format(file.getAbsolutePath(), maxEntries, maxIndexSize, entries(), lastOffset, mmap.position()));
+        debug(String.format("Loaded index file %s with maxEntries = %d, maxIndexSize = %d, entries = %d, lastOffset = %d, file position = %d new=%s",
+                file.getAbsolutePath(), maxEntries, maxIndexSize, entries(), lastOffset, mmap.position(), newlyCreated));
     }
 
     /**
@@ -132,7 +133,7 @@ public class OffsetIndex extends Logging {
         return maybeLock(lock, () -> {
             ByteBuffer idx = mmap.duplicate();
             int slot = indexSlotFor(idx, targetOffset);
-            if (slot == -1) {
+            if (slot == NOT_FIND) {
                 return new OffsetPosition(baseOffset, 0);
             } else {
                 return new OffsetPosition(baseOffset + relativeOffset(idx, slot), physical(idx, slot));
@@ -154,26 +155,26 @@ public class OffsetIndex extends Logging {
 
         // check if the index is empty
         if (entries() == 0)
-            return -1;
+            return NOT_FIND;
 
         // check if the target offset is smaller than the least offset
         if (relativeOffset(idx, 0) > relOffset)
-            return -1;
+            return NOT_FIND;
 
         // binary search for the entry  若比最大的大  也是返回最大的下标，不会找不到
-        int lo = 0;
-        int hi = entries() - 1;
-        while (lo < hi) {
-            int mid = (int) Math.ceil(hi / 2.0 + lo / 2.0);
+        int low = 0;
+        int high = entries() - 1;
+        while (low < high) {
+            int mid = (int) Math.ceil(high / 2.0 + low / 2.0);
             int found = relativeOffset(idx, mid);
             if (found == relOffset)
                 return mid;
             else if (found < relOffset)
-                lo = mid;
+                low = mid;
             else
-                hi = mid - 1;
+                high = mid - 1;
         }
-        return lo;
+        return low;
     }
 
     /* return the nth offset relative to the base offset */
@@ -195,7 +196,7 @@ public class OffsetIndex extends Logging {
     public OffsetPosition entry(Integer n) {
         return maybeLock(lock, () -> {
             if (n >= entries())
-                throw new IllegalArgumentException("Attempt to fetch the %dth entry from an index of size %d.".format(n.toString(), entries()));
+                throw new IllegalArgumentException(String.format("Attempt to fetch the %dth entry from an index of size %d.", n.toString(), entries()));
             ByteBuffer idx = mmap.duplicate();
             return new OffsetPosition(relativeOffset(idx, n).longValue(), physical(idx, n));
         });
@@ -208,15 +209,15 @@ public class OffsetIndex extends Logging {
         Utils.inLock(lock, () -> {
             Prediction.require(!isFull(), "Attempt to append to a full index (size = " + size + ").");
             if (size.get() == 0 || offset > lastOffset) {
-                debug("Adding index entry %d => %d to %s.".format(offset.toString(), position.toString(), file.getName()));
-                this.mmap.putInt((int) (offset - baseOffset));
+                debug(String.format("Adding index entry %d => %d to %s.", offset, position, file.getName()));
+                this.mmap.putInt((int) (offset - baseOffset));//用相对位置，才保证只用4个byte的int
                 this.mmap.putInt(position);
                 this.size.incrementAndGet();
                 this.lastOffset = offset;
                 Prediction.require(entries() * 8 == mmap.position(), entries() + " entries but file position in index is " + mmap.position() + ".");
             } else {
-                throw new InvalidOffsetException("Attempt to append an offset (%d) to position %d no larger than the last offset appended (%d) to %s."
-                        .format(offset.toString(), entries().toString(), lastOffset, file.getAbsolutePath()));
+                throw new InvalidOffsetException(String.format("Attempt to append an offset (%d) to position %d no larger than the last offset appended (%d) to %s.",
+                        offset.toString(), entries().toString(), lastOffset, file.getAbsolutePath()));
             }
         });
     }
@@ -250,7 +251,7 @@ public class OffsetIndex extends Logging {
        * 3) if there is no entry for this offset, delete everything larger than the next smallest
        */
             int newEntries;
-            if (slot < 0) {//not find smaller
+            if (slot == NOT_FIND) {//not find smaller
                 newEntries = 0;
             } else if (relativeOffset(idx, slot) == (offset - baseOffset)) {//find
                 newEntries = slot;
@@ -314,7 +315,7 @@ public class OffsetIndex extends Logging {
                     }
                 }
             } catch (FileNotFoundException e) {
-                error(e.getMessage(), e);
+               throw new RuntimeException(e);
             }
         });
     }
@@ -385,12 +386,9 @@ public class OffsetIndex extends Logging {
      */
     public void sanityCheck() {
         Prediction.require(entries() == 0 || lastOffset > baseOffset,
-                "Corrupt index found, index file (%s) has non-zero size but the last offset is %d and the base offset is %d"
-                        .format(file.getAbsolutePath(), lastOffset, baseOffset));
+                String.format("Corrupt index found, index file (%s) has non-zero size but the last offset is %d and the base offset is %d", file.getAbsolutePath(), lastOffset, baseOffset));
         Long len = file.length();
-        Prediction.require(len % 8 == 0,
-                "Index file " + file.getName() + " is corrupt, found " + len +
-                        " bytes which is not positive or not a multiple of 8.");
+        Prediction.require(len % 8 == 0, "Index file " + file.getName() + " is corrupt, found " + len + " bytes which is not positive or not a multiple of 8.");
     }
 
     /**

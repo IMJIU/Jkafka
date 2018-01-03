@@ -143,6 +143,9 @@ public abstract class MessageSet extends Logging implements Iterable<MessageAndO
         while (it.hasNext()) {
             last = it.next();
         }
+        if (last == null) {
+            return Optional.empty();
+        }
         return Optional.of(last);
     }
 

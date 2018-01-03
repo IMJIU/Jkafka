@@ -203,7 +203,6 @@ public class Log extends KafkaMetricsGroup {
                 // we had an invalid message, delete all remaining log;
                 warn(String.format("Corruption found in segment %d of log %s, truncating to offset %d.", curr.baseOffset, name, curr.nextOffset()));
                 unflushed.forEachRemaining(s -> deleteSegment(s));
-                unflushed.forEachRemaining(s -> deleteSegment(s));
             }
         }
     }
@@ -256,7 +255,7 @@ public class Log extends KafkaMetricsGroup {
      * 7.刷新间隔offset
      */
     public LogAppendInfo append(ByteBufferMessageSet messages, boolean assignOffsets) {
-        LogAppendInfo appendInfo = analyzeAndValidateMessageSet(messages);//生成LogAppendInfo;
+        LogAppendInfo appendInfo = analyzeAndValidateMessageSet(messages);//生成LogAppendInfo; firstOffset, lastOffset, codec, shallowMessageCount, validBytesCount, monotonic
 
         // if we have any valid messages, append them to the log;
         if (appendInfo.shallowCount == 0)
@@ -346,7 +345,7 @@ public class Log extends KafkaMetricsGroup {
         Integer validBytesCount = 0;
         Long firstOffset = 0L, lastOffset = -1L;
         CompressionCodec codec = CompressionCodec.NoCompressionCodec;
-        boolean monotonic = true;//是否升序
+        boolean monotonic = true;//是否有序（升序）
 
         Iterator<MessageAndOffset> it = messages.shallowIterator();
         while (it.hasNext()) {

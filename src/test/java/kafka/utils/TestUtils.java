@@ -172,13 +172,9 @@ public class TestUtils {
                 socketList.add(new ServerSocket(0));
             }
             List<Integer> ports = Sc.map(socketList, s -> s.getLocalPort());
-            socketList.forEach(s -> {
-                try {
-                    s.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            });
+            for (ServerSocket s : socketList) {
+                s.close();
+            }
             return ports;
         } catch (Exception e) {
             throw new RuntimeException(e);

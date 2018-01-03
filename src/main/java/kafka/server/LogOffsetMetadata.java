@@ -14,9 +14,9 @@ public class LogOffsetMetadata {
     public Long segmentBaseOffset = LogOffsetMetadata.UnknownSegBaseOffset;
     public Integer relativePositionInSegment = LogOffsetMetadata.UnknownFilePosition;
 
-    public LogOffsetMetadata(Long messageOffset, Long segmentBaseOffset, Integer positionInSegment) {
+    public LogOffsetMetadata(Long messageOffset, Long baseOffset, Integer positionInSegment) {
         this.messageOffset = messageOffset;
-        this.segmentBaseOffset = segmentBaseOffset;
+        this.segmentBaseOffset = baseOffset;
         this.relativePositionInSegment = positionInSegment;
     }
 

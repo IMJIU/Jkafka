@@ -177,11 +177,15 @@ public class Utils {
     }
 
     public static void swallow(ActionWithThrow action) {
-        swallow(action, null);
+        swallowWarn(action);
     }
 
     public static void swallowError(ActionWithThrow action) {
         logger.swallowError(action);
+    }
+
+    public static void swallowWarn(ActionWithThrow action) {
+        logger.swallowWarn(action);
     }
 //
 

@@ -48,22 +48,21 @@ public class Message {
         buffer = ByteBuffer.allocate(Message.CrcLength +
                 Message.MagicLength +
                 Message.AttributesLength +
-                Message.KeySizeLength +
-                ((key == null) ? 0 : key.length) +
+                Message.KeySizeLength + ((key == null) ? 0 : key.length) +
                 Message.ValueSizeLength + _payloadSize);
         // skip crc, we will fill that in at the end
         buffer.position(MagicOffset);
-        buffer.put(CurrentMagicValue);
+        buffer.put(CurrentMagicValue);//magic
         byte attributes = 0;
         if (codec.codec > 0) {
             attributes = new Integer(attributes | (CompressionCodeMask & codec.codec)).byteValue();
         }
-        buffer.put(attributes);
+        buffer.put(attributes);//attributes
         if (key == null) {
-            buffer.putInt(-1);
+            buffer.putInt(-1);//key_size
         } else {
-            buffer.putInt(key.length);
-            buffer.put(key, 0, key.length);
+            buffer.putInt(key.length);//key_size
+            buffer.put(key, 0, key.length);//key_length
         }
         int writePayLoadSize;
         if (content == null) {
@@ -73,14 +72,14 @@ public class Message {
         } else {
             writePayLoadSize = content.length - payloadOffset;
         }
-        buffer.putInt(writePayLoadSize);
+        buffer.putInt(writePayLoadSize);//payLoad_size
         if (content != null) {
             buffer.put(content, payloadOffset, writePayLoadSize);
         }
         buffer.rewind();
 
         // now compute the checksum and fill it in
-        Utils.writeUnsignedInt(buffer, CrcOffset, computeChecksum());
+        Utils.writeUnsignedInt(buffer, CrcOffset, computeChecksum());//crc
     }
 
     public Message(byte[] bytes, byte[] key, CompressionCodec codec) {

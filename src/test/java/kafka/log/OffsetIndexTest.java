@@ -2,6 +2,7 @@ package kafka.log;
 
 import com.google.common.collect.Lists;
 import kafka.common.InvalidOffsetException;
+import kafka.utils.Sc;
 import kafka.utils.TestUtils;
 import org.junit.After;
 import org.junit.Assert;
@@ -44,8 +45,8 @@ public class OffsetIndexTest {
         // append some random values;
         Integer base = idx.baseOffset.intValue() + 1;
         Integer size = idx.maxEntries;
-        List<Long> vals = monotonicList(base, size).stream().map((n) -> (long) n).collect(Collectors.toList());
-        List<Integer> vals2 = (monotonicList(0, size));
+        List<Long> vals = Sc.map(monotonicList(base, size), n -> n.longValue());//顺序 随机数
+        List<Integer> vals2 = monotonicList(0, size);
         for (int i = 0; i < vals.size(); i++) {
             idx.append(vals.get(i), vals2.get(i));
         }
@@ -63,8 +64,8 @@ public class OffsetIndexTest {
             valMap.put(vals.get(i), new OffsetPosition(vals.get(i), vals2.get(i)));
         }
         //生成baseOffset 到 max的offsetList
-        List<Long> offsets = Stream.iterate(idx.baseOffset, n -> n + 1).limit(vals.get(vals.size() - 1)).collect(Collectors.toList());
-        long max = offsets.get(offsets.size()-1);
+        List<Long> offsets = Sc.itToList(idx.baseOffset.intValue(), vals.get(vals.size() - 1).intValue(), n -> (long) (n + 1));
+        long max = offsets.get(offsets.size() - 1);
         //打乱offsetList
         Collections.shuffle(offsets);
         //遍历，直到最大值（每次遍历次数不一样）
@@ -131,7 +132,7 @@ public class OffsetIndexTest {
         Assert.assertEquals(sec.offset, idxRo.lastOffset);
         Assert.assertEquals(new Integer(2), idxRo.entries());
 
-        //关闭后不可再添加
+        //关闭后，用只读构造函数打开，不可再添加
         assertWriteFails("Append should fail on read-only index", idxRo, 53, IllegalArgumentException.class);
     }
 
