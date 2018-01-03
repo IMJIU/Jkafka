@@ -279,7 +279,7 @@ public class ByteBufferMessageSet extends MessageSet {
         } else {
             // messages are compressed, crack open the messageset and recompress with correct offset
             List<Message> list = Lists.newArrayList();
-            Sc.loop(this.internalIterator(false), m -> list.add(m.message));
+            Sc.foreach(this.internalIterator(false), m -> list.add(m.message));
             return new ByteBufferMessageSet(codec, offsetCounter, list);
         }
     }

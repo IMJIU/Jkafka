@@ -170,8 +170,8 @@ public class LogTest {
     @Test
     public void testAppendAndReadWithNonSequentialOffsets() throws IOException {
         Log log = new Log(logDir, getLogConfig(71), 0L, time.scheduler, time);
-        List<Integer> messageIds = Stream.iterate(0, n -> n + 1).limit(50).collect(Collectors.toList());
-        messageIds.addAll(Stream.iterate(50, n -> n + 7).limit(200).collect(Collectors.toList()));
+        List<Integer> messageIds = Sc.itToList(0, 50, n -> n);
+        messageIds.addAll(Sc.itToList(50, 7, 200, n -> n));
         List<Message> messages = messageIds.stream().map(id -> new Message(id.toString().getBytes())).collect(Collectors.toList());
 
         // now test the case that we give the offsets and use non-sequential offsets;
@@ -246,7 +246,7 @@ public class LogTest {
             Assert.assertEquals("Further collection shouldn't delete anything", new Integer(0), log.deleteOldSegments((s) -> true));
             Assert.assertEquals("Still no change in the logEndOffset", currOffset, log.logEndOffset());
             Assert.assertEquals("Should still be able to append and should get the logEndOffset assigned to the new append",
-                    currOffset,log.append(TestUtils.singleMessageSet("hello".toString().getBytes())).firstOffset);
+                    currOffset, log.append(TestUtils.singleMessageSet("hello".toString().getBytes())).firstOffset);
 
             // cleanup the log;
             log.delete();
@@ -281,8 +281,8 @@ public class LogTest {
     public void testMessageSizeCheck() throws IOException {
         ByteBufferMessageSet first = new ByteBufferMessageSet(CompressionCodec.NoCompressionCodec, new Message("You".getBytes()), new Message("bethe".getBytes()));
         ByteBufferMessageSet second = new ByteBufferMessageSet(CompressionCodec.NoCompressionCodec, new Message("change".getBytes()));
-        System.out.println("first:"+first.sizeInBytes());
-        System.out.println("second:"+second.sizeInBytes());
+        System.out.println("first:" + first.sizeInBytes());
+        System.out.println("second:" + second.sizeInBytes());
         // append messages to log;
         LogConfig config = copy();
         config.maxMessageSize = second.sizeInBytes() - 1;

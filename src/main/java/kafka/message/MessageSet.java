@@ -2,7 +2,6 @@ package kafka.message;/**
  * Created by zhoulf on 2017/3/22.
  */
 
-import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import kafka.utils.Logging;
 import kafka.utils.Sc;
@@ -111,7 +110,7 @@ public abstract class MessageSet extends Logging implements Iterable<MessageAndO
 
     public List<MessageAndOffset> toMessageAndOffsetList() {
         List<MessageAndOffset> result = Lists.newArrayList();
-        Sc.loop(iterator(), m -> result.add(m));
+        Sc.foreach(iterator(), m -> result.add(m));
         return result;
     }
 
@@ -150,7 +149,7 @@ public abstract class MessageSet extends Logging implements Iterable<MessageAndO
     }
 
     public void printAll() {
-        Sc.loop(iterator(), m -> System.out.println(m));
+        Sc.foreach(iterator(), m -> System.out.println(m));
         System.out.println("=====================================");
     }
 }

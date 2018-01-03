@@ -7,6 +7,7 @@ import com.google.common.collect.Maps;
 import kafka.annotation.threadsafe;
 import kafka.common.KafkaException;
 import kafka.func.Action;
+import kafka.func.NumCount;
 import kafka.func.Tuple;
 import kafka.server.BrokerState;
 import kafka.server.BrokerStates;
@@ -92,7 +93,7 @@ public class LogManager extends Logging {
     public void init() throws IOException {
         createAndValidateLogDirs(logDirs);
         dirLocks = lockLogDirs(logDirs);
-        recoveryPointCheckpoints=Sc.mapToMap(logDirs,dir -> Tuple.of(dir, new OffsetCheckpoint(new File(dir, RecoveryPointCheckpointFile))));
+        recoveryPointCheckpoints = Sc.mapToMap(logDirs, dir -> Tuple.of(dir, new OffsetCheckpoint(new File(dir, RecoveryPointCheckpointFile))));
         loadLogs();
 
         if (cleanerConfig.enableCleaner)
@@ -190,11 +191,7 @@ public class LogManager extends Logging {
                         Long logRecoveryPoint = recoveryPoints.getOrDefault(topicPartition, 0L);
 
                         Log current = null;
-                        try {
-                            current = new Log(logDir, config, logRecoveryPoint, scheduler, time);
-                        } catch (IOException e) {
-                            error(e.getMessage(), e);
-                        }
+                        current = new Log(logDir, config, logRecoveryPoint, scheduler, time);
                         Log previous = this.logs.put(topicPartition, current);
 
                         if (previous != null) {
@@ -386,18 +383,12 @@ public class LogManager extends Logging {
      * Write out the current recovery point for all logs to a text file in the log directory
      * to avoid recovering the whole log on startup.
      */
-    public Action checkpointRecoveryPointOffsets = () -> this.logDirs.forEach(log -> {
-        try {
-            checkpointLogsInDir(log);
-        } catch (IOException e) {
-            error(e.getMessage(), e);
-        }
-    });
+    public Action checkpointRecoveryPointOffsets = () -> this.logDirs.forEach(log -> checkpointLogsInDir(log));
 
     /**
      * Make a checkpoint for all logs in provided directory.
      */
-    private void checkpointLogsInDir(File dir) throws IOException {
+    private void checkpointLogsInDir(File dir) {
         Map<TopicAndPartition, Log> recoveryPoints = this.logsByDir().get(dir.toString());
         if (recoveryPoints != null) {
             this.recoveryPointCheckpoints.get(dir).write(Utils.mapValue(recoveryPoints, v -> v.recoveryPoint));
@@ -419,7 +410,7 @@ public class LogManager extends Logging {
      * Create a log for the given topic and the given partition
      * If the log already exists, just return a copy of the existing log
      */
-    public Log createLog(TopicAndPartition topicAndPartition, LogConfig config) throws IOException {
+    public Log createLog(TopicAndPartition topicAndPartition, LogConfig config) {
         synchronized (logCreationOrDeletionLock) {
             Log log = logs.get(topicAndPartition);
 
@@ -475,14 +466,17 @@ public class LogManager extends Logging {
             return logDirs.get(0);
         } else {
             // count the number of logs in each parent directory (including 0 for empty directories;
-            Map<String, Integer> logCounts = Utils.mapValue(Utils.groupBy(allLogs(), log -> log.dir.getParent()), list -> list.size());
-            Map<String, Integer> zeros = logDirs.stream().map(dir -> Tuple.of(dir.getPath(), 0)).collect(Collectors.toMap(t -> t.v1, t -> t.v2));
+            Map<String, Integer> logCounts = Sc.mapValue(Sc.groupBy(allLogs(), log -> log.dir.getParent()), list -> list.size());
+            Map<String, Integer> zeros = Sc.mapToMap(logDirs, dir -> Tuple.of(dir.getPath(), 0));
             zeros.putAll(logCounts);
 //            var dirCounts = (zeros++ logCounts).toBuffer;
 //            // choose the directory with the least logs in it;
 //            val leastLoaded = dirCounts.sortBy(_._2).head;
-            Map.Entry<String, Integer> leastLoaded = zeros.entrySet().stream().sorted((o1, o2) -> o1.getValue() - o2.getValue()).findFirst().get();
-            return new File(leastLoaded.getKey());
+//            Map.Entry<String, Integer> leastLoaded = zeros.entrySet().stream().sorted((o1, o2) -> o1.getValue() - o2.getValue()).findFirst().get();
+//            return new File(leastLoaded.getKey());
+            List<Tuple<String, Integer>> zeros2 = Sc.map(logDirs, dir -> Tuple.of(dir.getPath(), 0));
+            String f = Sc.sortWith(zeros2, (o1, o2) -> o1.v2 > o2.v2).get(0).v1;
+            return new File(f);
         }
     }
 
@@ -501,10 +495,10 @@ public class LogManager extends Logging {
     private Integer cleanupSegmentsToMaintainSize(Log log) throws IOException {
         if (log.config.retentionSize < 0 || log.size() < log.config.retentionSize)
             return 0;
-        final AtomicLong diff = new AtomicLong(log.size() - log.config.retentionSize);
+        NumCount<Long> count = NumCount.of(log.size() - log.config.retentionSize);
         return log.deleteOldSegments((segment) -> {
-            if (diff.addAndGet(-segment.size()) >= 0) {
-                diff.addAndGet(-segment.size());
+            if (count.get() - segment.size() >= 0) {
+                count.set(count.get() - segment.size());
                 return true;
             } else {
                 return false;

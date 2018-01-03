@@ -7,6 +7,7 @@ import kafka.common.OffsetOutOfRangeException;
 import kafka.message.ByteBufferMessageSet;
 import kafka.server.BrokerState;
 import kafka.utils.MockTime;
+import kafka.utils.Sc;
 import kafka.utils.TestUtils;
 import kafka.utils.Utils;
 import org.junit.After;
@@ -256,14 +257,7 @@ public class LogManagerTest {
 
     private void verifyCheckpointRecovery(List<TopicAndPartition> topicAndPartitions,
                                           LogManager logManager) throws IOException {
-        List<Log> logs = topicAndPartitions.stream().map(t -> {
-            try {
-                return this.logManager.createLog(t, logConfig);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            return null;
-        }).collect(Collectors.toList());
+        List<Log> logs = Sc.map(topicAndPartitions, t -> this.logManager.createLog(t, logConfig));
         logs.forEach(log -> {
             for (int i = 0; i < 50; i++)
                 log.append(TestUtils.singleMessageSet("test".getBytes()));

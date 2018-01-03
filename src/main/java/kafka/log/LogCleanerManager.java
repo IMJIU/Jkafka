@@ -207,20 +207,16 @@ public class LogCleanerManager extends KafkaMetricsGroup {
     public void updateCheckpoints(File dataDir, Optional<Tuple<TopicAndPartition, Long>> update) {
         Utils.inLock(lock, () -> {
             OffsetCheckpoint checkpoint = checkpoints.get(dataDir);
-            try {
-                Map<TopicAndPartition, Long> existing = checkpoint.read();
-                for (TopicAndPartition tp : existing.keySet()) {
-                    if (!logs.keys().contains(tp)) {
-                        existing.remove(tp);
-                    }
+            Map<TopicAndPartition, Long> existing = checkpoint.read();
+            for (TopicAndPartition tp : existing.keySet()) {
+                if (!logs.keys().contains(tp)) {
+                    existing.remove(tp);
                 }
-                if (update.isPresent()) {
-                    existing.put(update.get().v1, update.get().v2);
-                }
-                checkpoint.write(existing);
-            } catch (IOException e) {
-                error(e.getMessage(), e);
             }
+            if (update.isPresent()) {
+                existing.put(update.get().v1, update.get().v2);
+            }
+            checkpoint.write(existing);
         });
     }
 

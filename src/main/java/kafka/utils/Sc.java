@@ -36,7 +36,7 @@ public class Sc {
         return count;
     }
 
-    public static <T> void loop(Iterator<T> it, ActionP<T> action) {
+    public static <T> void foreach(Iterator<T> it, ActionP<T> action) {
         while (it.hasNext()) {
             action.invoke(it.next());
         }
@@ -450,6 +450,10 @@ public class Sc {
 
     public static void it(int i, int limit, ActionP<Integer> actionP) {
         Stream.iterate(i, n -> n + 1).limit(limit).forEach(n -> actionP.invoke(n));
+    }
+
+    public static <T> List<T> itToList(int i, int step, int limit, Handler<Integer, T> handler) {
+        return Stream.iterate(i, n -> n + step).limit(limit).map(n -> handler.handle(n)).collect(Collectors.toList());
     }
 
     public static <T> List<T> itToList(int i, int limit, Handler<Integer, T> handler) {

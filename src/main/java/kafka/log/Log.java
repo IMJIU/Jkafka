@@ -51,7 +51,7 @@ public class Log extends KafkaMetricsGroup {
      * @param scheduler     The thread pool scheduler used for background actions
      * @param time          The time instance used for checking the clock
      */
-    public Log(File dir, LogConfig config, Long recoveryPoint, Scheduler scheduler, Time time) throws IOException {
+    public Log(File dir, LogConfig config, Long recoveryPoint, Scheduler scheduler, Time time) {
         this.dir = dir;
         this.config = config;
         this.recoveryPoint = recoveryPoint;
@@ -64,7 +64,7 @@ public class Log extends KafkaMetricsGroup {
     private Object lock = new Object();
 
     /* last time it was flushed */
-    private AtomicLong lastflushedTime ;
+    private AtomicLong lastflushedTime;
 
     /* the actual segments of the log */
     private ConcurrentNavigableMap<Long, LogSegment> segments = new ConcurrentSkipListMap<Long, LogSegment>();
@@ -77,7 +77,7 @@ public class Log extends KafkaMetricsGroup {
      */
     public String name;
 
-    public void init() throws IOException {
+    public void init() {
         lastflushedTime = new AtomicLong(time.milliseconds());
 
         //load
@@ -98,80 +98,84 @@ public class Log extends KafkaMetricsGroup {
 
 
     /* Load the log segments from the log files on disk */
-    private void loadSegments() throws IOException {
-        // create the log directory if it doesn't exist;
-        dir.mkdirs();
+    private void loadSegments() {
+        try {
+            // create the log directory if it doesn't exist;
+            dir.mkdirs();
 
-        // first do a pass through the files in the log directory and remove any temporary files;
-        // and complete any interrupted swap operations;
-        for (File file : dir.listFiles()) {
-            if (!file.isFile()) {
-                continue;
-            }
-            if (!file.canRead())
-                throw new IOException("Could not read file " + file);
-            String filename = file.getName();
-            if (filename.endsWith(DeletedFileSuffix) || filename.endsWith(CleanedFileSuffix)) {
-                // if the file ends in .deleted or .cleaned, delete it;
-                file.delete();
-            } else if (filename.endsWith(SwapFileSuffix)) {
-                // we crashed in the middle of a swap operation, to recover:;
-                // if a log, swap it in and delete the .index file;
-                // if an index just delete it, it will be rebuilt;
-                File baseName = new File(Utils.replaceSuffix(file.getPath(), SwapFileSuffix, ""));
-                if (baseName.getPath().endsWith(IndexFileSuffix)) {
+            // first do a pass through the files in the log directory and remove any temporary files;
+            // and complete any interrupted swap operations;
+            for (File file : dir.listFiles()) {
+                if (!file.isFile()) {
+                    continue;
+                }
+                if (!file.canRead())
+                    throw new IOException("Could not read file " + file);
+                String filename = file.getName();
+                if (filename.endsWith(DeletedFileSuffix) || filename.endsWith(CleanedFileSuffix)) {
+                    // if the file ends in .deleted or .cleaned, delete it;
                     file.delete();
-                } else if (baseName.getPath().endsWith(LogFileSuffix)) {
-                    // delete the index;
-                    File index = new File(Utils.replaceSuffix(baseName.getPath(), LogFileSuffix, IndexFileSuffix));
-                    index.delete();
-                    // complete the swap operation;
-                    boolean renamed = file.renameTo(baseName);
-                    if (renamed)
-                        info(String.format("Found log file %s from interrupted swap operation, repairing.", file.getPath()));
-                    else
-                        throw new KafkaException(String.format("Failed to rename file %s.", file.getPath()));
+                } else if (filename.endsWith(SwapFileSuffix)) {
+                    // we crashed in the middle of a swap operation, to recover:;
+                    // if a log, swap it in and delete the .index file;
+                    // if an index just delete it, it will be rebuilt;
+                    File baseName = new File(Utils.replaceSuffix(file.getPath(), SwapFileSuffix, ""));
+                    if (baseName.getPath().endsWith(IndexFileSuffix)) {
+                        file.delete();
+                    } else if (baseName.getPath().endsWith(LogFileSuffix)) {
+                        // delete the index;
+                        File index = new File(Utils.replaceSuffix(baseName.getPath(), LogFileSuffix, IndexFileSuffix));
+                        index.delete();
+                        // complete the swap operation;
+                        boolean renamed = file.renameTo(baseName);
+                        if (renamed)
+                            info(String.format("Found log file %s from interrupted swap operation, repairing.", file.getPath()));
+                        else
+                            throw new KafkaException(String.format("Failed to rename file %s.", file.getPath()));
+                    }
                 }
             }
-        }
 
-        // now do a second pass and load all the .log and .index files;
-        for (File file : dir.listFiles()) {
-            if (!file.isFile()) {
-                continue;
-            }
-            String filename = file.getName();
-            if (filename.endsWith(IndexFileSuffix)) {
-                // if it is an index file, make sure it has a corresponding .log file;
-                File logFile = new File(file.getAbsolutePath().replace(IndexFileSuffix, LogFileSuffix));
-                if (!logFile.exists()) {
-                    warn(String.format("Found an orphaned index file, %s, with no corresponding log file.", file.getAbsolutePath()));
-                    file.delete();
+            // now do a second pass and load all the .log and .index files;
+            for (File file : dir.listFiles()) {
+                if (!file.isFile()) {
+                    continue;
                 }
-            } else if (filename.endsWith(LogFileSuffix)) {
-                // if its a log file, load the corresponding log segment;
-                Long start = Long.parseLong(filename.substring(0, filename.length() - LogFileSuffix.length()));
-                boolean hasIndex = Log.indexFilename(dir, start).exists();
-                LogSegment segment = new LogSegment(dir, start, config.indexInterval, config.maxIndexSize, config.randomSegmentJitter, time);
-                if (!hasIndex) {
-                    error(String.format("Could not find index file corresponding to log file %s, rebuilding index...", segment.log.file.getAbsolutePath()));
-                    segment.recover(config.maxMessageSize);
+                String filename = file.getName();
+                if (filename.endsWith(IndexFileSuffix)) {
+                    // if it is an index file, make sure it has a corresponding .log file;
+                    File logFile = new File(file.getAbsolutePath().replace(IndexFileSuffix, LogFileSuffix));
+                    if (!logFile.exists()) {
+                        warn(String.format("Found an orphaned index file, %s, with no corresponding log file.", file.getAbsolutePath()));
+                        file.delete();
+                    }
+                } else if (filename.endsWith(LogFileSuffix)) {
+                    // if its a log file, load the corresponding log segment;
+                    Long start = Long.parseLong(filename.substring(0, filename.length() - LogFileSuffix.length()));
+                    boolean hasIndex = Log.indexFilename(dir, start).exists();
+                    LogSegment segment = new LogSegment(dir, start, config.indexInterval, config.maxIndexSize, config.randomSegmentJitter, time);
+                    if (!hasIndex) {
+                        error(String.format("Could not find index file corresponding to log file %s, rebuilding index...", segment.log.file.getAbsolutePath()));
+                        segment.recover(config.maxMessageSize);
+                    }
+                    segments.put(start, segment);
                 }
-                segments.put(start, segment);
             }
-        }
-        if (logSegments().size() == 0) {
-            // no existing segments, create a new mutable segment beginning at offset 0;
-            segments.put(0L, new LogSegment(dir, 0L, config.indexInterval, config.maxIndexSize, config.randomSegmentJitter, time));
-        } else {
-            recoverLog();
-            // reset the index size of the currently active log segment to allow more entries;
-            activeSegment().index.resize(config.maxIndexSize);
-        }
+            if (logSegments().size() == 0) {
+                // no existing segments, create a new mutable segment beginning at offset 0;
+                segments.put(0L, new LogSegment(dir, 0L, config.indexInterval, config.maxIndexSize, config.randomSegmentJitter, time));
+            } else {
+                recoverLog();
+                // reset the index size of the currently active log segment to allow more entries;
+                activeSegment().index.resize(config.maxIndexSize);
+            }
 
-        // sanity check the index file of every segment to ensure we don't proceed with a corrupt segment;
-        for (LogSegment s : logSegments())
-            s.index.sanityCheck();
+            // sanity check the index file of every segment to ensure we don't proceed with a corrupt segment;
+            for (LogSegment s : logSegments())
+                s.index.sanityCheck();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private void updateLogEndOffset(Long messageOffset) {
@@ -246,13 +250,13 @@ public class Log extends KafkaMetricsGroup {
      * @param assignOffsets Should the log assign offsets to this message set or blindly apply what it is given
      * @return Information about the appended messages including the first and last offset.
      * @throws KafkaStorageException If the append fails due to an I/O error.
-     * 1.分析成LogAppendInfo
-     * 2.检查有效bytes
-     * 3.自增offset(nextOffset)
-     * 4.roll()校验
-     * 5.segment.append()
-     * 6.更新logEndOffset
-     * 7.刷新间隔offset
+     *                               1.分析成LogAppendInfo
+     *                               2.检查有效bytes
+     *                               3.自增offset(nextOffset)
+     *                               4.roll()校验
+     *                               5.segment.append()
+     *                               6.更新logEndOffset
+     *                               7.刷新间隔offset
      */
     public LogAppendInfo append(ByteBufferMessageSet messages, boolean assignOffsets) {
         LogAppendInfo appendInfo = analyzeAndValidateMessageSet(messages);//生成LogAppendInfo; firstOffset, lastOffset, codec, shallowMessageCount, validBytesCount, monotonic
@@ -285,7 +289,7 @@ public class Log extends KafkaMetricsGroup {
                 }
 
                 // re-validate message sizes since after re-compression some may exceed the limit;
-                Sc.loop(validMessages.shallowIterator(), messageAndOffset -> {//浅遍历 消息长度是否超过maxMessageSize
+                Sc.foreach(validMessages.shallowIterator(), messageAndOffset -> {//浅遍历 消息长度是否超过maxMessageSize
                     if (MessageSet.entrySize(messageAndOffset.message) > config.maxMessageSize) {
                         // we record the original message set size instead of trimmed size;
                         // to be consistent with pre-compression bytesRejectedRate recording;
@@ -557,7 +561,8 @@ public class Log extends KafkaMetricsGroup {
     /**
      * Roll the log over to a new active segment starting with the current logEndOffset.
      * This will trim the index to the exact size of the number of entries it currently contains.
-     *  获取最新的offset+1 作为新日志的baseOffset 创建新日志文件、索引文件
+     * 获取最新的offset+1 作为新日志的baseOffset 创建新日志文件、索引文件
+     *
      * @return The newly rolled segment
      */
     public LogSegment roll() throws IOException {
@@ -569,9 +574,9 @@ public class Log extends KafkaMetricsGroup {
             //删除已经存在的文件
             Lists.newArrayList(logFile, indexFile).stream().filter(f -> f.exists())
                     .forEach(f -> {
-                                warn("Newly rolled segment file " + f.getName() + " already exists; deleting it first");
-                                f.delete();
-                            });
+                        warn("Newly rolled segment file " + f.getName() + " already exists; deleting it first");
+                        f.delete();
+                    });
 
             Map.Entry<Long, LogSegment> lastEntry = segments.lastEntry();
             if (lastEntry != null) {
