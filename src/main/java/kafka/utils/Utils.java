@@ -853,28 +853,6 @@ public class Utils {
         return maps;
     }
 
-    public static <K, V, V2> Map<V2, List<V>> groupByToList(Map<K, V> map, Handler2<K, V, V2> handler) {
-        Map<V2, List<V>> maps = Maps.newHashMap();
-        for (Map.Entry<K, V> entry : map.entrySet()) {
-            V2 tag = handler.handle(entry.getKey(), entry.getValue());
-            List<V> list = maps.getOrDefault(tag, Lists.newArrayList());
-            list.add(entry.getValue());
-            maps.put(tag, list);
-        }
-        return maps;
-    }
-
-    public static <K, V, V2> Map<V2, Map<K, V>> groupByValue(Map<K, V> map, Handler<V, V2> handler) {
-        Map<V2, Map<K, V>> maps = Maps.newHashMap();
-        for (Map.Entry<K, V> entry : map.entrySet()) {
-            V2 tag = handler.handle(entry.getValue());
-            Map<K, V> m = maps.getOrDefault(tag, Maps.newHashMap());
-            m.put(entry.getKey(), entry.getValue());
-            maps.put(tag, m);
-        }
-        return maps;
-    }
-
     public static <K, V, K2> Map<K2, Map<K, V>> groupByKey(Map<K, V> map, Handler<K, K2> handler) {
         Map<K2, Map<K, V>> maps = Maps.newHashMap();
         for (Map.Entry<K, V> entry : map.entrySet()) {
@@ -884,52 +862,6 @@ public class Utils {
             maps.put(tag, m);
         }
         return maps;
-    }
-
-    public static <V, RESULT> Optional<RESULT> map(Optional<V> it, Handler<V, RESULT> handler) {
-        if (it.isPresent()) {
-            return Optional.of(handler.handle(it.get()));
-        }
-        return Optional.empty();
-    }
-
-    public static <V, RESULT> List<RESULT> map(Iterable<V> it, Handler<V, RESULT> handler) {
-        List<RESULT> list = Lists.newArrayList();
-        Iterator<V> itor = it.iterator();
-        while (itor.hasNext()) {
-            list.add(handler.handle(itor.next()));
-        }
-        return list;
-    }
-
-    public static <V, RESULT> List<RESULT> map(Collection<V> set, Handler<V, RESULT> handler) {
-        List<RESULT> list = Lists.newArrayList();
-        if (set != null) {
-            for (V entry : set) {
-                list.add(handler.handle(entry));
-            }
-        }
-        return list;
-    }
-
-    public static <V, RESULT> Set<RESULT> map(Set<V> set, Handler<V, RESULT> handler) {
-        Set<RESULT> list = Sets.newHashSet();
-        if (set != null) {
-            for (V entry : set) {
-                list.add(handler.handle(entry));
-            }
-        }
-        return list;
-    }
-
-    public static <K, V, RESULT> List<RESULT> map(Map<K, V> map, Handler<Map.Entry<K, V>, RESULT> handler) {
-        List<RESULT> list = Lists.newArrayList();
-        if (map != null) {
-            for (Map.Entry<K, V> entry : map.entrySet()) {
-                list.add(handler.handle(entry));
-            }
-        }
-        return list;
     }
 
     public static <K, V, RESULT> List<RESULT> map(Map<K, V> map, Handler2<K, V, RESULT> handler) {
@@ -947,16 +879,6 @@ public class Utils {
         if (map != null) {
             for (Map.Entry<K, V> entry : map.entrySet()) {
                 result.put(entry.getKey(), handler.handle(entry.getValue()));
-            }
-        }
-        return result;
-    }
-
-    public static <K, V, V2> Map<K, V2> map2(Map<K, V> map, Handler<Map.Entry<K, V>, V2> handler) {
-        Map<K, V2> result = Maps.newHashMap();
-        if (map != null) {
-            for (Map.Entry<K, V> entry : map.entrySet()) {
-                result.put(entry.getKey(), handler.handle(entry));
             }
         }
         return result;
@@ -1081,23 +1003,6 @@ public class Utils {
             list.add(fun.invoke());
         }
         return list;
-    }
-
-    public static <T> Set<T> toSet(Iterable<T> iterable) {
-        Set<T> set = Sets.newHashSet();
-        Iterator<T> it = iterable.iterator();
-        while (it.hasNext()) {
-            set.add(it.next());
-        }
-        return set;
-    }
-
-    public static <T> List<T> toList(Collection<T> list) {
-        List<T> result = new ArrayList<T>(list.size());
-        for (T t : list) {
-            result.add(t);
-        }
-        return result;
     }
 
     public static <T> T find(Collection<T> list, Handler<T, Boolean> handler) {

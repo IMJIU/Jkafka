@@ -44,7 +44,7 @@ public class ApiUtils {
         if (string == null) {
             buffer.putShort((short)-1);
         } else {
-            byte[] encodedString = new byte[0];
+            byte[] encodedString;
             try {
                 encodedString = string.getBytes(ProtocolEncoding);
             } catch (UnsupportedEncodingException e) {

@@ -187,32 +187,32 @@ public class Processor extends AbstractServerThread {
      * Process reads from ready sockets
      */
     public void read(SelectionKey key) {
-            lruConnections.put(key, currentTimeNanos);
-            SocketChannel socketChannel = channelFor(key);
-            Receive receive;
-            if (key.attachment() == null) {
-                receive = new BoundedByteBufferReceive(maxRequestSize);
-                key.attach(receive);
-            } else {
-                receive = (Receive) key.attachment();
-            }
-            Integer read = receive.readFrom(socketChannel);
-            SocketAddress address = socketChannel.socket().getRemoteSocketAddress();
-            trace(read + " bytes read from " + address);
-            if (read < 0) {
-                close(key);
-            } else if (receive.complete()) {
-                RequestChannel.Request req = new RequestChannel.Request(id, key, receive.buffer(), time.milliseconds(), address);
-                requestChannel.sendRequest(req);
-                key.attach(null);
-                // explicitly reset interest ops to not READ, no need to wake up the selector just yet;
-                key.interestOps(key.interestOps() & (~SelectionKey.OP_READ));
-            } else {
-                // more reading to be done;
-                trace("Did not finish reading, registering for read again on connection " + socketChannel.socket().getRemoteSocketAddress());
-                key.interestOps(SelectionKey.OP_READ);
-                wakeup();
-            }
+        lruConnections.put(key, currentTimeNanos);
+        SocketChannel socketChannel = channelFor(key);
+        Receive receive;
+        if (key.attachment() == null) {
+            receive = new BoundedByteBufferReceive(maxRequestSize);
+            key.attach(receive);
+        } else {
+            receive = (Receive) key.attachment();
+        }
+        Integer read = receive.readFrom(socketChannel);
+        SocketAddress address = socketChannel.socket().getRemoteSocketAddress();
+        trace(read + " bytes read from " + address);
+        if (read < 0) {
+            close(key);
+        } else if (receive.complete()) {
+            RequestChannel.Request req = new RequestChannel.Request(id, key, receive.buffer(), time.milliseconds(), address);
+            requestChannel.sendRequest(req);
+            key.attach(null);
+            // explicitly reset interest ops to not READ, no need to wake up the selector just yet;
+            key.interestOps(key.interestOps() & (~SelectionKey.OP_READ));
+        } else {
+            // more reading to be done;
+            trace("Did not finish reading, registering for read again on connection " + socketChannel.socket().getRemoteSocketAddress());
+            key.interestOps(SelectionKey.OP_READ);
+            wakeup();
+        }
     }
 
 

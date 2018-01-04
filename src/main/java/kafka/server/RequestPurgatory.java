@@ -5,10 +5,7 @@ import com.google.common.collect.Lists;
 import com.yammer.metrics.core.Gauge;
 import kafka.metrics.KafkaMetricsGroup;
 import kafka.network.RequestChannel;
-import kafka.utils.DelayedItem;
-import kafka.utils.Logging;
-import kafka.utils.Pool;
-import kafka.utils.Utils;
+import kafka.utils.*;
 
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
@@ -173,7 +170,7 @@ abstract class RequestPurgatory<T extends DelayedRequest>
      * this number may be larger than the number of real operations watched
      */
     public Integer watched() {
-        List<Integer> list = Utils.map(watchersForKey.values(), w -> w.watched());
+        List<Integer> list = Sc.map(watchersForKey.values(), w -> w.watched());
         return Utils.sum(list).intValue();
     }
 
@@ -313,7 +310,7 @@ abstract class RequestPurgatory<T extends DelayedRequest>
                     // see if we need to purge the watch lists;
                     if (RequestPurgatory.this.watched() >= purgeInterval) {
                         debug("Begin purging watch lists");
-                        int numPurgedFromWatchers = Utils.sum(Utils.map(watchersForKey.values(), w -> w.purgeSatisfied())).intValue();
+                        int numPurgedFromWatchers = Utils.sum(Sc.map(watchersForKey.values(), w -> w.purgeSatisfied())).intValue();
                         debug(String.format("Purged %d elements from watch lists.", numPurgedFromWatchers));
                     }
                     // see if we need to purge the delayed request queue;

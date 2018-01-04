@@ -104,11 +104,9 @@ public class ProducerRequest extends RequestOrResponse {
             Map<TopicAndPartition, ByteBufferMessageSet> topicAndPartitionData = entry.getValue();
             ApiUtils.writeShortString(buffer, topic); //write the topic;
             buffer.putInt(topicAndPartitionData.size()); //the number of partitions;
-            topicAndPartitionData.entrySet().forEach(partitionAndData -> {
-                Integer partition = partitionAndData.getKey().partition;
-                ByteBufferMessageSet partitionMessageData = partitionAndData.getValue();
+            topicAndPartitionData.forEach((topicAndPartition, partitionMessageData) -> {
                 ByteBuffer bytes = partitionMessageData.buffer;
-                buffer.putInt(partition);
+                buffer.putInt(topicAndPartition.partition);
                 buffer.putInt(bytes.limit());
                 buffer.put(bytes);
                 bytes.rewind();

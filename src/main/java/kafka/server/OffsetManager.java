@@ -90,7 +90,7 @@ public class OffsetManager extends KafkaMetricsGroup {
 
 
         // delete the stale offsets from the table and generate tombstone messages to remove them from the log;
-        List<Tuple<Integer, Message>> list = Utils.map(staleOffsets,t -> {
+        List<Tuple<Integer, Message>> list = Sc.map(staleOffsets,t -> {
             GroupTopicPartition groupTopicAndPartition = t.v1;
             OffsetAndMetadata offsetAndMetadata = t.v2;
             Integer offsetsPartition = partitionFor(groupTopicAndPartition.group);
@@ -110,7 +110,7 @@ public class OffsetManager extends KafkaMetricsGroup {
                     if(partitionOpt.isPresent()){
                         Partition partition = partitionOpt.get();
                         TopicAndPartition appendPartition = new TopicAndPartition(OffsetManager.OffsetsTopicName, offsetsPartition);
-                        List<Message> messages = Utils.map(tombstones,t->t.v2);
+                        List<Message> messages = Sc.map(tombstones,t->t.v2);
                         trace(String.format("Marked %d offsets in %s for deletion.", messages.size()  , appendPartition));
                         try {
                             partition.appendMessagesToLeader(new ByteBufferMessageSet(config.offsetsTopicCompressionCodec, messages));
@@ -190,20 +190,20 @@ public class OffsetManager extends KafkaMetricsGroup {
                 }
                 if (contains) {
                     debug(String.format("Cannot fetch offsets for group %s due to ongoing offset load.", group));
-                    return Utils.toMap(Utils.map(topicPartitions, topicAndPartition -> {
+                    return Utils.toMap(Sc.map(topicPartitions, topicAndPartition -> {
                         GroupTopicPartition groupTopicPartition = new GroupTopicPartition(group, topicAndPartition);
                         return Tuple.of(groupTopicPartition.topicPartition, OffsetMetadataAndError.OffsetsLoading);
                     }));
                 } else {
                     if (topicPartitions.size() == 0) {
                         // Return offsets for all partitions owned by this consumer group. (this only applies to consumers that commit offsets to Kafka.)
-                        return Utils.toMap(Utils.map(Utils.filter(offsetsCache, c -> c.v1.group == group), kv -> {
+                        return Sc.toMap(Sc.map(Utils.filter(offsetsCache, c -> c.v1.group == group), kv -> {
                             GroupTopicPartition groupTopicPartition = kv.v1;
                             OffsetAndMetadata offsetAndMetadata = kv.v2;
                             return Tuple.of(groupTopicPartition.topicPartition, new OffsetMetadataAndError(offsetAndMetadata.offset, offsetAndMetadata.metadata, ErrorMapping.NoError));
                         }));
                     } else {
-                        return Utils.toMap(Utils.map(topicPartitions, topicAndPartition -> {
+                        return Sc.toMap(Sc.map(topicPartitions, topicAndPartition -> {
                             GroupTopicPartition groupTopicPartition = new GroupTopicPartition(group, topicAndPartition);
                             return Tuple.of(groupTopicPartition.topicPartition, getOffset(groupTopicPartition));
                         }));
@@ -211,7 +211,7 @@ public class OffsetManager extends KafkaMetricsGroup {
                 }
             } else {
                 debug(String.format("Could not fetch offsets for group %s (not offset coordinator).", group));
-                return Utils.toMap(Utils.map(topicPartitions, topicAndPartition -> {
+                return Sc.toMap(Sc.map(topicPartitions, topicAndPartition -> {
                     GroupTopicPartition groupTopicPartition = new GroupTopicPartition(group, topicAndPartition);
                     return Tuple.of(groupTopicPartition.topicPartition, OffsetMetadataAndError.NotOffsetManagerForGroup);
                 }));

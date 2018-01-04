@@ -42,7 +42,7 @@ public class MetadataCache extends Logging{
                     Map<Integer, PartitionStateInfo> partitionStateInfos = cache.get(topic);
                     List<PartitionMetadata> partitionMetadata= Utils.map(partitionStateInfos, (partitionId, partitionState) -> {
                         Set<Integer> replicas = partitionState.allReplicas;
-                        List<Broker> replicaInfo = Utils.map(replicas, r -> aliveBrokers.getOrDefault(r, null)).stream().filter(b -> b != null).collect(Collectors.toList());
+                        List<Broker> replicaInfo = Sc.map(replicas, r -> aliveBrokers.getOrDefault(r, null)).stream().filter(b -> b != null).collect(Collectors.toList());
                         Broker leaderInfo =null;
                         List<Broker> isrInfo =null;
                         LeaderIsrAndControllerEpoch leaderIsrAndEpoch = partitionState.leaderIsrAndControllerEpoch;
@@ -53,7 +53,7 @@ public class MetadataCache extends Logging{
                             leaderInfo = aliveBrokers.get(leader);
                             if (leaderInfo==null)
                                 throw new LeaderNotAvailableException(String.format("Leader not available for %s", topicPartition));
-                             isrInfo = Utils.map(isr, r -> aliveBrokers.getOrDefault(r, null)).stream().filter(b -> b != null).collect(Collectors.toList());
+                             isrInfo = Sc.map(isr, r -> aliveBrokers.getOrDefault(r, null)).stream().filter(b -> b != null).collect(Collectors.toList());
                             if (replicaInfo.size() < replicas.size())
                                 throw new ReplicaNotAvailableException("Replica information not available for following brokers: " +
                                         Sc.filterNot(replicas,r-> Sc.map(replicaInfo, r2->r2.id).contains(r)));
@@ -111,8 +111,8 @@ public class MetadataCache extends Logging{
                             Integer brokerId,
                             StateChangeLogger stateChangeLogger) {
         Utils.inWriteLock(partitionMetadataLock, () -> {
-            aliveBrokers = Utils.toMap(Utils.map(updateMetadataRequest.aliveBrokers, b -> Tuple.of(b.id, b)));
-            Utils.foreach(updateMetadataRequest.partitionStateInfos, (tp, info) -> {
+            aliveBrokers = Sc.toMap(Sc.map(updateMetadataRequest.aliveBrokers, b -> Tuple.of(b.id, b)));
+            Sc.foreach(updateMetadataRequest.partitionStateInfos, (tp, info) -> {
                 if (info.leaderIsrAndControllerEpoch.leaderAndIsr.leader == LeaderAndIsr.LeaderDuringDelete) {
                     removePartitionInfo(tp.topic, tp.partition);
                     stateChangeLogger.trace(String.format("Broker %d deleted partition %s from metadata cache in response to UpdateMetadata request " +

@@ -16,10 +16,7 @@ import kafka.metrics.KafkaMetricsGroup;
 import kafka.server.LogOffsetMetadata;
 import kafka.server.OffsetManager;
 import kafka.server.ReplicaManager;
-import kafka.utils.Pool;
-import kafka.utils.ReplicationUtils;
-import kafka.utils.Time;
-import kafka.utils.Utils;
+import kafka.utils.*;
 import org.I0Itec.zkclient.ZkClient;
 import org.apache.kafka.common.errors.NotEnoughReplicasException;
 import org.apache.kafka.common.errors.NotLeaderForPartitionException;
@@ -100,19 +97,9 @@ public class Partition extends KafkaMetricsGroup {
         } else {
             if (isReplicaLocal(replicaId)) {
                 LogConfig config = LogConfig.fromProps(logManager.defaultConfig.toProps(), AdminUtils.fetchTopicConfig(zkClient, topic));
-                Log log = null;
-                try {
-                    log = logManager.createLog(new TopicAndPartition(topic, partitionId), config);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
+                Log log = logManager.createLog(new TopicAndPartition(topic, partitionId), config);
                 OffsetCheckpoint checkpoint = replicaManager.highWatermarkCheckpoints.get(log.dir.getParentFile().getAbsolutePath());
-                Map<TopicAndPartition, Long> offsetMap = null;
-                try {
-                    offsetMap = checkpoint.read();
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
+                Map<TopicAndPartition, Long> offsetMap = checkpoint.read();
                 if (!offsetMap.containsKey(new TopicAndPartition(topic, partitionId)))
                     warn(String.format("No checkpointed highwatermark is found for partition <%s,%d>", topic, partitionId));
                 Long offset = Math.min(offsetMap.getOrDefault(new TopicAndPartition(topic, partitionId), 0L), log.logEndOffset());
@@ -157,7 +144,7 @@ public class Partition extends KafkaMetricsGroup {
     }
 
     public Set<Replica> assignedReplicas() {
-        return Utils.toSet(assignedReplicaMap.values());
+        return Sc.toSet(assignedReplicaMap.values());
     }
 
     public void removeReplica(Integer replicaId) {
@@ -198,10 +185,10 @@ public class Partition extends KafkaMetricsGroup {
             Integer controllerEpoch = leaderIsrAndControllerEpoch.controllerEpoch;
             // add replicas that are new;
             allReplicas.forEach(replica -> getOrCreateReplica(replica));
-            Set<Replica> newInSyncReplicas = Utils.toSet(Utils.map(leaderAndIsr.isr, r -> getOrCreateReplica(r)));
+            Set<Replica> newInSyncReplicas = Sc.toSet(Sc.map(leaderAndIsr.isr, r -> getOrCreateReplica(r)));
             // remove assigned replicas that have been removed by the controller;
 //            (assignedReplicas().stream().map(r->r.brokerId)-- allReplicas).foreach(removeReplica(_));
-            Set<Integer> replicaBrokerIdList = Utils.map(assignedReplicas(), r -> r.brokerId);
+            Set<Integer> replicaBrokerIdList = Sc.map(assignedReplicas(), r -> r.brokerId);
             allReplicas.stream().filter(r -> !replicaBrokerIdList.contains(r)).forEach(this::removeReplica);
             inSyncReplicas = newInSyncReplicas;
             leaderEpoch = leaderAndIsr.leaderEpoch;
@@ -246,7 +233,7 @@ public class Partition extends KafkaMetricsGroup {
             allReplicas.forEach(r -> getOrCreateReplica(r));
             // remove assigned replicas that have been removed by the controller;
 //        (assignedReplicas().map(_.brokerId)-- allReplicas).foreach(removeReplica(_));
-            Set<Integer> replicaBrokerIdList = Utils.map(assignedReplicas(), r -> r.brokerId);
+            Set<Integer> replicaBrokerIdList = Sc.map(assignedReplicas(), r -> r.brokerId);
             allReplicas.stream().filter(r -> !replicaBrokerIdList.contains(r)).forEach(this::removeReplica);
             inSyncReplicas = Sets.newHashSet();
             leaderEpoch = leaderAndIsr.leaderEpoch;
@@ -281,14 +268,14 @@ public class Partition extends KafkaMetricsGroup {
                 // 2. It is part of the assigned replica list. See KAFKA-1097;
                 // 3. It's log end offset >= leader's high watermark;
                 if (!inSyncReplicas.contains(replica) &&
-                        Utils.map(assignedReplicas(), r -> r.brokerId).contains(replicaId) &&
+                        Sc.map(assignedReplicas(), r -> r.brokerId).contains(replicaId) &&
                         replica.logEndOffset().offsetDiff(leaderHW) >= 0) {
                     // expand ISR;
                     Set<Replica> newInSyncReplicas = Sets.newHashSet(inSyncReplicas);
                     newInSyncReplicas.add(replica);
                     info(String.format("Expanding ISR for partition <%s,%d> from %s to %s",
-                            topic, partitionId, Utils.map(inSyncReplicas, r -> r.brokerId),
-                            Utils.map(newInSyncReplicas, r -> r.brokerId)));
+                            topic, partitionId, Sc.map(inSyncReplicas, r -> r.brokerId),
+                            Sc.map(newInSyncReplicas, r -> r.brokerId)));
                     // update ISR in ZK and cache;
                     updateIsr(newInSyncReplicas);
                     replicaManager.isrExpandRate.mark();
@@ -347,42 +334,42 @@ public class Partition extends KafkaMetricsGroup {
      * @param leaderReplica
      */
     private void maybeIncrementLeaderHW(Replica leaderReplica) {
-        Set<LogOffsetMetadata> allLogEndOffsets = Utils.map(inSyncReplicas,r->r.logEndOffset());
-        LogOffsetMetadata newHighWatermark =  allLogEndOffsets.stream().min(LogOffsetMetadata::compare).get();
+        Set<LogOffsetMetadata> allLogEndOffsets = Sc.map(inSyncReplicas, r -> r.logEndOffset());
+        LogOffsetMetadata newHighWatermark = allLogEndOffsets.stream().min(LogOffsetMetadata::compare).get();
         LogOffsetMetadata oldHighWatermark = leaderReplica.highWatermark();
         if (oldHighWatermark.precedes(newHighWatermark)) {
-            leaderReplica.highWatermark_( newHighWatermark);
+            leaderReplica.highWatermark_(newHighWatermark);
             debug(String.format("High watermark for partition <%s,%d> updated to %s", topic, partitionId, newHighWatermark));
             // some delayed requests may be unblocked after HW changed;
             TopicAndPartition requestKey = new TopicAndPartition(this.topic, this.partitionId);
             replicaManager.unblockDelayedFetchRequests(requestKey);
             replicaManager.unblockDelayedProduceRequests(requestKey);
         } else {
-            debug(String .format("Skipping update high watermark since Old hw %s is larger than new hw %s for partition <%s,%d>. All leo's are %s",
-                   oldHighWatermark, newHighWatermark, topic, partitionId, allLogEndOffsets.toString()));
+            debug(String.format("Skipping update high watermark since Old hw %s is larger than new hw %s for partition <%s,%d>. All leo's are %s",
+                    oldHighWatermark, newHighWatermark, topic, partitionId, allLogEndOffsets.toString()));
         }
     }
 
 
     public void maybeShrinkIsr(Long replicaMaxLagTimeMs, Long replicaMaxLagMessages) {
-        Utils.inWriteLock(leaderIsrUpdateLock,()->{
+        Utils.inWriteLock(leaderIsrUpdateLock, () -> {
             Optional<Replica> opt = leaderReplicaIfLocal();
             if (opt.isPresent()) {
                 Replica leaderReplica = opt.get();
-                    Set<Replica> outOfSyncReplicas = getOutOfSyncReplicas(leaderReplica, replicaMaxLagTimeMs, replicaMaxLagMessages);
-                    if (outOfSyncReplicas.size() > 0) {
-                        Set<Replica > newInSyncReplicas = Sets.newHashSet(inSyncReplicas);
-                        newInSyncReplicas.remove(outOfSyncReplicas);
-                        assert (newInSyncReplicas.size() > 0);
-                        info(String.format("Shrinking ISR for partition <%s,%d> from %s to %s", topic, partitionId,
-                                Utils.map(inSyncReplicas,r->r.brokerId), Utils.map(newInSyncReplicas,r->r.brokerId)));
-                        // update ISR in zk and in cache;
-                        updateIsr(newInSyncReplicas);
-                        // we may need to increment high watermark since ISR could be down to 1;
-                        maybeIncrementLeaderHW(leaderReplica);
-                        replicaManager.isrShrinkRate.mark();
-                    }
-            }else{
+                Set<Replica> outOfSyncReplicas = getOutOfSyncReplicas(leaderReplica, replicaMaxLagTimeMs, replicaMaxLagMessages);
+                if (outOfSyncReplicas.size() > 0) {
+                    Set<Replica> newInSyncReplicas = Sets.newHashSet(inSyncReplicas);
+                    newInSyncReplicas.remove(outOfSyncReplicas);
+                    assert (newInSyncReplicas.size() > 0);
+                    info(String.format("Shrinking ISR for partition <%s,%d> from %s to %s", topic, partitionId,
+                            Sc.map(inSyncReplicas, r -> r.brokerId), Sc.map(newInSyncReplicas, r -> r.brokerId)));
+                    // update ISR in zk and in cache;
+                    updateIsr(newInSyncReplicas);
+                    // we may need to increment high watermark since ISR could be down to 1;
+                    maybeIncrementLeaderHW(leaderReplica);
+                    replicaManager.isrShrinkRate.mark();
+                }
+            } else {
                 // do nothing if no longer leader;
             }
             return null;
@@ -401,15 +388,15 @@ public class Partition extends KafkaMetricsGroup {
         Set<Replica> candidateReplicas = Sets.newHashSet(inSyncReplicas);
         candidateReplicas.remove(leaderReplica);
         // Case 1 above;
-        Set<Replica> stuckReplicas = Utils.filter(candidateReplicas,r->(time.milliseconds() - r.logEndOffsetUpdateTimeMs()) > keepInSyncTimeMs);
+        Set<Replica> stuckReplicas = Utils.filter(candidateReplicas, r -> (time.milliseconds() - r.logEndOffsetUpdateTimeMs()) > keepInSyncTimeMs);
         if (stuckReplicas.size() > 0)
-            debug(String.format("Stuck replicas for partition <%s,%d> are %s", topic, partitionId, Utils.map(stuckReplicas,r->r.brokerId)));
+            debug(String.format("Stuck replicas for partition <%s,%d> are %s", topic, partitionId, Sc.map(stuckReplicas, r -> r.brokerId)));
         // Case 2 above;
-        Set<Replica> slowReplicas=Utils.filter(candidateReplicas,r->r.logEndOffset().messageOffset >= 0 &&
-        leaderLogEndOffset.messageOffset - r.logEndOffset().messageOffset > keepInSyncMessages);
+        Set<Replica> slowReplicas = Utils.filter(candidateReplicas, r -> r.logEndOffset().messageOffset >= 0 &&
+                leaderLogEndOffset.messageOffset - r.logEndOffset().messageOffset > keepInSyncMessages);
 
         if (slowReplicas.size() > 0)
-            debug(String.format("Slow replicas for partition <%s,%d> are %s", topic, partitionId, Utils.map(slowReplicas,r->r.brokerId)));
+            debug(String.format("Slow replicas for partition <%s,%d> are %s", topic, partitionId, Sc.map(slowReplicas, r -> r.brokerId)));
         stuckReplicas.addAll(slowReplicas);
         return stuckReplicas;
 
@@ -449,8 +436,8 @@ public class Partition extends KafkaMetricsGroup {
     }
 
     private void updateIsr(Set<Replica> newIsr) {
-        LeaderAndIsr newLeaderAndIsr = new LeaderAndIsr(localBrokerId, leaderEpoch, Utils.toList(Utils.map(newIsr,r -> r.brokerId)), zkVersion);
-        Tuple<Boolean,Integer> result = ReplicationUtils.updateLeaderAndIsr(zkClient, topic, partitionId,
+        LeaderAndIsr newLeaderAndIsr = new LeaderAndIsr(localBrokerId, leaderEpoch, Sc.toList(Sc.map(newIsr, r -> r.brokerId)), zkVersion);
+        Tuple<Boolean, Integer> result = ReplicationUtils.updateLeaderAndIsr(zkClient, topic, partitionId,
                 newLeaderAndIsr, controllerEpoch, zkVersion);
         Boolean updateSucceeded = result.v1;
         Integer newVersion = result.v2;
@@ -485,7 +472,7 @@ public class Partition extends KafkaMetricsGroup {
         partitionString.append("; Partition: " + partitionId);
         partitionString.append("; Leader: " + leaderReplicaIdOpt);
         partitionString.append("; AssignedReplicas: " + assignedReplicaMap.keys());
-        partitionString.append("; InSyncReplicas: " + Utils.map(inSyncReplicas, r -> r.brokerId));
+        partitionString.append("; InSyncReplicas: " + Sc.map(inSyncReplicas, r -> r.brokerId));
         return partitionString.toString();
     }
 

@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import kafka.api.ProducerRequest;
 import kafka.producer.SyncProducerConfig;
+import kafka.utils.Sc;
 import kafka.utils.TestUtils;
 import org.junit.After;
 import org.junit.Assert;
@@ -30,7 +31,7 @@ public class SocketServerTest {
 
     @Before
     public void setup() throws IOException, InterruptedException {
-        server = new SocketServer(0,null, kafka.utils.TestUtils.choosePort(),
+        server = new SocketServer(0, null, kafka.utils.TestUtils.choosePort(),
                 1,
                 50,
                 300000,
@@ -68,12 +69,16 @@ public class SocketServerTest {
         channel.sendResponse(new RequestChannel.Response(request.processor, request, send));
     }
 
-    public Socket connect() throws IOException {
+    public Socket connect() {
         return connect(server);
     }
 
-    public Socket connect(SocketServer s) throws IOException {
-        return new Socket("localhost", s.port);
+    public Socket connect(SocketServer s) {
+        try {
+            return new Socket("localhost", s.port);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @After
@@ -120,6 +125,7 @@ public class SocketServerTest {
     /**
      * 发送request完后(读取完request, attach到key)，interestOps应该不为op_read
      * 发送response后(send写入channel)，interestOps应该为op_read
+     *
      * @throws IOException
      * @throws InterruptedException
      */
@@ -164,14 +170,7 @@ public class SocketServerTest {
     @Test
     public void testMaxConnectionsPerIp() throws IOException {
         // make the maximum allowable number of connections and then leak them;
-        List<Socket> conns = Stream.iterate(0, n -> n + 1).limit(server.maxConnectionsPerIp).map(i -> {
-            try {
-                return connect();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            return null;
-        }).collect(Collectors.toList());
+        List<Socket> conns = Sc.itToList(0, server.maxConnectionsPerIp, i -> connect());
         // now try one more (should fail);
         Socket conn = connect();
         conn.setSoTimeout(3000);
@@ -199,15 +198,7 @@ public class SocketServerTest {
                 overrides);
         overrideServer.startup();
         // make the maximum allowable number of connections and then leak them;
-
-        List<Socket> conns = Stream.iterate(0, n -> n + 1).limit(overrideNum).map(i -> {
-            try {
-                return connect(overrideServer);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            return null;
-        }).collect(Collectors.toList());
+        List<Socket> conns = Sc.itToList(0, overrideNum, i -> connect());
         // now try one more (should fail);
         Socket conn = connect(overrideServer);
         conn.setSoTimeout(3000);

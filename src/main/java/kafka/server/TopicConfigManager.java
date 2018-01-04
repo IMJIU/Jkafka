@@ -96,7 +96,7 @@ class TopicConfigManager extends Logging {
         if (notifications.size() > 0) {
             info("Processing config change notification(s)...");
             Long now = time.milliseconds();
-            Map<TopicAndPartition, Log> logs = logManager.logsByTopicPartition;
+            Map<TopicAndPartition, Log> logs = logManager.logsByTopicPartition();
             Map<String, Map<TopicAndPartition, Log>> map = Sc.groupBy(logs, (k, v) -> k.topic);
             Map<String, List<Log>> logsByTopic = Sc.mapValue(map, v -> Sc.map(v, (kk, vv) -> vv));
             for (String notification : notifications) {

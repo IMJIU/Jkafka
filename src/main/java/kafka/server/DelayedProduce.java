@@ -7,6 +7,7 @@ import kafka.common.ErrorMapping;
 import kafka.func.Tuple;
 import kafka.log.TopicAndPartition;
 import kafka.network.RequestChannel;
+import kafka.utils.Sc;
 import kafka.utils.Utils;
 
 import java.util.*;
@@ -53,7 +54,7 @@ public class DelayedProduce extends DelayedRequest {
             Utils.foreach(offsetCommitRequestOpt, ocr -> offsetManager.putOffsets(ocr.groupId, ocr.requestInfo));
         }
         offsetCommitRequestOpt.orElseGet(null);
-        Optional<RequestOrResponse> opt = Utils.map(offsetCommitRequestOpt, o -> o.responseFor(errorCode, offsetManager.config.maxMetadataSize));
+        Optional<RequestOrResponse> opt = Sc.map(offsetCommitRequestOpt, o -> o.responseFor(errorCode, offsetManager.config.maxMetadataSize));
         if (opt.isPresent()) {
             return opt.get();
         }

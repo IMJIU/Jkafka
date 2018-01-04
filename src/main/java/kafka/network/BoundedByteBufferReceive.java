@@ -74,7 +74,7 @@ public class BoundedByteBufferReceive extends Receive {
                 }
             }
         } catch (IOException e) {
-            error(e.getMessage(), e);
+           throw new RuntimeException(e);
         }
         return read;
     }

@@ -188,7 +188,7 @@ public class ReplicaManager extends KafkaMetricsGroup {
             } else {
                 controllerEpoch = stopReplicaRequest.controllerEpoch;
                 // First stop fetchers for all partitions, then stop the corresponding replicas;
-                replicaFetcherManager.removeFetcherForPartitions(Utils.map(stopReplicaRequest.partitions, r -> new TopicAndPartition(r.topic, r.partition)));
+                replicaFetcherManager.removeFetcherForPartitions(Sc.map(stopReplicaRequest.partitions, r -> new TopicAndPartition(r.topic, r.partition)));
                 for (TopicAndPartition topicAndPartition : stopReplicaRequest.partitions) {
                     short errorCode = stopReplica(topicAndPartition.topic, topicAndPartition.partition, stopReplicaRequest.deletePartitions);
                     responseMap.put(topicAndPartition, errorCode);
@@ -440,7 +440,7 @@ public class ReplicaManager extends KafkaMetricsGroup {
 
         try {
             // First stop fetchers for all the partitions;
-            replicaFetcherManager.removeFetcherForPartitions(Utils.map(partitionState.keySet(), p -> new TopicAndPartition(p)));
+            replicaFetcherManager.removeFetcherForPartitions(Sc.map(partitionState.keySet(), p -> new TopicAndPartition(p)));
             partitionState.forEach((state, v) ->
                     stateChangeLogger.trace(String.format("Broker %d stopped fetchers as part of become-leader request from controller " +
                                     "%d epoch %d with correlation id %d for partition %s",
@@ -526,14 +526,14 @@ public class ReplicaManager extends KafkaMetricsGroup {
                 }
 
             });
-            replicaFetcherManager.removeFetcherForPartitions(Utils.map(partitionsToMakeFollower, p -> new TopicAndPartition(p)));
+            replicaFetcherManager.removeFetcherForPartitions(Sc.map(partitionsToMakeFollower, p -> new TopicAndPartition(p)));
             partitionsToMakeFollower.forEach(partition -> {
                 stateChangeLogger.trace(String.format("Broker %d stopped fetchers as part of become-follower request from controller " +
                                 "%d epoch %d with correlation id %d for partition %s",
                         localBrokerId, controllerId, epoch, correlationId, new TopicAndPartition(partition.topic, partition.partitionId)));
             });
 
-            logManager.truncateTo(Utils.toMap(Utils.map(partitionsToMakeFollower, partition -> Tuple.of(new TopicAndPartition(partition), partition.getOrCreateReplica().highWatermark().messageOffset))));
+            logManager.truncateTo(Sc.toMap(Sc.map(partitionsToMakeFollower, partition -> Tuple.of(new TopicAndPartition(partition), partition.getOrCreateReplica().highWatermark().messageOffset))));
 
             partitionsToMakeFollower.forEach(partition ->
                     stateChangeLogger.trace(String.format("Broker %d truncated logs and checkpointed recovery boundaries for partition <%s,%d> as part of " +
@@ -550,8 +550,8 @@ public class ReplicaManager extends KafkaMetricsGroup {
                 );
             } else {
                 // we do not need to check if the leader exists again since this has been done at the beginning of this process;
-                Map<TopicAndPartition, BrokerAndInitialOffset> partitionsToMakeFollowerWithLeaderAndOffset = Utils.toMap(
-                        Utils.map(partitionsToMakeFollower, partition ->
+                Map<TopicAndPartition, BrokerAndInitialOffset> partitionsToMakeFollowerWithLeaderAndOffset = Sc.toMap(
+                        Sc.map(partitionsToMakeFollower, partition ->
                                 Tuple.of(new TopicAndPartition(partition),
                                         new BrokerAndInitialOffset(
                                                 Utils.find(leaders, r -> r.id == partition.leaderReplicaIdOpt.get()),
@@ -601,7 +601,7 @@ public class ReplicaManager extends KafkaMetricsGroup {
             } else {
                 throw new NotAssignedReplicaException(String.format("Leader %d failed to record follower %d's position %d since the replica" +
                                 " is not recognized to be one of the assigned replicas %s for partition <%s,%d>", localBrokerId, replicaId,
-                        offset.messageOffset, Utils.map(partition.assignedReplicas(), r -> r.brokerId), topic, partitionId));
+                        offset.messageOffset, Sc.map(partition.assignedReplicas(), r -> r.brokerId), topic, partitionId));
 
             }
         } else {
@@ -617,7 +617,7 @@ public class ReplicaManager extends KafkaMetricsGroup {
      * Flushes the highwatermark value for all partitions to the highwatermark file
      */
     public void checkpointHighWatermarks() {
-        List<Replica> replicas = Utils.filter(Utils.map(allPartitions.values(), p -> {
+        List<Replica> replicas = Sc.filter(Sc.map(allPartitions.values(), p -> {
             Optional<Replica> opt = p.getReplica(config.brokerId);
             if (opt.isPresent()) {
                 return opt.get();
@@ -626,7 +626,7 @@ public class ReplicaManager extends KafkaMetricsGroup {
         }), p -> p != null);
         Map<String, List<Replica>> replicasByDir = Utils.groupBy(Utils.filter(replicas, r -> r.log.isPresent()), r -> r.log.get().dir.getParentFile().getAbsolutePath());
         replicasByDir.forEach((dir, reps) -> {
-            Map<TopicAndPartition, Long> hwms = Utils.toMap(Utils.map(reps, r -> Tuple.of(new TopicAndPartition(r), r.highWatermark().messageOffset)));
+            Map<TopicAndPartition, Long> hwms = Sc.toMap(Sc.map(reps, r -> Tuple.of(new TopicAndPartition(r), r.highWatermark().messageOffset)));
             try {
                 highWatermarkCheckpoints.get(dir).write(hwms);
             } catch (Exception e) {

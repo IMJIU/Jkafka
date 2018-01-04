@@ -17,7 +17,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 /**
@@ -90,7 +89,7 @@ public class LogManager extends Logging {
         init();
     }
 
-    public void init() throws IOException {
+    public void init() {
         createAndValidateLogDirs(logDirs);
         dirLocks = lockLogDirs(logDirs);
         recoveryPointCheckpoints = Sc.mapToMap(logDirs, dir -> Tuple.of(dir, new OffsetCheckpoint(new File(dir, RecoveryPointCheckpointFile))));
@@ -117,9 +116,8 @@ public class LogManager extends Logging {
             try {
                 return dir.getCanonicalPath();
             } catch (IOException e) {
-                error(e.getMessage(), e);
+               throw new RuntimeException(e);
             }
-            return "";
         }).collect(Collectors.toSet()).size() < dirs.size()) {
             throw new KafkaException("Duplicate log directory found: " + logDirs);
         }
@@ -158,7 +156,7 @@ public class LogManager extends Logging {
      * Recover and load all logs in the given data directories
      * 加载目录下所有的topic-partition到 Pool logs<TopicAndPartition, Log>
      */
-    private void loadLogs() throws IOException {
+    private void loadLogs() {
         info("Loading logs.");
 
         List<ExecutorService> threadPools = Lists.newArrayList();
@@ -537,13 +535,15 @@ public class LogManager extends Logging {
     /**
      * Get a map of TopicAndPartition => Log
      */
-    public Map<TopicAndPartition, Log> logsByTopicPartition = logs.toMap();
+    public Map<TopicAndPartition, Log> logsByTopicPartition(){
+        return logs.toMap();
+    }
 
     /**
      * Map of log dir to logs by topic and partitions in that dir
      */
     private Map<String, Map<TopicAndPartition, Log>> logsByDir() {
-        return Utils.groupByValue(logsByTopicPartition, v -> v.dir.getParent());
+        return Sc.groupByValue(logsByTopicPartition(), v -> v.dir.getParent());
     }
 
     /**

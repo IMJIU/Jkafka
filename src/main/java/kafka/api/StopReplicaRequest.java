@@ -10,6 +10,7 @@ import kafka.network.BoundedByteBufferSend;
 import kafka.network.InvalidRequestException;
 import kafka.network.RequestChannel;
 import kafka.utils.Logging;
+import kafka.utils.Sc;
 import kafka.utils.Utils;
 
 import static kafka.api.ApiUtils.*;
@@ -109,7 +110,7 @@ public class StopReplicaRequest extends RequestOrResponse {
 
     @Override
     public void handleError(Throwable e, RequestChannel requestChannel, RequestChannel.Request request) {
-        Map<TopicAndPartition, Short> responseMap = Utils.toMap(Utils.map(partitions, p -> Tuple.of(p, ErrorMapping.NoError)));
+        Map<TopicAndPartition, Short> responseMap = Sc.toMap(Sc.map(partitions, p -> Tuple.of(p, ErrorMapping.NoError)));
         StopReplicaResponse errorResponse = new StopReplicaResponse(correlationId, responseMap);
         requestChannel.sendResponse(new RequestChannel.Response(request, new BoundedByteBufferSend(errorResponse)));
     }
