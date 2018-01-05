@@ -176,7 +176,7 @@ public class Processor extends AbstractServerThread {
      * Register any new connections that have been queued up
      */
     private void configureNewConnections() throws ClosedChannelException {
-        while (newConnections.size() > 0) {
+        while (!newConnections.isEmpty()) {
             SocketChannel channel = newConnections.poll();
             debug("Processor " + id + " listening to new connection from " + channel.socket().getRemoteSocketAddress());
             channel.register(selector, SelectionKey.OP_READ);
