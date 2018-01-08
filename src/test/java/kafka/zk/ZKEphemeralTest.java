@@ -17,8 +17,7 @@ public class ZKEphemeralTest extends ZooKeeperTestHarness {
     @Test
     public void testEphemeralNodeCleanup() {
         ConsumerConfig config = new ConsumerConfig(TestUtils.createConsumerProperties(zkConnect, "test", "1"));
-        ZkClient zkClient = new ZkClient(zkConnect, zkSessionTimeoutMs, config.zkConnectionTimeoutMs,
-                new ZKStringSerializer());
+        ZkClient zkClient = new ZkClient(zkConnect, zkSessionTimeoutMs, config.zkConnectionTimeoutMs, new ZKStringSerializer());
 
         try {
             ZkUtils.createEphemeralPathExpectConflict(zkClient, "/tmp/zktest", "node created");
@@ -27,6 +26,7 @@ public class ZKEphemeralTest extends ZooKeeperTestHarness {
 
         String testData = null;
         testData = ZkUtils.readData(zkClient, "/tmp/zktest").v1;
+        System.out.println(testData);
         Assert.assertNotNull(testData);
         zkClient.close();
         zkClient = new ZkClient(zkConnect, zkSessionTimeoutMs, config.zkConnectionTimeoutMs, new ZKStringSerializer());

@@ -28,8 +28,8 @@ public class EmbeddedZookeeper {
         File snapshotDir = TestUtils.tempDir();
         File logDir = TestUtils.tempDir();
         Integer tickTime = 500;
-        ZooKeeperServer zookeeper = new ZooKeeperServer(snapshotDir, logDir, tickTime);
-        NIOServerCnxnFactory factory = new NIOServerCnxnFactory();
+         zookeeper = new ZooKeeperServer(snapshotDir, logDir, tickTime);
+        factory = new NIOServerCnxnFactory();
         factory.configure(new InetSocketAddress("127.0.0.1", org.apache.kafka.common.utils.Utils.getPort(connectString)), 0);
         factory.startup(zookeeper);
     }

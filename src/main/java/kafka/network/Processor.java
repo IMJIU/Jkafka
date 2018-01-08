@@ -56,10 +56,11 @@ public class Processor extends AbstractServerThread {
 
 
     public void run() {
-        startupComplete();
+        try {
+            startupComplete();
 
-        while (isRunning()) {
-            try {
+            while (isRunning()) {
+
                 // setup any new connections that have been queued up;
                 configureNewConnections();
                 // register any new responses for writing;
@@ -104,18 +105,15 @@ public class Processor extends AbstractServerThread {
                     }
                 }
                 maybeCloseOldestConnection();
-            } catch (IOException e) {
-                error(e.getMessage(), e);
+
             }
-        }
-        debug("Closing selector.");
-        try {
+            debug("Closing selector.");
             closeAll();
+            swallowError(() -> selector.close());
+            shutdownComplete();
         } catch (IOException e) {
-            error(e.getMessage(), e);
+            throw new RuntimeException(e);
         }
-        swallowError(() -> selector.close());
-        shutdownComplete();
     }
 
     /**
