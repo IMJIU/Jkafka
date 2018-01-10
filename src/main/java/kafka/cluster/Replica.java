@@ -42,17 +42,19 @@ public class Replica extends Logging {
     public void init() {
         topic = partition.topic;
         partitionId = partition.partitionId;
+        logEndOffsetUpdateTimeMsValue = new AtomicLong(time.milliseconds());
+        highWatermarkMetadata = new LogOffsetMetadata(initialHighWatermarkValue);
     }
 
 
     //        // the high watermark offset value, in non-leader replicas only its message offsets are kept;
-    private volatile LogOffsetMetadata highWatermarkMetadata = new LogOffsetMetadata(initialHighWatermarkValue);
+    private volatile LogOffsetMetadata highWatermarkMetadata ;
 
     //        // the log end offset value, kept in all replicas;
 //        // for local replica it is the log's end offset, for remote replicas its value is only updated by follower fetch;
     private volatile LogOffsetMetadata logEndOffsetMetadata = LogOffsetMetadata.UnknownOffsetMetadata;
     //        // the time when log offset is updated;
-    private AtomicLong logEndOffsetUpdateTimeMsValue = new AtomicLong(time.milliseconds());
+    private AtomicLong logEndOffsetUpdateTimeMsValue ;
 
 
     //

@@ -51,11 +51,14 @@ public class Partition extends KafkaMetricsGroup {
                 },
                 ImmutableMap.of("topic", topic, "partition", partitionId.toString())
         );
+        localBrokerId = replicaManager.config.brokerId;
+        logManager = replicaManager.logManager;
+        zkClient = replicaManager.zkClient;
     }
 
-    private Integer localBrokerId = replicaManager.config.brokerId;
-    private LogManager logManager = replicaManager.logManager;
-    private ZkClient zkClient = replicaManager.zkClient;
+    private Integer localBrokerId ;
+    private LogManager logManager ;
+    private ZkClient zkClient ;
     private Pool<Integer, Replica> assignedReplicaMap = new Pool<>();
     //        // The read lock is only required when multiple reads are executed and needs to be in a consistent manner;
     private ReentrantReadWriteLock leaderIsrUpdateLock = new ReentrantReadWriteLock();

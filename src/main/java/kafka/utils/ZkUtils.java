@@ -88,13 +88,13 @@ public class ZkUtils {
     }
 
 
-    public static List<Broker> getAllBrokersInCluster(ZkClient zkClient)  {
+    public static List<Broker> getAllBrokersInCluster(ZkClient zkClient) {
         Stream<String> brokerIds = ZkUtils.getChildrenParentMayNotExist(zkClient, ZkUtils.BrokerIdsPath).stream().sorted();
         return brokerIds.map(i -> Integer.parseInt(i)).map(i -> getBrokerInfo(zkClient, i)).filter(i -> i.isPresent()).map(i -> i.get()).collect(Collectors.toList());
     }
 
     public static Optional<LeaderAndIsr> getLeaderAndIsrForPartition(ZkClient zkClient, String topic, Integer partition) {
-        return Sc.map(ReplicationUtils.getLeaderIsrAndEpochForPartition(zkClient, topic, partition),l->l.leaderAndIsr);
+        return Sc.map(ReplicationUtils.getLeaderIsrAndEpochForPartition(zkClient, topic, partition), l -> l.leaderAndIsr);
     }
 
     public static void setupCommonPaths(ZkClient zkClient) {
@@ -102,7 +102,7 @@ public class ZkUtils {
             makeSurePersistentPathExists(zkClient, path);
     }
 
-    public static Optional<Integer> getLeaderForPartition(ZkClient zkClient, String topic, Integer partition)  {
+    public static Optional<Integer> getLeaderForPartition(ZkClient zkClient, String topic, Integer partition) {
         Optional<String> leaderAndIsrOpt = readDataMaybeNull(zkClient, getTopicPartitionLeaderAndIsrPath(topic, partition)).v1;
         if (leaderAndIsrOpt.isPresent()) {
             String leaderAndIsr = leaderAndIsrOpt.get();
@@ -135,7 +135,7 @@ public class ZkUtils {
     /**
      * Gets the in-sync replicas (ISR) for a specific topic and partition
      */
-    public static List<Integer> getInSyncReplicasForPartition(ZkClient zkClient, String topic, Integer partition)  {
+    public static List<Integer> getInSyncReplicasForPartition(ZkClient zkClient, String topic, Integer partition) {
         Optional<String> leaderAndIsrOpt = readDataMaybeNull(zkClient, getTopicPartitionLeaderAndIsrPath(topic, partition)).v1;
         if (leaderAndIsrOpt.isPresent()) {
             String leaderAndIsr = leaderAndIsrOpt.get();
@@ -277,10 +277,10 @@ public class ZkUtils {
      * If the checker function returns true then the above bug might be encountered, back off and retry;
      * otherwise re-throw the exception
      */
-    public static void createEphemeralPathExpectConflictHandleZKBug( ZkClient zkClient, String path, String data,
-                                                                     Object expectedCallerData,
-                                                                     Checker<String, Object, Boolean> checker,
-                                                                     Integer backoffTime) {
+    public static void createEphemeralPathExpectConflictHandleZKBug(ZkClient zkClient, String path, String data,
+                                                                    Object expectedCallerData,
+                                                                    Checker<String, Object, Boolean> checker,
+                                                                    Integer backoffTime) {
         while (true) {
             try {
                 createEphemeralPathExpectConflict(zkClient, path, data);
@@ -298,7 +298,7 @@ public class ZkUtils {
                         try {
                             Thread.sleep(backoffTime);
                         } catch (InterruptedException e1) {
-                            throw  new RuntimeException(e1);
+                            throw new RuntimeException(e1);
                         }
                     } else {
                         throw e;
@@ -472,6 +472,7 @@ public class ZkUtils {
     public static Tuple<Optional<String>, Stat> readDataMaybeNull(ZkClient client, String path) {
         Stat stat = new Stat();
         try {
+            System.out.println("read path:"+ path);
             return Tuple.of(Optional.of(client.readData(path, stat)), stat);
         } catch (ZkNoNodeException e) {
             return Tuple.of(Optional.empty(), stat);
@@ -503,7 +504,7 @@ public class ZkUtils {
         return client.exists(path);
     }
 
-    public static  Cluster getCluster(ZkClient zkClient) throws Throwable {
+    public static Cluster getCluster(ZkClient zkClient) throws Throwable {
         Cluster cluster = new Cluster();
         List<String> nodes = getChildrenParentMayNotExist(zkClient, BrokerIdsPath);
         for (String node : nodes) {

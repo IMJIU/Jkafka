@@ -16,12 +16,12 @@ import java.net.InetSocketAddress;
  * @create 2017-05-05 21 18
  **/
 public class EmbeddedZookeeper {
-    String connectString;
-    File snapshotDir = TestUtils.tempDir();
-    File logDir = TestUtils.tempDir();
-    Integer tickTime = 500;
-    ZooKeeperServer zookeeper;
-    NIOServerCnxnFactory factory;
+    public String connectString;
+    public File snapshotDir = TestUtils.tempDir();
+    public File logDir = TestUtils.tempDir();
+    public Integer tickTime = 500;
+    public ZooKeeperServer zookeeper;
+    public NIOServerCnxnFactory factory;
 
     public EmbeddedZookeeper(String connectString) throws IOException, InterruptedException {
         this.connectString = connectString;

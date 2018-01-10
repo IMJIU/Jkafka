@@ -13,6 +13,7 @@ import kafka.cluster.Broker;
 import kafka.common.ErrorMapping;
 import kafka.controller.KafkaController;
 
+import kafka.controller.ctrl.ControllerStats;
 import kafka.log.CleanerConfig;
 import kafka.log.LogConfig;
 import kafka.log.LogManager;
@@ -324,7 +325,7 @@ public class KafkaServer extends KafkaMetricsGroup {
         return logManager;
     }
 
-    private LogManager createLogManager(ZkClient zkClient, BrokerState brokerState) throws IOException {
+    private LogManager createLogManager(ZkClient zkClient, BrokerState brokerState)  {
         LogConfig defaultLogConfig = new LogConfig(config.logSegmentBytes,
                 config.logRollTimeMillis,
                 config.logRollTimeJitterMillis,

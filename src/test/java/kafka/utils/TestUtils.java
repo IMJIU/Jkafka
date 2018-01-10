@@ -1,6 +1,7 @@
 package kafka.utils;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import kafka.admin.AdminUtils;
 import kafka.api.*;
 import kafka.cluster.Partition;
@@ -12,6 +13,9 @@ import kafka.func.Action;
 import kafka.func.Fun;
 import kafka.func.IntCount;
 import kafka.func.Tuple;
+import kafka.log.CleanerConfig;
+import kafka.log.LogConfig;
+import kafka.log.LogManager;
 import kafka.log.TopicAndPartition;
 import kafka.message.ByteBufferMessageSet;
 import kafka.message.CompressionCodec;
@@ -20,6 +24,7 @@ import kafka.message.MessageAndOffset;
 import kafka.producer.*;
 import kafka.serializer.Encoder;
 import kafka.serializer.StringEncoder;
+import kafka.server.BrokerState;
 import kafka.server.KafkaConfig;
 import kafka.server.KafkaServer;
 import org.I0Itec.zkclient.ZkClient;
@@ -191,15 +196,16 @@ public class TestUtils {
 //
 //    public void  tempTopic(): String = "testTopic" + random.nextInt(1000000);
 //
-//    /**
-//     * Create a temporary relative directory
-//     */
-//    public void  tempRelativeDir(String parent): File = {
-//        val f = new File(parent, "kafka-" + random.nextInt(1000000));
-//        f.mkdirs();
-//        f.deleteOnExit();
-//        f;
-//    }
+
+    /**
+     * Create a temporary relative directory
+     */
+    public static File tempRelativeDir(String parent) {
+        File f = new File(parent, "kafka-" + random.nextInt(1000000));
+        f.mkdirs();
+        f.deleteOnExit();
+        return f;
+    }
 //
 //    /**
 //     * Create a temporary file
@@ -953,6 +959,28 @@ public class TestUtils {
         });
         Collections.reverse(messages);
         return messages;
+    }
+
+    /**
+     * Create new LogManager instance with default configuration for testing
+     */
+    public static LogManager createLogManager(List<File> logDirs, LogConfig defaultConfig, CleanerConfig cleanerConfig, MockTime time) {
+        logDirs = logDirs == null ? Lists.newArrayList() : logDirs;
+        defaultConfig = defaultConfig == null ? new LogConfig() : defaultConfig;
+        cleanerConfig = cleanerConfig != null ? cleanerConfig : new CleanerConfig(false);
+        time = time != null ? time : new MockTime();
+        return new LogManager(
+                logDirs,
+                Maps.newHashMap(),
+                defaultConfig,
+                cleanerConfig,
+                4,
+                1000L,
+                10000L,
+                1000L,
+                time.scheduler, new BrokerState(),
+                time
+        );
     }
 }
 

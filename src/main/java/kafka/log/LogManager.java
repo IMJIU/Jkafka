@@ -69,12 +69,12 @@ public class LogManager extends Logging {
      * <p>
      * A background thread handles log retention by periodically truncating excess log segments.
      */
-    public LogManager(File[] logDirs, Map<String, LogConfig> topicConfigs, LogConfig defaultConfig, CleanerConfig cleanerConfig, java.lang.Integer ioThreads, Long flushCheckMs, Long flushCheckpointMs, Long retentionCheckMs, Scheduler scheduler, BrokerState brokerState, Time time) throws Exception {
+    public LogManager(File[] logDirs, Map<String, LogConfig> topicConfigs, LogConfig defaultConfig, CleanerConfig cleanerConfig, java.lang.Integer ioThreads, Long flushCheckMs, Long flushCheckpointMs, Long retentionCheckMs, Scheduler scheduler, BrokerState brokerState, Time time)  {
         this(Lists.newArrayList(logDirs), topicConfigs, defaultConfig, cleanerConfig, ioThreads, flushCheckMs, flushCheckpointMs,
                 retentionCheckMs, scheduler, brokerState, time);
     }
 
-    public LogManager(List<File> logDirs, Map<String, LogConfig> topicConfigs, LogConfig defaultConfig, CleanerConfig cleanerConfig, java.lang.Integer ioThreads, Long flushCheckMs, Long flushCheckpointMs, Long retentionCheckMs, Scheduler scheduler, BrokerState brokerState, Time time) throws IOException {
+    public LogManager(List<File> logDirs, Map<String, LogConfig> topicConfigs, LogConfig defaultConfig, CleanerConfig cleanerConfig, java.lang.Integer ioThreads, Long flushCheckMs, Long flushCheckpointMs, Long retentionCheckMs, Scheduler scheduler, BrokerState brokerState, Time time)  {
         this.logDirs = logDirs;
         this.topicConfigs = topicConfigs;
         this.defaultConfig = defaultConfig;

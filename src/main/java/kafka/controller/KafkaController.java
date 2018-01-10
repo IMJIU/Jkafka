@@ -94,7 +94,7 @@ public class KafkaController extends KafkaMetricsGroup {
         this.config = config;
         this.zkClient = zkClient;
         this.brokerState = brokerState;
-        stateChangeLogger = KafkaController.stateChangeLogger;
+//        stateChangeLogger = KafkaController.stateChangeLogger;
         newGauge("ActiveControllerCount", new Gauge<Object>() {
                     public Object value() {
                         if (isActive()) return 1;
