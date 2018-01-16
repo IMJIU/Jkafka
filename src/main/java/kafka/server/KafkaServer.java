@@ -161,7 +161,7 @@ public class KafkaServer extends KafkaMetricsGroup {
             zkClientForChrootCreation.close();
         }
 
-        ZkClient zkClient = new ZkClient(config.zkConnect, config.zkSessionTimeoutMs, config.zkConnectionTimeoutMs);
+        ZkClient zkClient = new ZkClient(config.zkConnect, config.zkSessionTimeoutMs, config.zkConnectionTimeoutMs, new ZKStringSerializer());
         ZkUtils.setupCommonPaths(zkClient);
         return zkClient;
     }
@@ -325,7 +325,7 @@ public class KafkaServer extends KafkaMetricsGroup {
         return logManager;
     }
 
-    private LogManager createLogManager(ZkClient zkClient, BrokerState brokerState)  {
+    private LogManager createLogManager(ZkClient zkClient, BrokerState brokerState) {
         LogConfig defaultLogConfig = new LogConfig(config.logSegmentBytes,
                 config.logRollTimeMillis,
                 config.logRollTimeJitterMillis,

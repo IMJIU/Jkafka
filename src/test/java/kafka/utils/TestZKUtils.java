@@ -1,5 +1,7 @@
 package kafka.utils;
 
+import org.junit.Test;
+
 import java.io.IOException;
 
 /**
@@ -15,4 +17,5 @@ public class TestZKUtils {
         zookeeperConnect = "127.0.0.1:" + TestUtils.choosePort();
         return zookeeperConnect;
     }
+
 }

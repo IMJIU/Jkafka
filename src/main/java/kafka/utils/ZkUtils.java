@@ -472,7 +472,6 @@ public class ZkUtils {
     public static Tuple<Optional<String>, Stat> readDataMaybeNull(ZkClient client, String path) {
         Stat stat = new Stat();
         try {
-            System.out.println("read path:"+ path);
             return Tuple.of(Optional.of(client.readData(path, stat)), stat);
         } catch (ZkNoNodeException e) {
             return Tuple.of(Optional.empty(), stat);
@@ -527,8 +526,7 @@ public class ZkUtils {
     public static Map<TopicAndPartition, List<Integer>> getReplicaAssignmentForTopics(ZkClient zkClient, List<String> topics) {
         Map<TopicAndPartition, List<Integer>> ret = Maps.newHashMap();
         topics.forEach(topic -> {
-            Optional<String> jsonPartitionMapOpt = null;
-            jsonPartitionMapOpt = readDataMaybeNull(zkClient, getTopicPath(topic)).v1;
+            Optional<String> jsonPartitionMapOpt = readDataMaybeNull(zkClient, getTopicPath(topic)).v1;
             if (jsonPartitionMapOpt.isPresent()) {
                 Map<String, Object> m = JSON.parseObject(jsonPartitionMapOpt.get(), Map.class);
                 if (m != null) {

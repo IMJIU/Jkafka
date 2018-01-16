@@ -208,7 +208,7 @@ public class AdminUtils  {
             String jsonPartitionData = ZkUtils.replicaAssignmentZkData(Sc.toMap(Sc.map(replicaAssignment, (k, v) -> Tuple.of(k.toString(), v))));
 
             if (!update) {
-                logging.info("Topic creation " + jsonPartitionData.toString());
+                logging.info("Topic creation " + jsonPartitionData);
                 ZkUtils.createPersistentPath(zkClient, zkPath, jsonPartitionData);
             } else {
                 logging.info("Topic update " + jsonPartitionData.toString());

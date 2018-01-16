@@ -10,6 +10,8 @@ import kafka.serializer.StringEncoder;
 import kafka.utils.Sc;
 import kafka.utils.TestUtils;
 import kafka.zk.ZooKeeperTestHarness;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -31,13 +33,13 @@ public class ReplicaFetchTest extends ZooKeeperTestHarness {
     String topic1 = "foo";
     String topic2 = "bar";
 
-    @Override
+    @Before
     public void setUp() throws IOException, InterruptedException {
         super.setUp();
         brokers = Sc.map(configs, config -> TestUtils.createServer(config));
     }
 
-    @Override
+    @After
     public void tearDown() {
         brokers.forEach(b -> b.shutdown());
         super.tearDown();
