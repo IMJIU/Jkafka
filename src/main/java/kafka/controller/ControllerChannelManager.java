@@ -164,7 +164,7 @@ class ControllerBrokerRequestBatch extends Logging {
                                                  List<Integer> replicas, ActionP<RequestOrResponse> callback) {
         TopicAndPartition topicAndPartition = new TopicAndPartition(topic, partition);
         Sc.filter(brokerIds, b -> b >= 0).forEach(brokerId -> {
-            leaderAndIsrRequestMap.getOrDefault(brokerId, new HashMap<>());
+            Sc.getOrElseUpdate(leaderAndIsrRequestMap, brokerId, Maps.newHashMap());
             leaderAndIsrRequestMap.get(brokerId).put(Tuple.of(topic, partition),
                     new PartitionStateInfo(leaderIsrAndControllerEpoch, Sc.toSet(replicas)));
         });
@@ -174,13 +174,13 @@ class ControllerBrokerRequestBatch extends Logging {
 
     public void addStopReplicaRequestForBrokers(List<Integer> brokerIds, String topic, Integer partition, Boolean deletePartition, ActionP2<RequestOrResponse, Integer> callback) {
         Sc.filter(brokerIds, b -> b >= 0).forEach(brokerId -> {
-            stopReplicaRequestMap.getOrDefault(brokerId, Lists.newArrayList());
+            Sc.getOrElseUpdate(stopReplicaRequestMap, brokerId, Lists.newArrayList());
             List<StopReplicaRequestInfo> v = stopReplicaRequestMap.get(brokerId);
-            if (callback != null)
-                stopReplicaRequestMap.get(brokerId).add(new StopReplicaRequestInfo(new PartitionAndReplica(topic, partition, brokerId),
+            if (callback != null) {
+                v.add(0, new StopReplicaRequestInfo(new PartitionAndReplica(topic, partition, brokerId),
                         deletePartition, r -> callback.invoke(r, brokerId)));
-            else
-                stopReplicaRequestMap.get(brokerId).add(new StopReplicaRequestInfo(new PartitionAndReplica(topic, partition, brokerId), deletePartition));
+            } else
+                v.add(0, new StopReplicaRequestInfo(new PartitionAndReplica(topic, partition, brokerId), deletePartition));
         });
     }
 
@@ -200,7 +200,7 @@ class ControllerBrokerRequestBatch extends Logging {
             }
             Sc.filter(brokerIds, b -> b >= 0).forEach(
                     brokerId -> {
-                        updateMetadataRequestMap.getOrDefault(brokerId, new HashMap<TopicAndPartition, PartitionStateInfo>());
+                        Sc.getOrElseUpdate(updateMetadataRequestMap, brokerId, Maps.newHashMap());
                         updateMetadataRequestMap.get(brokerId).put(partition, partitionStateInfo);
                     });
         } else {

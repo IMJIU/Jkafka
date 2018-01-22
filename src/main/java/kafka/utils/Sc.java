@@ -3,7 +3,9 @@ package kafka.utils;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import kafka.api.PartitionStateInfo;
 import kafka.func.*;
+import kafka.log.TopicAndPartition;
 import org.apache.commons.collections.map.HashedMap;
 
 import java.util.*;
@@ -784,5 +786,13 @@ public class Sc {
     public static <T extends Comparable> List<T> sorted(List<T> list) {
         Collections.sort(list);
         return list;
+    }
+
+    public static <V> V getOrElseUpdate(Map map, Object key, V value) {
+        Object result = map.get(key);
+        if (result == null) {
+            map.put(key, value);
+        }
+        return value;
     }
 }

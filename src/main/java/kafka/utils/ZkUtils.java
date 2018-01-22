@@ -84,7 +84,7 @@ public class ZkUtils {
 
 
     public static List<Integer> getSortedBrokerList(ZkClient zkClient) {
-        return ZkUtils.getChildren(zkClient, BrokerIdsPath).stream().map(s -> Integer.parseInt(s)).sorted().collect(Collectors.toList());
+        return Sc.sorted(Sc.map(ZkUtils.getChildren(zkClient, BrokerIdsPath), s -> Integer.parseInt(s)));
     }
 
 

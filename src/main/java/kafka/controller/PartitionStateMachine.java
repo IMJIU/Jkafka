@@ -46,9 +46,9 @@ public class PartitionStateMachine extends Logging {
 
     public PartitionStateMachine(KafkaController controller) {
         this.controller = controller;
+        controllerId = controller.config.brokerId;
         this.logIdent = "<Partition state machine on Controller " + controllerId + ">: ";
         controllerContext = controller.controllerContext;
-        controllerId = controller.config.brokerId;
         zkClient = controllerContext.zkClient;
         partitionState = Maps.newHashMap();
         brokerRequestBatch = new ControllerBrokerRequestBatch(controller);
@@ -209,6 +209,9 @@ public class PartitionStateMachine extends Logging {
             throw new StateChangeFailedException(String.format("Controller %d epoch %d initiated state change for partition %s to %s failed because " +
                     "the partition state machine has not started", controllerId, controller.epoch(), topicAndPartition, targetState));
         PartitionState currState = partitionState.getOrDefault(topicAndPartition, NonExistentPartition);
+        if (currState == NonExistentPartition) {
+            partitionState.put(topicAndPartition, currState);
+        }
         try {
             switch (targetState) {
                 case NewPartition:

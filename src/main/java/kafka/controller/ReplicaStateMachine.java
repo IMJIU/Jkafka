@@ -170,7 +170,7 @@ public class ReplicaStateMachine extends Logging {
             throw new StateChangeFailedException(String.format("Controller %d epoch %d initiated state change of replica %d for partition %s " +
                             "to %s failed because replica state machine has not started",
                     controllerId, controller.epoch(), replicaId, topicAndPartition, targetState));
-        ReplicaState currState = replicaState.getOrDefault(partitionAndReplica, NonExistentReplica);
+        ReplicaState currState = Sc.getOrElseUpdate(replicaState, partitionAndReplica, NonExistentReplica);
         try {
             List<Integer> replicaAssignment = controllerContext.partitionReplicaAssignment.get(topicAndPartition);
             switch (targetState) {

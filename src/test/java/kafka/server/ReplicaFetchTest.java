@@ -36,6 +36,10 @@ public class ReplicaFetchTest extends ZooKeeperTestHarness {
     @Before
     public void setUp() throws IOException, InterruptedException {
         super.setUp();
+        configs.forEach(c->{
+            c.zkConnectionTimeoutMs=70000;
+            c.zkSessionTimeoutMs=700000;
+        });
         brokers = Sc.map(configs, config -> TestUtils.createServer(config));
     }
 
@@ -52,7 +56,8 @@ public class ReplicaFetchTest extends ZooKeeperTestHarness {
         List<String> testMessageList2 = Lists.newArrayList("test5", "test6", "test7", "test8");
 
         // create a topic and partition and await leadership;
-        for (String topic : Lists.newArrayList(topic1, topic2)) {
+//        for (String topic : Lists.newArrayList(topic1, topic2)) {
+        for (String topic : Lists.newArrayList(topic1)) {
             createTopic(zkClient, topic, 1, 2, brokers, null);
         }
 
