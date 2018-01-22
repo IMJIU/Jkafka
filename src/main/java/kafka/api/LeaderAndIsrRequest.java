@@ -10,6 +10,7 @@ import kafka.func.Tuple;
 import kafka.network.BoundedByteBufferSend;
 import kafka.network.RequestChannel;
 import kafka.utils.Utils;
+import org.apache.zookeeper.Op;
 
 import java.nio.ByteBuffer;
 import java.util.*;
@@ -35,6 +36,7 @@ public class LeaderAndIsrRequest extends RequestOrResponse {
     public Set<Broker> leaders;
 
     public LeaderAndIsrRequest(Short versionId, Integer correlationId, String clientId, Integer controllerId, Integer controllerEpoch, Map<Tuple<String, Integer>, PartitionStateInfo> partitionStateInfos, Set<Broker> leaders) {
+        super(Optional.of(RequestKeys.LeaderAndIsrKey));
         this.versionId = versionId;
         this.correlationId = correlationId;
         this.clientId = clientId;

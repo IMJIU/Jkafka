@@ -45,7 +45,7 @@ public class BoundedByteBufferSend extends Send {
     }
 
     public BoundedByteBufferSend(RequestOrResponse request) {
-        this(request.sizeInBytes() + (request.requestId.equals(Optional.empty()) ? 2 : 0));
+        this(request.sizeInBytes() + (!request.requestId.equals(Optional.empty()) ? 2 : 0));
         if (request.requestId.isPresent()) {
             buffer.putShort(request.requestId.get());
         }

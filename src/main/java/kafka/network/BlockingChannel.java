@@ -26,6 +26,7 @@ public class BlockingChannel extends Logging {
         this.readBufferSize = readBufferSize;
         this.writeBufferSize = writeBufferSize;
         this.readTimeoutMs = readTimeoutMs;
+        this.connectTimeoutMs = readTimeoutMs;
     }
 
     private boolean connected = false;
@@ -63,6 +64,7 @@ public class BlockingChannel extends Logging {
                             writeBufferSize,
                             connectTimeoutMs));
                 } catch (Throwable e) {
+                    logger.error(e.getMessage(), e);
                     disconnect();
                 }
             }
@@ -85,6 +87,7 @@ public class BlockingChannel extends Logging {
                 readChannel = null;
             }
             connected = false;
+            logger.error("=============why close!!!");
         }
     }
 

@@ -262,7 +262,7 @@ public class AdminUtils  {
         if (str != null) {
             Map map = JSON.parseObject(str, Map.class);
             if (map != null) {
-                Prediction.require(map.get("version").equals("1"));
+                Prediction.require(map.get("version").equals(1));
                 Object obj = map.get("config");
                 if (obj != null) {
                     Map<String, String> config = (Map<String, String>) obj;

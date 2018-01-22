@@ -59,21 +59,26 @@ public abstract class AbstractFetcherThread extends ShutdownableThread {
         this.fetcherBrokerId = fetcherBrokerId;
         this.maxWait = maxWait;
         this.minBytes = minBytes;
+        simpleConsumer = new SimpleConsumer(sourceBroker.host, sourceBroker.port, socketTimeout, socketBufferSize, clientId);
+        metricId = new ClientIdAndBroker(clientId, sourceBroker.host, sourceBroker.port);
+        fetcherStats = new FetcherStats(metricId);
+        fetcherLagStats = new FetcherLagStats(metricId);
+        fetchRequestBuilder = new FetchRequestBuilder().
+                clientId(clientId).
+                replicaId(fetcherBrokerId).
+                maxWait(maxWait).
+                minBytes(minBytes);
     }
 
     Boolean isInterruptible = true;
     private Map<TopicAndPartition, Long> partitionMap = Maps.newHashMap(); // a (topic, partition) -> offset map;
     private ReentrantLock partitionMapLock = new ReentrantLock();
     private Condition partitionMapCond = partitionMapLock.newCondition();
-    public SimpleConsumer simpleConsumer = new SimpleConsumer(sourceBroker.host, sourceBroker.port, socketTimeout, socketBufferSize, clientId);
-    private ClientIdAndBroker metricId = new ClientIdAndBroker(clientId, sourceBroker.host, sourceBroker.port);
-    FetcherStats fetcherStats = new FetcherStats(metricId);
-    FetcherLagStats fetcherLagStats = new FetcherLagStats(metricId);
-    FetchRequestBuilder fetchRequestBuilder = new FetchRequestBuilder().
-            clientId(clientId).
-            replicaId(fetcherBrokerId).
-            maxWait(maxWait).
-            minBytes(minBytes);
+    public SimpleConsumer simpleConsumer;
+    private ClientIdAndBroker metricId;
+    FetcherStats fetcherStats;
+    FetcherLagStats fetcherLagStats;
+    FetchRequestBuilder fetchRequestBuilder;
 
   /* callbacks to be defined in subclass */
 
@@ -99,7 +104,7 @@ public abstract class AbstractFetcherThread extends ShutdownableThread {
                 try {
                     partitionMapCond.await(200L, TimeUnit.MILLISECONDS);
                 } catch (InterruptedException e) {
-                   throw new RuntimeException(e);
+                    throw new RuntimeException(e);
                 }
             partitionMap.entrySet().forEach(e -> {
                 TopicAndPartition topicAndPartition = e.getKey();
@@ -278,16 +283,19 @@ class FetcherStats extends KafkaMetricsGroup {
 
     public FetcherStats(ClientIdAndBroker metricId) {
         this.metricId = metricId;
+        tags = new HashMap() {{
+            put("clientId", metricId.clientId);
+            put("brokerHost", metricId.brokerHost);
+            put("brokerPort", metricId.brokerPort.toString());
+        }};
+        requestRate = newMeter("RequestsPerSec", "requests", TimeUnit.SECONDS, tags);
+        byteRate = newMeter("BytesPerSec", "bytes", TimeUnit.SECONDS, tags);
     }
 
-    Map tags = new HashMap() {{
-        put("clientId", metricId.clientId);
-        put("brokerHost", metricId.brokerHost);
-        put("brokerPort", metricId.brokerPort.toString());
-    }};
+    Map tags;
 
-    Meter requestRate = newMeter("RequestsPerSec", "requests", TimeUnit.SECONDS, tags);
+    Meter requestRate;
 
-    Meter byteRate = newMeter("BytesPerSec", "bytes", TimeUnit.SECONDS, tags);
+    Meter byteRate;
 }
 

@@ -69,13 +69,15 @@ class RequestSendThread extends ShutdownableThread {
                     }
                 }
                 RequestOrResponse response = null;
-                Short requestId = request.requestId.get();
-                if (requestId == RequestKeys.LeaderAndIsrKey) {
-                    response = LeaderAndIsrResponse.readFrom(receive.buffer());
-                } else if (requestId == RequestKeys.StopReplicaKey) {
-                    response = StopReplicaResponse.readFrom(receive.buffer());
-                } else if (requestId == RequestKeys.UpdateMetadataKey) {
-                    response = UpdateMetadataResponse.readFrom(receive.buffer());
+                if(request.requestId.isPresent()){
+                    Short requestId = request.requestId.get();
+                    if (requestId == RequestKeys.LeaderAndIsrKey) {
+                        response = LeaderAndIsrResponse.readFrom(receive.buffer());
+                    } else if (requestId == RequestKeys.StopReplicaKey) {
+                        response = StopReplicaResponse.readFrom(receive.buffer());
+                    } else if (requestId == RequestKeys.UpdateMetadataKey) {
+                        response = UpdateMetadataResponse.readFrom(receive.buffer());
+                    }
                 }
                 stateChangeLogger.trace(String.format("Controller %d epoch %d received response %s for a request sent to broker %s",
                         controllerId, controllerContext.epoch, response.toString(), toBroker.toString()));

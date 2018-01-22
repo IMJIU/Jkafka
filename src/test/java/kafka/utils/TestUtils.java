@@ -824,6 +824,29 @@ public class TestUtils {
 
     public static Integer waitUntilMetadataIsPropagated(List<KafkaServer> servers, String topic, Integer partition, final Long timeout) {
         IntCount leader = IntCount.of(-1);
+
+
+//        boolean ok = false;
+//        do {
+//            for (KafkaServer s : servers) {
+//                Optional<PartitionStateInfo> partitionStateOpt = s.apis.metadataCache.getPartitionInfo(topic, partition);
+//                if (partitionStateOpt.isPresent()) {
+//                    PartitionStateInfo partitionState = partitionStateOpt.get();
+//                    leader.set(partitionState.leaderIsrAndControllerEpoch.leaderAndIsr.leader);
+//                    ok = Request.isValidBrokerId(leader.get());
+//                    if (ok) {
+//                        break;
+//                    }
+//                }
+//            }
+//            try {
+//                Thread.sleep(2000);
+//                System.out.println("not ok");
+//            } catch (InterruptedException e) {
+//                e.printStackTrace();
+//            }
+//        } while (!ok);
+
         TestUtils.waitUntilTrue(() ->
                         Sc.foldBooleanAll(servers, true, s -> {
                             Optional<PartitionStateInfo> partitionStateOpt = s.apis.metadataCache.getPartitionInfo(topic, partition);

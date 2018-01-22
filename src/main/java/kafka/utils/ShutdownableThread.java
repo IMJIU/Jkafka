@@ -28,9 +28,7 @@ public abstract class ShutdownableThread extends Thread {
     }
 
 
-
-
-    public void shutdown()  {
+    public void shutdown() {
         initiateShutdown();
         awaitShutdown();
     }
@@ -49,11 +47,11 @@ public abstract class ShutdownableThread extends Thread {
     /**
      * After calling initiateShutdown(), use this API to wait until the shutdown is complete
      */
-    public void awaitShutdown()  {
+    public void awaitShutdown() {
         try {
             shutdownLatch.await();
         } catch (InterruptedException e) {
-            logger.error(e.getMessage(),e);
+            logger.error(e.getMessage(), e);
         }
         logger.info("Shutdown completed");
     }
@@ -68,6 +66,7 @@ public abstract class ShutdownableThread extends Thread {
                 doWork();
             }
         } catch (Exception e) {
+            logger.logger.error(e.getMessage(), e);
             if (isRunning.get())
                 logger.error("Error due to ", e);
         }

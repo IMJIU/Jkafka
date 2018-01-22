@@ -208,10 +208,7 @@ public class PartitionStateMachine extends Logging {
         if (!hasStarted.get())
             throw new StateChangeFailedException(String.format("Controller %d epoch %d initiated state change for partition %s to %s failed because " +
                     "the partition state machine has not started", controllerId, controller.epoch(), topicAndPartition, targetState));
-        PartitionState currState = partitionState.getOrDefault(topicAndPartition, NonExistentPartition);
-        if (currState == NonExistentPartition) {
-            partitionState.put(topicAndPartition, currState);
-        }
+        PartitionState currState = Sc.getOrElseUpdate(partitionState, topicAndPartition, NonExistentPartition);
         try {
             switch (targetState) {
                 case NewPartition:
