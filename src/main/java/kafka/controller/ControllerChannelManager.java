@@ -238,6 +238,15 @@ class ControllerBrokerRequestBatch extends Logging {
             controller.sendRequest(broker, leaderAndIsrRequest, null);
         });
         leaderAndIsrRequestMap.clear();
+        updateMetadataRequestMap.forEach((broker, partitionStateInfos) -> {
+            UpdateMetadataRequest updateMetadataRequest = new UpdateMetadataRequest(controllerId, controllerEpoch, correlationId, clientId,
+                    partitionStateInfos, controllerContext.liveOrShuttingDownBrokers());
+            partitionStateInfos.forEach((tp, pstateInfo) -> stateChangeLogger.trace(String.format("Controller %d epoch %d sending UpdateMetadata request %s with " +
+                            "correlationId %d to broker %d for partition %s", controllerId, controllerEpoch, pstateInfo.leaderIsrAndControllerEpoch,
+                    correlationId, broker, tp)));
+            controller.sendRequest(broker, updateMetadataRequest, null);
+        });
+        updateMetadataRequestMap.clear();
         stopReplicaRequestMap.forEach((broker, replicaInfoList) -> {
             Set<PartitionAndReplica> stopReplicaWithDelete = Sc.toSet(Sc.map(Sc.filter(replicaInfoList, p -> p.deletePartition == true), i -> i.replica));
             Set<PartitionAndReplica> stopReplicaWithoutDelete = Sc.toSet(Sc.map(Sc.filter(replicaInfoList, p -> p.deletePartition == false), i -> i.replica));

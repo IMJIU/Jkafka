@@ -2,6 +2,7 @@ package kafka.api;
 
 import com.google.common.collect.Sets;
 import kafka.common.ErrorMapping;
+import kafka.func.Handler;
 import kafka.network.BoundedByteBufferSend;
 import kafka.network.RequestChannel;
 
@@ -15,10 +16,10 @@ import java.util.Optional;
 
 public class ControlledShutdownRequest extends RequestOrResponse {
     public static short CurrentVersion = 0;
-    String DefaultClientId = "";
-    short versionId;
-    int correlationId;
-    int brokerId;
+    public String DefaultClientId = "";
+    public short versionId;
+    public int correlationId;
+    public int brokerId;
 
     public ControlledShutdownRequest(short versionId, int correlationId, int brokerId) {
         super(Optional.of(RequestKeys.ControlledShutdownKey));
@@ -27,12 +28,12 @@ public class ControlledShutdownRequest extends RequestOrResponse {
         this.brokerId = brokerId;
     }
 
-    public static ControlledShutdownRequest readFrom(ByteBuffer buffer) {
+    public static Handler<ByteBuffer, ControlledShutdownRequest> readFrom = buffer -> {
         short versionId = buffer.getShort();
         int correlationId = buffer.getInt();
         int brokerId = buffer.getInt();
         return new ControlledShutdownRequest(versionId, correlationId, brokerId);
-    }
+    };
 
 //        extends RequestOrResponse(Some(RequestKeys.ControlledShutdownKey)){
 

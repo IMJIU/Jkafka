@@ -12,8 +12,6 @@ import kafka.api.ControlledShutdownResponse;
 import kafka.cluster.Broker;
 import kafka.common.ErrorMapping;
 import kafka.controller.KafkaController;
-
-import kafka.controller.ctrl.ControllerStats;
 import kafka.log.CleanerConfig;
 import kafka.log.LogConfig;
 import kafka.log.LogManager;

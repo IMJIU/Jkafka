@@ -14,6 +14,7 @@ import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 import static kafka.api.ApiUtils.*;
 
@@ -31,6 +32,7 @@ public class TopicMetadataRequest extends RequestOrResponse {// (Some(RequestKey
     public List<String> topics;
 
     public TopicMetadataRequest(Short versionId, Integer correlationId, String clientId, List<String> topics) {
+        super(Optional.of(RequestKeys.MetadataKey));
         this.versionId = versionId;
         this.correlationId = correlationId;
         this.clientId = clientId;

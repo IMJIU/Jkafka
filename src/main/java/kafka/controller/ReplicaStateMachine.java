@@ -397,12 +397,7 @@ public class ReplicaStateMachine extends Logging {
                                     deadBrokerIds.add(b);
                                 }
                             });
-                            controllerContext.liveBrokers_(
-                                    Sc.toSet(Sc.map(
-                                            Sc.filter(
-                                                    Sc.map(curBrokerIds, b -> ZkUtils.getBrokerInfo(zkClient, b))
-                                                    , b2 -> b2.isPresent())
-                                            , b3 -> b3.get())));
+                            controllerContext.liveBrokers_(Sc.toSet(Sc.map(Sc.filter(Sc.map(curBrokerIds, b -> ZkUtils.getBrokerInfo(zkClient, b)), b2 -> b2.isPresent()), b3 -> b3.get())));
                             info(String.format("Newly added brokers: %s, deleted brokers: %s, all live brokers: %s",
                                     newBrokerIds, deadBrokerIds, controllerContext.liveBrokerIds()));
                             newBrokers.forEach(b -> controllerContext.controllerChannelManager.addBroker(b));

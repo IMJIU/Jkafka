@@ -40,17 +40,17 @@ public class DefaultEventHandler<K, V> extends Logging implements EventHandler<K
     private Encoder<V> encoder;
     private Encoder<K> keyEncoder;
     private ProducerPool producerPool;
-    private HashMap<String, TopicMetadata> topicPartitionInfos = new HashMap<String, TopicMetadata>();
+    private HashMap<String, TopicMetadata> topicPartitionInfos;
     public AtomicInteger correlationId = new AtomicInteger(0);
-    public BrokerPartitionInfo brokerPartitionInfo = new BrokerPartitionInfo(config, producerPool, topicPartitionInfos);
+    public BrokerPartitionInfo brokerPartitionInfo;
 
-    private Integer topicMetadataRefreshInterval = config.topicMetadataRefreshIntervalMs;
+    private Integer topicMetadataRefreshInterval;
     private Long lastTopicMetadataRefreshTime = 0L;
     private Set<String> topicMetadataToRefresh = Sets.newHashSet();
     private HashMap<String, Integer> sendPartitionPerTopicCache = Maps.newHashMap();
 
-    private ProducerStats producerStats = ProducerStatsRegistry.getProducerStats(config.clientId());
-    private ProducerTopicStats producerTopicStats = ProducerTopicStatsRegistry.getProducerTopicStats(config.clientId());
+    private ProducerStats producerStats;
+    private ProducerTopicStats producerTopicStats;
     boolean isSync;
 
     public DefaultEventHandler(ProducerConfig config, Partitioner partitioner, Encoder<V> encoder, Encoder<K> keyEncoder, ProducerPool producerPool, HashMap<String, TopicMetadata> topicPartitionInfos) {
@@ -59,8 +59,12 @@ public class DefaultEventHandler<K, V> extends Logging implements EventHandler<K
         this.encoder = encoder;
         this.keyEncoder = keyEncoder;
         this.producerPool = producerPool;
-        this.topicPartitionInfos = topicPartitionInfos;
+        this.topicPartitionInfos = topicPartitionInfos == null ? new HashMap<>() : topicPartitionInfos;
         isSync = ("sync" == config.producerType);
+        brokerPartitionInfo = new BrokerPartitionInfo(config, producerPool, this.topicPartitionInfos);
+        topicMetadataRefreshInterval = config.topicMetadataRefreshIntervalMs;
+        producerStats = ProducerStatsRegistry.getProducerStats(config.clientId());
+        producerTopicStats = ProducerTopicStatsRegistry.getProducerTopicStats(config.clientId());
     }
 
 

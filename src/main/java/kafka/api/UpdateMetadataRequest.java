@@ -3,6 +3,7 @@ package kafka.api;
 import com.google.common.collect.Maps;
 import kafka.cluster.Broker;
 import kafka.common.ErrorMapping;
+import kafka.func.Handler;
 import kafka.func.IntCount;
 import kafka.log.TopicAndPartition;
 import kafka.network.BoundedByteBufferSend;
@@ -12,6 +13,7 @@ import kafka.utils.Utils;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import static kafka.api.ApiUtils.*;
@@ -36,6 +38,7 @@ public class UpdateMetadataRequest extends RequestOrResponse {
     public Set<Broker> aliveBrokers;
 
     public UpdateMetadataRequest(Short versionId, Integer correlationId, String clientId, Integer controllerId, Integer controllerEpoch, Map<TopicAndPartition, PartitionStateInfo> partitionStateInfos, Set<Broker> aliveBrokers) {
+        super(Optional.of(RequestKeys.UpdateMetadataKey));
         this.versionId = versionId;
         this.correlationId = correlationId;
         this.clientId = clientId;
@@ -45,7 +48,7 @@ public class UpdateMetadataRequest extends RequestOrResponse {
         this.aliveBrokers = aliveBrokers;
     }
 
-    public UpdateMetadataRequest readFrom(ByteBuffer buffer) {
+    public static final Handler<ByteBuffer, UpdateMetadataRequest> readFrom = (ByteBuffer buffer) -> {
         short versionId = buffer.getShort();
         int correlationId = buffer.getInt();
         String clientId = readShortString(buffer);
@@ -66,10 +69,7 @@ public class UpdateMetadataRequest extends RequestOrResponse {
         Set<Broker> aliveBrokers = Utils.yieldSet(0, numAliveBrokers, () -> Broker.readFrom(buffer));
         return new UpdateMetadataRequest(versionId, correlationId, clientId, controllerId, controllerEpoch,
                 partitionStateInfos, aliveBrokers);
-    }
-
-
-//       ){
+    };
 
     public UpdateMetadataRequest(Integer controllerId, Integer controllerEpoch, Integer correlationId, String clientId,
                                  Map<TopicAndPartition, PartitionStateInfo> partitionStateInfos,

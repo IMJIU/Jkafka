@@ -300,7 +300,13 @@ public class TestUtils {
         }
         // create topic;
         AdminUtils.createTopic(zkClient, topic, numPartitions, replicationFactor, topicConfig);
-        // wait until the update metadata request for new topic reaches all servers;
+        // wait until the update metadata request for new topic reaches all servers;\
+//        try {
+//            Thread.sleep(1000000);
+//        } catch (InterruptedException e) {
+//            e.printStackTrace();
+//        }
+//        return null;
         return Sc.toMap(Sc.itToList(0, numPartitions, i -> {
             TestUtils.waitUntilMetadataIsPropagated(servers, topic, i);
             return Tuple.of(i, TestUtils.waitUntilLeaderIsElectedOrChanged(zkClient, topic, i, null, null, null));

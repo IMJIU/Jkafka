@@ -68,6 +68,7 @@ public class FetchRequest extends RequestOrResponse {
                         Integer maxWait,
                         Integer minBytes,
                         Map<TopicAndPartition, PartitionFetchInfo> requestInfo) {
+        super(Optional.of(RequestKeys.FetchKey));
         this.versionId = versionId;
         this.correlationId = correlationId;
         this.clientId = clientId;

@@ -17,6 +17,7 @@ import kafka.utils.Utils;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -47,6 +48,7 @@ public class OffsetCommitRequest extends RequestOrResponse {
     }
 
     public OffsetCommitRequest(String groupId, Map<TopicAndPartition, OffsetAndMetadata> requestInfo, Short versionId, Integer correlationId, java.lang.String clientId, Integer groupGenerationId, java.lang.String consumerId) {
+        super(Optional.of(RequestKeys.OffsetCommitKey));
         this.groupId = groupId;
         this.requestInfo = requestInfo;
         this.versionId = versionId;

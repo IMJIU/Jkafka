@@ -17,6 +17,7 @@ import static kafka.api.ApiUtils.*;
 
 import java.nio.ByteBuffer;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -37,6 +38,7 @@ public class StopReplicaRequest extends RequestOrResponse {
     public Set<TopicAndPartition> partitions;
 
     public StopReplicaRequest(Short versionId, Integer correlationId, String clientId, Integer controllerId, Integer controllerEpoch, Boolean deletePartitions, Set<TopicAndPartition> partitions) {
+        super(Optional.of(RequestKeys.StopReplicaKey));
         this.versionId = versionId;
         this.correlationId = correlationId;
         this.clientId = clientId;

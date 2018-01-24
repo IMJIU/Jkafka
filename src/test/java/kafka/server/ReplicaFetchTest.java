@@ -43,11 +43,11 @@ public class ReplicaFetchTest extends ZooKeeperTestHarness {
         brokers = Sc.map(configs, config -> TestUtils.createServer(config));
     }
 
-    @After
-    public void tearDown() {
-        brokers.forEach(b -> b.shutdown());
-        super.tearDown();
-    }
+//    @After
+//    public void tearDown() {
+//        brokers.forEach(b -> b.shutdown());
+//        super.tearDown();
+//    }
 
     @Test
     public void testReplicaFetcherThread() {

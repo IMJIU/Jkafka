@@ -35,13 +35,13 @@ public class RequestKeys {
                     put(MetadataKey, Tuple.of("Metadata", TopicMetadataRequest.readFrom));
                     put(LeaderAndIsrKey, Tuple.of("LeaderAndIsr", LeaderAndIsrRequest.readFrom));
                     put(StopReplicaKey, Tuple.of("StopReplica", StopReplicaRequest.readFrom));
-//                    put(UpdateMetadataKey, Tuple.of("ControlledShutdown", ControlledShutdownRequest.readFrom));
-                    put(ControlledShutdownKey, Tuple.of("Produce", ProducerRequest.readFrom));
+                    put(UpdateMetadataKey, Tuple.of("UpdateMetadata", UpdateMetadataRequest.readFrom));
+                    put(ControlledShutdownKey, Tuple.of("ControlledShutdown", ControlledShutdownRequest.readFrom));
                     put(OffsetCommitKey, Tuple.of("OffsetCommit", OffsetCommitRequest.readFrom));
                     put(OffsetFetchKey, Tuple.of("OffsetFetch", OffsetFetchRequest.readFrom));
                     put(ConsumerMetadataKey, Tuple.of("ConsumerMetadata", ConsumerMetadataRequest.readFrom));
-                    put(JoinGroupKey, Tuple.of("ConsumerMetadata", ConsumerMetadataRequest.readFrom));
-//                    put(HeartbeatKey, Tuple.of("Heartbeat", HeartbeatRequestAndHeader.readFrom));
+//                    put(JoinGroupKey, Tuple.of("JoinGroup", JoinGroupRequestAndHeader.readFrom));
+                    put(HeartbeatKey, Tuple.of("Heartbeat", HeartbeatRequestAndHeader.readFrom));
                 }
             };
 

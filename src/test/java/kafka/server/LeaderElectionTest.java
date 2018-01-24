@@ -43,13 +43,13 @@ public class LeaderElectionTest extends ZooKeeperTestHarness {
          KafkaServer server2 = TestUtils.createServer(new KafkaConfig(configProps2));
         servers.addAll(Lists.newArrayList(server1, server2));
     }
-
-     @Override
-     public void tearDown() {
-        servers.forEach(server -> server.shutdown());
-        servers.forEach(server -> Utils.rm(server.config.logDirs));
-        super.tearDown();
-    }
+//
+//     @Override
+//     public void tearDown() {
+//        servers.forEach(server -> server.shutdown());
+//        servers.forEach(server -> Utils.rm(server.config.logDirs));
+//        super.tearDown();
+//    }
 
     @Test
    public void testLeaderElectionAndEpoch() throws Throwable{

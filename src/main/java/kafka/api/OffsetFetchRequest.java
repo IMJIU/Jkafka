@@ -15,6 +15,7 @@ import kafka.utils.Sc;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static kafka.api.ApiUtils.*;
 
@@ -47,6 +48,7 @@ public class OffsetFetchRequest extends RequestOrResponse {//(Some(RequestKeys.O
     }
 
     public OffsetFetchRequest(java.lang.String groupId, List<TopicAndPartition> requestInfo, Short versionId, Integer correlationId, java.lang.String clientId) {
+        super(Optional.of(RequestKeys.OffsetFetchKey));
         this.groupId = groupId;
         this.requestInfo = requestInfo;
         this.versionId = versionId;
