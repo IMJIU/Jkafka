@@ -90,7 +90,11 @@ public class ZkUtils {
 
     public static List<Broker> getAllBrokersInCluster(ZkClient zkClient) {
         Stream<String> brokerIds = ZkUtils.getChildrenParentMayNotExist(zkClient, ZkUtils.BrokerIdsPath).stream().sorted();
-        return brokerIds.map(i -> Integer.parseInt(i)).map(i -> getBrokerInfo(zkClient, i)).filter(i -> i.isPresent()).map(i -> i.get()).collect(Collectors.toList());
+        return brokerIds.map(i -> Integer.parseInt(i))
+                .map(i -> getBrokerInfo(zkClient, i))
+                .filter(i -> i.isPresent())
+                .map(i -> i.get())
+                .collect(Collectors.toList());
     }
 
     public static Optional<LeaderAndIsr> getLeaderAndIsrForPartition(ZkClient zkClient, String topic, Integer partition) {
