@@ -52,7 +52,7 @@ public class ReplicationUtils {
 //        return Tuple.of(false, -1);
 //    }
 //
-    public static Optional<LeaderIsrAndControllerEpoch> getLeaderIsrAndEpochForPartition(ZkClient zkClient, String topic, Integer partition)  {
+    public static Optional<LeaderIsrAndControllerEpoch> getLeaderIsrAndEpochForPartition(ZkClient zkClient, String topic, Integer partition) {
         String leaderAndIsrPath = ZkUtils.getTopicPartitionLeaderAndIsrPath(topic, partition);
         Tuple<Optional<String>, Stat> leaderAndIsrInfo = ZkUtils.readDataMaybeNull(zkClient, leaderAndIsrPath);
         Optional<String> leaderAndIsrOpt = leaderAndIsrInfo.v1;
@@ -66,16 +66,14 @@ public class ReplicationUtils {
 
     private static Optional<LeaderIsrAndControllerEpoch> parseLeaderAndIsr(String leaderAndIsrStr, String path, Stat stat) {
         // TODO: 2017/11/1 json??  Json.parseFull(leaderAndIsrStr) match {case Some(m) =>
-        Object obj = JSON.parse(leaderAndIsrStr);
-        if (obj != null) {
-            Map<String, Object> leaderIsrAndEpochInfo = (Map<String, Object>) obj;
+        Map<String, Object> leaderIsrAndEpochInfo = JSON.parseObject(leaderAndIsrStr, Map.class);
+        if (leaderIsrAndEpochInfo != null) {
             Integer leader = (Integer) leaderIsrAndEpochInfo.get("leader");
             Integer epoch = (Integer) leaderIsrAndEpochInfo.get("leader_epoch");
             List<Integer> isr = (List<Integer>) leaderIsrAndEpochInfo.get("isr");
             Integer controllerEpoch = (Integer) leaderIsrAndEpochInfo.get("controller_epoch");
             int zkPathVersion = stat.getVersion();
-            logger.debug(String.format("Leader %d, Epoch %d, Isr %s, Zk path version %d for leaderAndIsrPath %s", leader, epoch,
-                    isr.toString(), zkPathVersion, path));
+            logger.debug(String.format("Leader %d, Epoch %d, Isr %s, Zk path version %d for leaderAndIsrPath %s", leader, epoch, isr.toString(), zkPathVersion, path));
             return Optional.of(new LeaderIsrAndControllerEpoch(new LeaderAndIsr(leader, epoch, isr, zkPathVersion), controllerEpoch));
         } else {
             return Optional.empty();
