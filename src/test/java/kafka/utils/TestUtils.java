@@ -687,7 +687,7 @@ public class TestUtils {
                                                                       Optional<Integer> oldLeaderOpt,
                                                                       Optional<Integer> newLeaderOpt) {
         if (timeoutMs == null) {
-            timeoutMs = 5000L;
+            timeoutMs = 500000L;
         }
         if (oldLeaderOpt == null) {
             oldLeaderOpt = Optional.empty();
@@ -825,7 +825,7 @@ public class TestUtils {
      * @return The leader of the partition.
      */
     public static Integer waitUntilMetadataIsPropagated(List<KafkaServer> servers, String topic, Integer partition) {
-        return waitUntilMetadataIsPropagated(servers, topic, partition, 5000L);
+        return waitUntilMetadataIsPropagated(servers, topic, partition, 500000L);
     }
 
     public static Integer waitUntilMetadataIsPropagated(List<KafkaServer> servers, String topic, Integer partition, final Long timeout) {

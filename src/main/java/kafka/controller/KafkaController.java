@@ -1079,51 +1079,51 @@ public class KafkaController extends KafkaMetricsGroup {
     }
 
     // TODO: 2017/11/15 是否没用？？？
-    public Action checkAndTriggerPartitionRebalance = () -> {
-        if (isActive()) {
-            trace("checking need to trigger partition rebalance");
-            // get all the active brokers;
-            Map<Integer, Map<TopicAndPartition, List<Integer>>> preferredReplicasForTopicsByBrokers = Utils.inLock(controllerContext.controllerLock, () -> {
-                Map<TopicAndPartition, List<Integer>> t = Sc.filterNot(controllerContext.partitionReplicaAssignment,
-                        (k, v) -> deleteTopicManager.isTopicQueuedUpForDeletion(k.topic));
-                return Sc.groupByValue(t, assignedReplicas -> Sc.head(assignedReplicas));
-            });
-            debug("preferred replicas by broker " + preferredReplicasForTopicsByBrokers);
-            // for each broker, check if a preferred replica election needs to be triggered;
-            preferredReplicasForTopicsByBrokers.forEach((leaderBroker, topicAndPartitionsForBroker) -> {
-                NumCount<Double> imbalanceRatio = NumCount.of(0D);
-                Map<TopicAndPartition, List<Integer>> topicsNotInPreferredReplica = Utils.inLock(controllerContext.controllerLock, () -> {
-                    Map<TopicAndPartition, List<Integer>> topicsNotInPreferredReplica2 =
-                            Sc.filter(topicAndPartitionsForBroker, (topicPartition, replicas) ->
-                                    controllerContext.partitionLeadershipInfo.containsKey(topicPartition) &&
-                                            controllerContext.partitionLeadershipInfo.get(topicPartition).leaderAndIsr.leader != leaderBroker);
-                    debug("topics not in preferred replica " + topicsNotInPreferredReplica2);
-                    int totalTopicPartitionsForBroker = topicAndPartitionsForBroker.size();
-                    int totalTopicPartitionsNotLedByBroker = topicsNotInPreferredReplica2.size();
-                    imbalanceRatio.set((double) totalTopicPartitionsNotLedByBroker / totalTopicPartitionsForBroker);
-                    trace(String.format("leader imbalance ratio for broker %d is %f", leaderBroker, imbalanceRatio.get()));
-                    return topicsNotInPreferredReplica2;
-                });
-                // check ratio and if greater than desired ratio, trigger a rebalance for the topic partitions;
-                // that need to be on this broker;
-                if (imbalanceRatio.get() > ((double) config.leaderImbalancePerBrokerPercentage / 100)) {
-                    topicsNotInPreferredReplica.forEach((topicPartition, replicas) -> {
-                        Utils.inLock(controllerContext.controllerLock, () -> {
-                            // do this check only if the broker is live and there are no partitions being reassigned currently;
-                            // and preferred replica election is not in progress;
-                            if (controllerContext.liveBrokerIds().contains(leaderBroker) &&
-                                    controllerContext.partitionsBeingReassigned.size() == 0 &&
-                                    controllerContext.partitionsUndergoingPreferredReplicaElection.size() == 0 &&
-                                    !deleteTopicManager.isTopicQueuedUpForDeletion(topicPartition.topic) &&
-                                    controllerContext.allTopics.contains(topicPartition.topic)) {
-                                onPreferredReplicaElection(Sets.newHashSet(topicPartition), true);
-                            }
-                        });
-                    });
-                }
-            });
-        }
-    };
+//    public Action checkAndTriggerPartitionRebalance = () -> {
+//        if (isActive()) {
+//            trace("checking need to trigger partition rebalance");
+//            // get all the active brokers;
+//            Map<Integer, Map<TopicAndPartition, List<Integer>>> preferredReplicasForTopicsByBrokers = Utils.inLock(controllerContext.controllerLock, () -> {
+//                Map<TopicAndPartition, List<Integer>> t = Sc.filterNot(controllerContext.partitionReplicaAssignment,
+//                        (k, v) -> deleteTopicManager.isTopicQueuedUpForDeletion(k.topic));
+//                return Sc.groupByValue(t, assignedReplicas -> Sc.head(assignedReplicas));
+//            });
+//            debug("preferred replicas by broker " + preferredReplicasForTopicsByBrokers);
+//            // for each broker, check if a preferred replica election needs to be triggered;
+//            preferredReplicasForTopicsByBrokers.forEach((leaderBroker, topicAndPartitionsForBroker) -> {
+//                NumCount<Double> imbalanceRatio = NumCount.of(0D);
+//                Map<TopicAndPartition, List<Integer>> topicsNotInPreferredReplica = Utils.inLock(controllerContext.controllerLock, () -> {
+//                    Map<TopicAndPartition, List<Integer>> topicsNotInPreferredReplica2 =
+//                            Sc.filter(topicAndPartitionsForBroker, (topicPartition, replicas) ->
+//                                    controllerContext.partitionLeadershipInfo.containsKey(topicPartition) &&
+//                                            controllerContext.partitionLeadershipInfo.get(topicPartition).leaderAndIsr.leader != leaderBroker);
+//                    debug("topics not in preferred replica " + topicsNotInPreferredReplica2);
+//                    int totalTopicPartitionsForBroker = topicAndPartitionsForBroker.size();
+//                    int totalTopicPartitionsNotLedByBroker = topicsNotInPreferredReplica2.size();
+//                    imbalanceRatio.set((double) totalTopicPartitionsNotLedByBroker / totalTopicPartitionsForBroker);
+//                    trace(String.format("leader imbalance ratio for broker %d is %f", leaderBroker, imbalanceRatio.get()));
+//                    return topicsNotInPreferredReplica2;
+//                });
+//                // check ratio and if greater than desired ratio, trigger a rebalance for the topic partitions;
+//                // that need to be on this broker;
+//                if (imbalanceRatio.get() > ((double) config.leaderImbalancePerBrokerPercentage / 100)) {
+//                    topicsNotInPreferredReplica.forEach((topicPartition, replicas) -> {
+//                        Utils.inLock(controllerContext.controllerLock, () -> {
+//                            // do this check only if the broker is live and there are no partitions being reassigned currently;
+//                            // and preferred replica election is not in progress;
+//                            if (controllerContext.liveBrokerIds().contains(leaderBroker) &&
+//                                    controllerContext.partitionsBeingReassigned.size() == 0 &&
+//                                    controllerContext.partitionsUndergoingPreferredReplicaElection.size() == 0 &&
+//                                    !deleteTopicManager.isTopicQueuedUpForDeletion(topicPartition.topic) &&
+//                                    controllerContext.allTopics.contains(topicPartition.topic)) {
+//                                onPreferredReplicaElection(Sets.newHashSet(topicPartition), true);
+//                            }
+//                        });
+//                    });
+//                }
+//            });
+//        }
+//    };
 
     class SessionExpirationListener extends Logging implements IZkStateListener {
         public SessionExpirationListener() {

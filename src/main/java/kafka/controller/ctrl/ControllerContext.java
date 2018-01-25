@@ -103,7 +103,7 @@ public class ControllerContext {
         Set<PartitionAndReplica> result = Sets.newHashSet();
         partitions.forEach(p -> {
             List<Integer> replicas = partitionReplicaAssignment.get(p);
-            replicas.forEach(r -> new PartitionAndReplica(p.topic, p.partition, r));
+            replicas.forEach(r -> result.add(new PartitionAndReplica(p.topic, p.partition, r)));
         });
         return result;
     }
