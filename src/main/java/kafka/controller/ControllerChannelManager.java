@@ -198,8 +198,8 @@ class ControllerBrokerRequestBatch extends Logging {
             } else {
                 partitionStateInfo = new PartitionStateInfo(leaderIsrAndControllerEpoch, replicas);
             }
-            Sc.filter(brokerIds, b -> b >= 0).forEach(
-                    brokerId -> {
+            Sc.filter(brokerIds, b -> b >= 0)
+                    .forEach(brokerId -> {
                         Sc.getOrElseUpdate(updateMetadataRequestMap, brokerId, Maps.newHashMap());
                         updateMetadataRequestMap.get(brokerId).put(partition, partitionStateInfo);
                     });

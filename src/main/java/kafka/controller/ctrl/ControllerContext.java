@@ -78,7 +78,8 @@ public class ControllerContext {
         Set<PartitionAndReplica> result = Sets.newHashSet();
         brokerIds.forEach(brokerId ->
                 Sc.filter(partitionReplicaAssignment, (topicAndPartition, replicas) -> replicas.contains(brokerId))
-                        .forEach((topicAndPartition, replicas) -> result.add(new PartitionAndReplica(topicAndPartition.topic, topicAndPartition.partition, brokerId))
+                        .forEach((topicAndPartition, replicas) ->
+                                result.add(new PartitionAndReplica(topicAndPartition.topic, topicAndPartition.partition, brokerId))
                         ));
         return result;
     }

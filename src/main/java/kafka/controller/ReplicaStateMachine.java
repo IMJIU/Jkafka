@@ -237,6 +237,7 @@ public class ReplicaStateMachine extends Logging {
                             stateChangeLogger.trace(String.format("Controller %d epoch %d changed state of replica %d for partition %s from %s to %s",
                                     controllerId, controller.epoch(), replicaId, topicAndPartition, currState,
                                     targetState));
+                            break;
                         default:
                             // check if the leader for this partition ever existed;
                             LeaderIsrAndControllerEpoch leaderIsrAndControllerEpoch = controllerContext.partitionLeadershipInfo.get(topicAndPartition);

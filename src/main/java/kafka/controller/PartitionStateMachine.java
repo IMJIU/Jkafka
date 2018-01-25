@@ -463,7 +463,7 @@ public class PartitionStateMachine extends Logging {
         }
 
         //            @throws(classOf<Exception>)
-        public void handleChildChange(String parentPath, java.util.List<String> children) {
+        public void handleChildChange(String parentPath, List<String> children) {
             Utils.inLock(controllerContext.controllerLock, () -> {
                 if (hasStarted.get()) {
                     try {

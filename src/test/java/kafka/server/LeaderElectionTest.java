@@ -26,21 +26,21 @@ public class LeaderElectionTest extends ZooKeeperTestHarness {
     int brokerId1 = 0;
     int brokerId2 = 1;
 
-    int port1= TestUtils.choosePort();
+    int port1 = TestUtils.choosePort();
     int port2 = TestUtils.choosePort();
 
     Properties configProps1 = TestUtils.createBrokerConfig(brokerId1, port1, false);
     Properties configProps2 = TestUtils.createBrokerConfig(brokerId2, port2, false);
-     List<KafkaServer> servers = Lists.newArrayList();
+    List<KafkaServer> servers = Lists.newArrayList();
 
     boolean staleControllerEpochDetected = false;
 
-     @Before
-     public void setUp() throws IOException, InterruptedException {
+    @Before
+    public void setUp() throws IOException, InterruptedException {
         super.setUp();
         // start both servers;
-         KafkaServer server1 = TestUtils.createServer(new KafkaConfig(configProps1));
-         KafkaServer server2 = TestUtils.createServer(new KafkaConfig(configProps2));
+        KafkaServer server1 = TestUtils.createServer(new KafkaConfig(configProps1));
+        KafkaServer server2 = TestUtils.createServer(new KafkaConfig(configProps2));
         servers.addAll(Lists.newArrayList(server1, server2));
     }
 //
@@ -52,58 +52,58 @@ public class LeaderElectionTest extends ZooKeeperTestHarness {
 //    }
 
     @Test
-   public void testLeaderElectionAndEpoch() throws Throwable{
+    public void testLeaderElectionAndEpoch() throws Throwable {
         // start 2 brokers;
         String topic = "new-topic";
         int partitionId = 0;
 
         // create topic with 1 partition, 2 replicas, one on each broker;
-       Optional<Integer> leader1 = TestUtils.createTopic(zkClient, topic, ImmutableMap.of(0, Lists.newArrayList(0, 1)),  servers).get(0);
+        Optional<Integer> leader1 = TestUtils.createTopic(zkClient, topic, ImmutableMap.of(0, Lists.newArrayList(0, 1)), servers).get(0);
 
         Integer leaderEpoch1 = ZkUtils.getEpochForPartition(zkClient, topic, partitionId);
         logging.debug("leader Epoc: " + leaderEpoch1);
-        logging.debug(String.format("Leader is elected to be: %s",leader1.orElse(-1)));
+        logging.debug(String.format("Leader is elected to be: %s", leader1.orElse(-1)));
         Assert.assertTrue("Leader should get elected", leader1.isPresent());
         // this NOTE is to avoid transient test failures;
         Assert.assertTrue("Leader could be broker 0 or broker 1", (leader1.orElse(-1) == 0) || (leader1.orElse(-1) == 1));
-       Assert.assertEquals("First epoch value should be 0", new Integer(0), leaderEpoch1);
+        Assert.assertEquals("First epoch value should be 0", new Integer(0), leaderEpoch1);
 
         // kill the server hosting the preferred replica;
         servers.get(1).shutdown();
         // check if leader moves to the other server;
-       Optional<Integer>oldLeaderOpt;
-       if(leader1.get() == 0){
-           oldLeaderOpt= Optional.empty();
-       }else{
-           oldLeaderOpt = leader1;
-       }
-       Optional<Integer>  leader2 = TestUtils.waitUntilLeaderIsElectedOrChanged(zkClient, topic, partitionId,null, oldLeaderOpt,null);
-       Integer leaderEpoch2 = ZkUtils.getEpochForPartition(zkClient, topic, partitionId);
-        logging.debug(String.format("Leader is elected to be: %s",leader1.orElse(-1)));
-       logging.debug("leader Epoc: " + leaderEpoch2);
-       Assert.assertEquals("Leader must move to broker 0", new Integer(0), leader2.orElse(-1));
-        if(leader1.get() == leader2.get())
-           Assert.assertEquals("Second epoch value should be " + leaderEpoch1+1, new Integer(leaderEpoch1+1), leaderEpoch2);
-        else;
-           Assert.assertEquals(String.format("Second epoch value should be %d",leaderEpoch1+1) , new Integer(leaderEpoch1+1), leaderEpoch2);
+        Optional<Integer> oldLeaderOpt;
+        if (leader1.get() == 0) {
+            oldLeaderOpt = Optional.empty();
+        } else {
+            oldLeaderOpt = leader1;
+        }
+        Optional<Integer> leader2 = TestUtils.waitUntilLeaderIsElectedOrChanged(zkClient, topic, partitionId, null, oldLeaderOpt, null);
+        Integer leaderEpoch2 = ZkUtils.getEpochForPartition(zkClient, topic, partitionId);
+        logging.debug(String.format("Leader is elected to be: %s", leader1.orElse(-1)));
+        logging.debug("leader Epoc: " + leaderEpoch2);
+        Assert.assertEquals("Leader must move to broker 0", new Integer(0), leader2.orElse(-1));
+        if (leader1.get() == leader2.get())
+            Assert.assertEquals("Second epoch value should be " + leaderEpoch1 + 1, new Integer(leaderEpoch1 + 1), leaderEpoch2);
+        else
+        Assert.assertEquals(String.format("Second epoch value should be %d", leaderEpoch1 + 1), new Integer(leaderEpoch1 + 1), leaderEpoch2);
 
         servers.get(1).startup();
         servers.get(0).shutdown();
         Thread.sleep(zookeeper.tickTime);
-       if(leader2.get() == 1){
-           oldLeaderOpt= Optional.empty();
-       }else{
-           oldLeaderOpt = leader2;
-       }
-       Optional<Integer> leader3 = TestUtils.waitUntilLeaderIsElectedOrChanged(zkClient, topic, partitionId, null,oldLeaderOpt,null);
+        if (leader2.get() == 1) {
+            oldLeaderOpt = Optional.empty();
+        } else {
+            oldLeaderOpt = leader2;
+        }
+        Optional<Integer> leader3 = TestUtils.waitUntilLeaderIsElectedOrChanged(zkClient, topic, partitionId, null, oldLeaderOpt, null);
         Integer leaderEpoch3 = ZkUtils.getEpochForPartition(zkClient, topic, partitionId);
-       logging.debug("leader Epoc: " + leaderEpoch3);
-       logging.debug(String.format("Leader is elected to be: %s",leader3.orElse(-1)));
-       Assert.assertEquals("Leader must return to 1", new Integer(1), leader3.orElse(-1));
-        if(leader2.get() == leader3.get())
-           Assert.assertEquals("Second epoch value should be " + leaderEpoch2, leaderEpoch2, leaderEpoch3);
-        else;
-           Assert.assertEquals(String.format("Second epoch value should be %d",leaderEpoch2+1) , new Integer(leaderEpoch2+1), leaderEpoch3);
+        logging.debug("leader Epoc: " + leaderEpoch3);
+        logging.debug(String.format("Leader is elected to be: %s", leader3.orElse(-1)));
+        Assert.assertEquals("Leader must return to 1", new Integer(1), leader3.orElse(-1));
+        if (leader2.get() == leader3.get())
+            Assert.assertEquals("Second epoch value should be " + leaderEpoch2, leaderEpoch2, leaderEpoch3);
+        else
+        Assert.assertEquals(String.format("Second epoch value should be %d", leaderEpoch2 + 1), new Integer(leaderEpoch2 + 1), leaderEpoch3);
     }
 //
 //   public void testLeaderElectionWithStaleControllerEpoch() {
