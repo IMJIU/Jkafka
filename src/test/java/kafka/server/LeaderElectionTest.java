@@ -145,6 +145,7 @@ public class LeaderElectionTest extends ZooKeeperTestHarness {
 //
 //        controllerChannelManager.shutdown();
 //    }
+
 //    privatepublic Unit  void staleControllerEpochCallback(RequestOrResponse response) {
 //        val leaderAndIsrResponse = response.asInstanceOf<LeaderAndIsrResponse>
 //        staleControllerEpochDetected = leaderAndIsrResponse.errorCode match {
