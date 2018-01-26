@@ -38,8 +38,9 @@ public class OffsetCheckpoint extends Logging {
                 try {
                     // write the current version;
                     writer.write("0");
+                    writer.newLine();
                     // write the number of entries;
-                    writer.write(offsets.size());
+                    writer.write("" + offsets.size());
                     writer.newLine();
 
                     // write the entries;

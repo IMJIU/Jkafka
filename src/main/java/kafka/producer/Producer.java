@@ -24,18 +24,19 @@ public class Producer<K, V> extends Logging {
     public ProducerConfig config;
     private EventHandler<K, V> eventHandler;
     private AtomicBoolean hasShutdown = new AtomicBoolean(false);
-    private LinkedBlockingQueue queue = new LinkedBlockingQueue<KeyedMessage<K, V>>(config.queueBufferingMaxMessages());
+    private LinkedBlockingQueue queue;
 
     private Boolean sync = true;
     private ProducerSendThread<K, V> producerSendThread = null;
     private Object lock = new Object();
 
-    private ProducerTopicStats producerTopicStats = ProducerTopicStatsRegistry.getProducerTopicStats(config.clientId());
+    private ProducerTopicStats producerTopicStats;
 
     public Producer(ProducerConfig config, EventHandler<K, V> eventHandler) {
         this.config = config;
         this.eventHandler = eventHandler;
-
+        queue = new LinkedBlockingQueue<KeyedMessage<K, V>>(config.queueBufferingMaxMessages());
+        producerTopicStats = ProducerTopicStatsRegistry.getProducerTopicStats(config.clientId());
         if ("async".equals(config.producerType)) {
 //            case "sync" ->
             sync = false;

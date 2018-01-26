@@ -23,11 +23,12 @@ public class ProducerTopicStats {
 
     public ProducerTopicStats(String clientId) {
         this.clientId = clientId;
+        allTopicsStats = new ProducerTopicMetrics(new ClientIdAllTopics(clientId));
     }
 
     private Handler<ClientIdTopic, ProducerTopicMetrics> valueFactory = (ClientIdTopic k) -> new ProducerTopicMetrics(k);
     private Pool<ClientIdTopic, ProducerTopicMetrics> stats = new Pool<ClientIdTopic, ProducerTopicMetrics>(Optional.of(valueFactory));
-    private ProducerTopicMetrics allTopicsStats = new ProducerTopicMetrics(new ClientIdAllTopics(clientId)); // to differentiate from a topic named AllTopics;
+    private ProducerTopicMetrics allTopicsStats; // to differentiate from a topic named AllTopics;
 
     public ProducerTopicMetrics getProducerAllTopicsStats() {
         return allTopicsStats;

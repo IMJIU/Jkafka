@@ -3,6 +3,7 @@ package kafka.producer;
 import com.google.common.collect.Lists;
 import kafka.common.FailedToSendMessageException;
 import kafka.consumer.SimpleConsumer;
+import kafka.serializer.DefaultEncoder;
 import kafka.serializer.StringEncoder;
 import kafka.server.KafkaConfig;
 import kafka.server.KafkaRequestHandler;
@@ -94,8 +95,8 @@ public class ProducerTest extends ZooKeeperTestHarness {
         Producer<String, String> producer1 = TestUtils.createProducer(
                 "80 localhost,81 localhost",
                 StringEncoder.class.getName(),
+                DefaultEncoder.class.getName(),
                 DefaultPartitioner.class.getName(),
-                StringEncoder.class.getName(),
                 props);
 
         try {
@@ -111,8 +112,9 @@ public class ProducerTest extends ZooKeeperTestHarness {
         Producer<String, String> producer2 = TestUtils.createProducer(
                 "80 localhost," + TestUtils.getBrokerListStrFromConfigs(Lists.newArrayList(config1)),
                 StringEncoder.class.getName(),
-                DefaultPartitioner.class.getName(),
-                StringEncoder.class.getName(), null);
+                DefaultEncoder.class.getName(),
+                DefaultPartitioner.class.getName()
+                , null);
 
         try {
             producer2.send(new KeyedMessage<String, String>(topic, "test", "test1"));
@@ -125,8 +127,9 @@ public class ProducerTest extends ZooKeeperTestHarness {
         Producer<String, String> producer3 = TestUtils.createProducer(
                 TestUtils.getBrokerListStrFromConfigs(Lists.newArrayList(config1, config2)),
                 StringEncoder.class.getName(),
+                DefaultEncoder.class.getName(),
                 DefaultPartitioner.class.getName(),
-                StringEncoder.class.getName(), null);
+                null);
 
         try {
             producer3.send(new KeyedMessage<String, String>(topic, "test", "test1"));

@@ -64,7 +64,8 @@ public class ReplicaFetchTest extends ZooKeeperTestHarness {
         // send test messages to leader;
         Producer<String, String> producer = TestUtils.createProducer(TestUtils.getBrokerListStrFromConfigs(configs),
                 StringEncoder.class.getName(),
-                StringEncoder.class.getName(), DefaultPartitioner.class.getName(), null);
+                StringEncoder.class.getName(),
+                DefaultPartitioner.class.getName(), null);
         List<KeyedMessage<String, String>> messages = Sc.map(testMessageList1, m -> new KeyedMessage(topic1, m, m));
         messages.addAll(Sc.map(testMessageList2, (m -> new KeyedMessage(topic2, m, m))));
         producer.send(messages);

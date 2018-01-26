@@ -22,6 +22,7 @@ import kafka.message.CompressionCodec;
 import kafka.message.Message;
 import kafka.message.MessageAndOffset;
 import kafka.producer.*;
+import kafka.serializer.DefaultEncoder;
 import kafka.serializer.Encoder;
 import kafka.serializer.StringEncoder;
 import kafka.server.BrokerState;
@@ -503,9 +504,9 @@ public class TestUtils {
                                                        String keyEncoder,
                                                        String partitioner,
                                                        Properties producerProps) {
-//        String encoder = classOf<DefaultEncoder>.getName,
-//                String keyEncoder = classOf<DefaultEncoder>.getName,
-//                String partitioner = classOf<DefaultPartitioner>.getName,
+        encoder = encoder == null ? DefaultEncoder.class.getName() : encoder;
+        keyEncoder = keyEncoder == null ? DefaultEncoder.class.getName() : keyEncoder;
+        partitioner = partitioner == null ? DefaultPartitioner.class.getName() : partitioner;
         Properties props = getProducerConfig(brokerList);
 
         //override any explicitly specified properties;
