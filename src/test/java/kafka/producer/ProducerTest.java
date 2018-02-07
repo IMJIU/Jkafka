@@ -1,8 +1,13 @@
 package kafka.producer;
 
 import com.google.common.collect.Lists;
+import kafka.api.FetchRequestBuilder;
+import kafka.api.FetchResponse;
 import kafka.common.FailedToSendMessageException;
 import kafka.consumer.SimpleConsumer;
+import kafka.message.Message;
+import kafka.message.MessageAndOffset;
+import kafka.message.MessageSet;
 import kafka.serializer.DefaultEncoder;
 import kafka.serializer.StringEncoder;
 import kafka.server.KafkaConfig;
@@ -11,14 +16,17 @@ import kafka.server.KafkaServer;
 import kafka.utils.Logging;
 import kafka.utils.TestUtils;
 import kafka.utils.Utils;
+import kafka.utils.ZkUtils;
 import kafka.zk.ZooKeeperTestHarness;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 import java.util.Properties;
 
 /**
@@ -139,63 +147,64 @@ public class ProducerTest extends ZooKeeperTestHarness {
             producer3.close();
         }
     }
-//
-//    @Test
-//    public void testSendToNewTopic() {
-//        val props1 = new util.Properties();
-//        props1.put("request.required.acks", "-1");
-//
-//        val topic = "new-topic";
-//        // create topic with 1 partition and await leadership;
-//        TestUtils.createTopic(zkClient, topic, numPartitions = 1, replicationFactor = 2, servers = servers);
-//
-//        val producer1 = TestUtils.createProducer < String, String>(
-//                brokerList = TestUtils.getBrokerListStrFromConfigs(Seq(config1, config2)),
-//                encoder = classOf < StringEncoder >.getName,
-//                keyEncoder = classOf < StringEncoder >.getName,
-//                partitioner = classOf < StaticPartitioner >.getName,
-//                producerProps = props1);
-//
-//        // Available partition ids should be 0.;
-//        producer1.send(new KeyedMessage<String, String>(topic, "test", "test1"));
-//        producer1.send(new KeyedMessage<String, String>(topic, "test", "test2"));
-//        // get the leader;
-//        val leaderOpt = ZkUtils.getLeaderForPartition(zkClient, topic, 0);
-//        Assert.assertTrue("Leader for topic new-topic partition 0 should exist", leaderOpt.isDefined)
-//        val leader = leaderOpt.get;
-//
-//        val messageSet = if (leader == server1.config.brokerId) {
-//            val response1 = consumer1.fetch(new FetchRequestBuilder().addFetch(topic, 0, 0, 10000).build());
-//            response1.messageSet("new-topic", 0).iterator.toBuffer;
-//        } else {
-//            val response2 = consumer2.fetch(new FetchRequestBuilder().addFetch(topic, 0, 0, 10000).build());
-//            response2.messageSet("new-topic", 0).iterator.toBuffer;
-//        }
-//        Assert.assertEquals("Should have fetched 2 messages", 2, messageSet.size);
-//        Assert.assertEquals(new Message(bytes = "test1".getBytes, key = "test".getBytes), messageSet(0).message);
-//        Assert.assertEquals(new Message(bytes = "test2".getBytes, key = "test".getBytes), messageSet(1).message);
-//        producer1.close();
-//
-//        val props2 = new util.Properties();
-//        props2.put("request.required.acks", "3");
-//        // no need to retry since the send will always fail;
-//        props2.put("message.send.max.retries", "0");
-//
-//        try {
-//            val producer2 = TestUtils.createProducer < String, String>(
-//                    brokerList = TestUtils.getBrokerListStrFromConfigs(Seq(config1, config2)),
-//                    encoder = classOf < StringEncoder >.getName,
-//                    keyEncoder = classOf < StringEncoder >.getName,
-//                    partitioner = classOf < StaticPartitioner >.getName,
-//                    producerProps = props2);
-//            producer2.close;
-//            fail("we don't support request.required.acks greater than 1");
-//        } catch {
-//            case IllegalArgumentException iae ->  // this is expected;
-//            case Throwable e -> fail("Not expected", e);
-//
-//        }
-//    }
+
+    @Test
+    public void testSendToNewTopic() {
+        Properties props1 = new Properties();
+        props1.put("request.required.acks", "-1");
+
+        String topic = "new-topic";
+        // create topic with 1 partition and await leadership;
+        TestUtils.createTopic(zkClient, topic, 1, 2, servers, null);
+
+        Producer<String, String> producer1 = TestUtils.createProducer(
+                TestUtils.getBrokerListStrFromConfigs(Lists.newArrayList(config1, config2)),
+                StringEncoder.class.getName(),
+                DefaultEncoder.class.getName(),
+                DefaultPartitioner.class.getName(),
+                props1);
+
+        // Available partition ids should be 0.;
+        producer1.send(new KeyedMessage<>(topic, "test", "test1"));
+        producer1.send(new KeyedMessage<>(topic, "test", "test2"));
+        // get the leader;
+        Optional<Integer> leaderOpt = ZkUtils.getLeaderForPartition(zkClient, topic, 0);
+        Assert.assertTrue("Leader for topic new-topic partition 0 should exist", leaderOpt.isPresent());
+        Integer leader = leaderOpt.get();
+
+        List<MessageAndOffset> messageSet ;
+        if (leader == server1.config.brokerId) {
+            FetchResponse response1 = consumer1.fetch(new FetchRequestBuilder().addFetch(topic, 0, 0L, 10000).build());
+            messageSet = response1.messageSet("new-topic", 0).toMessageAndOffsetList();
+        } else {
+            FetchResponse response2 = consumer2.fetch(new FetchRequestBuilder().addFetch(topic, 0, 0L, 10000).build());
+            messageSet = response2.messageSet("new-topic", 0).toMessageAndOffsetList();
+        }
+        Assert.assertEquals("Should have fetched 2 messages", 2, messageSet.size());
+        Assert.assertEquals(new Message("test1".getBytes(), "test".getBytes()), messageSet.get(0).message);
+        Assert.assertEquals(new Message("test2".getBytes(), "test".getBytes()), messageSet.get(1).message);
+        producer1.close();
+
+        Properties props2 = new Properties();
+        props2.put("request.required.acks", "3");
+        // no need to retry since the send will always fail;
+        props2.put("message.send.max.retries", "0");
+
+        try {
+            Producer<String, String> producer2 = TestUtils.createProducer(
+                    TestUtils.getBrokerListStrFromConfigs(Lists.newArrayList(config1, config2)),
+                    StringEncoder.class.getName(),
+                    DefaultEncoder.class.getName(),
+                    DefaultPartitioner.class.getName(),
+                    props2);
+            producer2.close();
+            Assert.fail("we don't support request.required.acks greater than 1");
+        } catch (IllegalArgumentException iae) {
+            // this is expected;
+        } catch (Throwable e) {
+            Assert.fail("Not expected :" + e.getMessage());
+        }
+    }
 //
 //
 //    @Test
