@@ -41,6 +41,9 @@ public class Partition extends KafkaMetricsGroup {
         this.partitionId = partitionId;
         this.time = time;
         this.replicaManager = replicaManager;
+        localBrokerId = replicaManager.config.brokerId;
+        logManager = replicaManager.logManager;
+        zkClient = replicaManager.zkClient;
         this.logIdent = String.format("Partition <%s,%d> on broker %d: ", topic, partitionId, localBrokerId);
 
         newGauge("UnderReplicated", new Gauge<Integer>() {
@@ -51,9 +54,6 @@ public class Partition extends KafkaMetricsGroup {
                 },
                 ImmutableMap.of("topic", topic, "partition", partitionId.toString())
         );
-        localBrokerId = replicaManager.config.brokerId;
-        logManager = replicaManager.logManager;
-        zkClient = replicaManager.zkClient;
     }
 
     private Integer localBrokerId ;

@@ -65,8 +65,7 @@ public abstract class ShutdownableThread extends Thread {
             while (isRunning.get()) {
                 doWork();
             }
-        } catch (Exception e) {
-            logger.logger.error(e.getMessage(), e);
+        } catch (Throwable e) {
             if (isRunning.get())
                 logger.error("Error due to ", e);
         }

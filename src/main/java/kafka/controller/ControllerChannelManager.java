@@ -22,10 +22,7 @@ import kafka.utils.Sc;
 import kafka.utils.ShutdownableThread;
 import kafka.utils.Utils;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -56,7 +53,7 @@ public class ControllerChannelManager extends Logging {
 
     public void shutdown() {
         synchronized (brokerLock) {
-            brokerStateInfo.forEach((broker, info) -> removeExistingBroker(broker));
+            Sets.newHashSet(brokerStateInfo.keySet()).forEach(brokerId -> removeExistingBroker(brokerId));
         }
     }
 
