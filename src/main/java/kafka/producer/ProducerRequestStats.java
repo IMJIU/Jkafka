@@ -19,11 +19,14 @@ public class ProducerRequestStats {
 
     public ProducerRequestStats(String clientId) {
         this.clientId = clientId;
+        valueFactory = (ClientIdBroker k) -> new ProducerRequestMetrics(k);
+        stats = new Pool<>(Optional.of(valueFactory));
+        allBrokersStats = new ProducerRequestMetrics(new ClientIdAllBrokers(clientId));
     }
 
-    private Handler<ClientIdBroker, ProducerRequestMetrics> valueFactory = (ClientIdBroker k) -> new ProducerRequestMetrics(k);
-    private Pool<ClientIdBroker, ProducerRequestMetrics> stats = new Pool<ClientIdBroker, ProducerRequestMetrics>(Optional.of(valueFactory));
-    private ProducerRequestMetrics allBrokersStats = new ProducerRequestMetrics(new ClientIdAllBrokers(clientId));
+    private Handler<ClientIdBroker, ProducerRequestMetrics> valueFactory ;
+    private Pool<ClientIdBroker, ProducerRequestMetrics> stats ;
+    private ProducerRequestMetrics allBrokersStats ;
 
     public ProducerRequestMetrics getProducerRequestAllBrokersStats() {
         return allBrokersStats;

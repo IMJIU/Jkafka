@@ -13,10 +13,7 @@ import kafka.serializer.StringEncoder;
 import kafka.server.KafkaConfig;
 import kafka.server.KafkaRequestHandler;
 import kafka.server.KafkaServer;
-import kafka.utils.Logging;
-import kafka.utils.TestUtils;
-import kafka.utils.Utils;
-import kafka.utils.ZkUtils;
+import kafka.utils.*;
 import kafka.zk.ZooKeeperTestHarness;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
@@ -160,8 +157,8 @@ public class ProducerTest extends ZooKeeperTestHarness {
         Producer<String, String> producer1 = TestUtils.createProducer(
                 TestUtils.getBrokerListStrFromConfigs(Lists.newArrayList(config1, config2)),
                 StringEncoder.class.getName(),
-                DefaultEncoder.class.getName(),
-                DefaultPartitioner.class.getName(),
+                StringEncoder.class.getName(),
+                StaticPartitioner.class.getName(),
                 props1);
 
         // Available partition ids should be 0.;
@@ -194,8 +191,8 @@ public class ProducerTest extends ZooKeeperTestHarness {
             Producer<String, String> producer2 = TestUtils.createProducer(
                     TestUtils.getBrokerListStrFromConfigs(Lists.newArrayList(config1, config2)),
                     StringEncoder.class.getName(),
-                    DefaultEncoder.class.getName(),
-                    DefaultPartitioner.class.getName(),
+                    StringEncoder.class.getName(),
+                    StaticPartitioner.class.getName(),
                     props2);
             producer2.close();
             Assert.fail("we don't support request.required.acks greater than 1");

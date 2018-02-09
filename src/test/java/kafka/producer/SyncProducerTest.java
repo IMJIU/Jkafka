@@ -1,13 +1,15 @@
 //package kafka.producer;
 //
 //import com.google.common.collect.Lists;
+//import kafka.api.ProducerResponse;
 //import kafka.integration.KafkaServerTestHarness;
+//import kafka.message.ByteBufferMessageSet;
+//import kafka.message.CompressionCodec;
+//import kafka.message.Message;
 //import kafka.server.KafkaConfig;
 //import kafka.server.KafkaServer;
-//import kafka.utils.Sc;
-//import kafka.utils.TestUtils;
-//import kafka.utils.TestZKUtils;
-//import kafka.utils.Time;
+//import kafka.utils.*;
+//import org.junit.Assert;
 //import org.junit.Test;
 //
 //import java.util.List;
@@ -32,13 +34,13 @@
 //        SyncProducer producer = new SyncProducer(new SyncProducerConfig(props));
 //        long firstStart = Time.get().milliseconds();
 //        try {
-//            val response = producer.send(TestUtils.produceRequest("test", 0,
-//                    new ByteBufferMessageSet(compressionCodec = NoCompressionCodec, messages = new Message(messageBytes)), acks = 1));
+//            ProducerResponse response = producer.send(TestUtils.produceRequest("test", 0,
+//                    new ByteBufferMessageSet(CompressionCodec.NoCompressionCodec, new Message(messageBytes)),  1));
 //            Assert.assertNotNull(response);
-//        } catch {
-//            case Exception e -> Assert.fail("Unexpected failure sending message to broker. " + e.getMessage);
+//        } catch (Exception e ){
+//            Assert.fail("Unexpected failure sending message to broker. " + e.getMessage());
 //        }
-//        val firstEnd = SystemTime.milliseconds;
+//        long firstEnd = Time.get().milliseconds();
 //        Assert.assertTrue((firstEnd-firstStart) < 500);
 //        val secondStart = SystemTime.milliseconds;
 //        try {

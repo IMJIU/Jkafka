@@ -2,6 +2,11 @@ package kafka.common;/**
  * Created by zhoulf on 2017/4/25.
  */
 
+import kafka.func.Tuple;
+import kafka.message.InvalidMessageException;
+import kafka.utils.Sc;
+import org.apache.kafka.common.errors.*;
+
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
@@ -32,36 +37,36 @@ public class ErrorMapping {
     public static final Short OffsetsLoadInProgressCode = 14;
     public static final Short ConsumerCoordinatorNotAvailableCode = 15;
     public static final Short NotCoordinatorForConsumerCode = 16;
-    public static final Short InidTopicCode = 17;
+    public static final Short InvalidTopicCode = 17;
     public static final Short MessageSetSizeTooLargeCode = 18;
     public static final Short NotEnoughReplicasCode = 19;
     public static final Short NotEnoughReplicasAfterAppendCode = 20;
 
     private static Map<Class<Exception>, Short> exceptionToCode = new HashMap() {{
         put(OffsetOutOfRangeException.class, OffsetOutOfRangeCode);
-//        put(InvalidMessageException.class,InvalidMessageCode);
-//        put(UnknownTopicOrPartitionException.class,UnknownTopicOrPartitionCode);
+        put(InvalidMessageException.class, InvalidMessageCode);
+        put(UnknownTopicOrPartitionException.class, UnknownTopicOrPartitionCode);
         put(InvalidMessageSizeException.class, InvalidFetchSizeCode);
-//        put(NotLeaderForPartitionException.class,NotLeaderForPartitionCode);
-//        put(LeaderNotAvailableException.class,LeaderNotAvailableCode);
-//        put(RequestTimedOutException.class,RequestTimedOutCode);
-//        put(BrokerNotAvailableException.class,BrokerNotAvailableCode);
-//        put(ReplicaNotAvailableException.class,ReplicaNotAvailableCode);
+        put(NotLeaderForPartitionException.class, NotLeaderForPartitionCode);
+        put(LeaderNotAvailableException.class, LeaderNotAvailableCode);
+        put(RequestTimedOutException.class, RequestTimedOutCode);
+        put(BrokerNotAvailableException.class, BrokerNotAvailableCode);
+        put(ReplicaNotAvailableException.class, ReplicaNotAvailableCode);
         put(MessageSizeTooLargeException.class, MessageSizeTooLargeCode);
-//        put(ControllerMovedException.class,StaleControllerEpochCode);
-//        put(OffsetMetadataTooLargeException.class,OffsetMetadataTooLargeCode);
-//        put(OffsetsLoadInProgressException.class,OffsetsLoadInProgressCode);
-//        put(ConsumerCoordinatorNotAvailableException.class,ConsumerCoordinatorNotAvailableCode);
-//        put(NotCoordinatorForConsumerException.class,NotCoordinatorForConsumerCode);
-//        put(InvalidTopicException.class,InvalidTopicCode);
+        put(ControllerMovedException.class, StaleControllerEpochCode);
+        put(OffsetMetadataTooLargeException.class, OffsetMetadataTooLargeCode);
+        put(OffsetsLoadInProgressException.class, OffsetsLoadInProgressCode);
+        put(ConsumerCoordinatorNotAvailableException.class, ConsumerCoordinatorNotAvailableCode);
+        put(NotCoordinatorForConsumerException.class, NotCoordinatorForConsumerCode);
+        put(InvalidTopicException.class, InvalidTopicCode);
         put(MessageSetSizeTooLargeException.class, MessageSetSizeTooLargeCode);
-//        put(NotEnoughReplicasException.class,NotEnoughReplicasCode);
-//        put(NotEnoughReplicasAfterAppendException.class,NotEnoughReplicasAfterAppendCode);
+        put(NotEnoughReplicasException.class, NotEnoughReplicasCode);
+        put(NotEnoughReplicasAfterAppendException.class, NotEnoughReplicasAfterAppendCode);
     }};
 
     /* invert the mapping */
-    private static final Map<Short, Class<Exception>> codeToException = exceptionToCode.entrySet().stream()
-            .collect(Collectors.toMap(kv -> kv.getValue(), kv -> kv.getKey()));
+//    private static final Map<Short, Class<Exception>> codeToException = exceptionToCode.entrySet().stream().collect(Collectors.toMap(kv -> kv.getValue(), kv -> kv.getKey()));
+    private static final Map<Short, Class<Exception>> codeToException = Sc.toMap(Sc.map(exceptionToCode, (k, v) -> Tuple.of(v, k)));
 
     public static Short codeFor(Class exception) {
         return exceptionToCode.get(exception);

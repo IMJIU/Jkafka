@@ -17,9 +17,9 @@ public class ConsumerMetadataRequest extends RequestOrResponse {
     public static final short CurrentVersion = 0;
     public static final String DefaultClientId = "";
     public String group;
-    public Short versionId = ConsumerMetadataRequest.CurrentVersion;
+    public Short versionId ;
     public Integer correlationId = 0;
-    public String clientId = ConsumerMetadataRequest.DefaultClientId;
+    public String clientId;
 
     public ConsumerMetadataRequest(String group) {
         super(Optional.of(RequestKeys.ConsumerMetadataKey));

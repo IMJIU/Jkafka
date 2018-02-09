@@ -14,8 +14,8 @@ import java.util.Set;
 import static kafka.api.ApiUtils.*;
 
 public class ControlledShutdownResponse extends RequestOrResponse {
-  public  int correlationId;
-    public   short errorCode = ErrorMapping.NoError;
+    public int correlationId;
+    public short errorCode = ErrorMapping.NoError;
     public Set<TopicAndPartition> partitionsRemaining;
 
     public ControlledShutdownResponse(int correlationId, short errorCode, Set<TopicAndPartition> partitionsRemaining) {

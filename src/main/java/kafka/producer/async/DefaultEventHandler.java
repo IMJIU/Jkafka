@@ -153,9 +153,9 @@ public class DefaultEventHandler<K, V> extends Logging implements EventHandler<K
         events.forEach(e -> {
             try {
                 if (e.hasKey())
-                    serializedMessages.add(new KeyedMessage<K, Message>(e.topic, e.key, e.partKey, new Message(keyEncoder.toBytes(e.key), encoder.toBytes(e.message))));
+                    serializedMessages.add(new KeyedMessage<>(e.topic, e.key, e.partKey, new Message(keyEncoder.toBytes(e.key), encoder.toBytes(e.message))));
                 else
-                    serializedMessages.add(new KeyedMessage<K, Message>(e.topic, e.key, e.partKey, new Message(encoder.toBytes(e.message))));
+                    serializedMessages.add(new KeyedMessage<>(e.topic, e.key, e.partKey, new Message(encoder.toBytes(e.message))));
             } catch (Throwable t) {
                 producerStats.serializationErrorRate.mark();
                 if (isSync) {

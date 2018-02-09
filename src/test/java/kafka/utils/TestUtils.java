@@ -611,7 +611,7 @@ public class TestUtils {
     /**
      * Create a wired format request based on simple basic information
      */
-    public ProducerRequest produceRequest(String topic,
+    public static ProducerRequest produceRequest(String topic,
                                           Integer partition,
                                           ByteBufferMessageSet message) {
         return produceRequest(topic, partition, message,
@@ -620,7 +620,7 @@ public class TestUtils {
                 SyncProducerConfig.DefaultClientId);
     }
 
-    public ProducerRequest produceRequest(String topic,
+    public  static ProducerRequest produceRequest(String topic,
                                           Integer partition,
                                           ByteBufferMessageSet message,
                                           Integer acks,
@@ -630,14 +630,14 @@ public class TestUtils {
         return produceRequestWithAcks(Lists.newArrayList(topic), Lists.newArrayList(partition), message, acks, timeout, correlationId, clientId);
     }
 
-    public ProducerRequest produceRequestWithAcks(List<String> topics, List<Integer> partitions, ByteBufferMessageSet message) {
+    public static ProducerRequest produceRequestWithAcks(List<String> topics, List<Integer> partitions, ByteBufferMessageSet message) {
         return produceRequestWithAcks(topics, partitions, message,
                 SyncProducerConfig.DefaultRequiredAcks.intValue(),
                 SyncProducerConfig.DefaultAckTimeoutMs,
                 0, SyncProducerConfig.DefaultClientId);
     }
 
-    public ProducerRequest produceRequestWithAcks(List<String> topics,
+    public static ProducerRequest produceRequestWithAcks(List<String> topics,
                                                   List<Integer> partitions,
                                                   ByteBufferMessageSet message,
                                                   Integer acks,
@@ -652,7 +652,7 @@ public class TestUtils {
         return new ProducerRequest(correlationId, clientId, acks.shortValue(), timeout, data);
     }
 
-    public void makeLeaderForPartition(ZkClient zkClient, String topic,
+    public  static void makeLeaderForPartition(ZkClient zkClient, String topic,
                                        Map<Integer, Integer> leaderPerPartitionMap,
                                        Integer controllerEpoch) {
         leaderPerPartitionMap.forEach((partition, leader) -> {

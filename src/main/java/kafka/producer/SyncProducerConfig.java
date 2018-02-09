@@ -24,17 +24,19 @@ public class SyncProducerConfig implements SyncProducerConfigShared {
     public SyncProducerConfig(Properties originalProps) {
         this(new VerifiableProperties(originalProps));
         // no need to verify the property since SyncProducerConfig is supposed to be used internally;
+        host = props.getString("host");
+        port = props.getInt("port");
     }
 
     /**
      * the broker to which the producer sends events
      */
-    public String host = props.getString("host");
+    public String host ;
 
     /**
      * the port on which the broker is running
      */
-    public Integer port = props.getInt("port");
+    public Integer port ;
 
     @Override
     public VerifiableProperties props() {

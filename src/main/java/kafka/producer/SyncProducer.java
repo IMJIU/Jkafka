@@ -25,12 +25,13 @@ public class SyncProducer extends Logging {
     private Object lock = new Object();
     //        @volatile
     private Boolean shutdown = false;
-    private BlockingChannel blockingChannel = new BlockingChannel(config.host, config.port, BlockingChannel.UseDefaultBufferSize,
-            config.sendBufferBytes(), config.requestTimeoutMs());
+    private BlockingChannel blockingChannel;
     ProducerRequestStats producerRequestStats;
 
     public SyncProducer(SyncProducerConfig config) {
         this.config = config;
+        blockingChannel = new BlockingChannel(config.host, config.port, BlockingChannel.UseDefaultBufferSize,
+                config.sendBufferBytes(), config.requestTimeoutMs());
         producerRequestStats = ProducerRequestStatsRegistry.getProducerRequestStats(config.clientId());
         trace(String.format("Instantiating Scala Sync Producer with properties: %s", config.props));
     }
