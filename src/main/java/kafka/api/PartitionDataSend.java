@@ -15,12 +15,13 @@ public class PartitionDataSend extends Send {
     public Integer partitionId;
     public FetchResponsePartitionData partitionData;
     private ByteBuffer buffer = ByteBuffer.allocate(4 /** partitionId **/ + FetchResponsePartitionData.headerSize);
-    private Integer messageSize = partitionData.messages.sizeInBytes();
+    private Integer messageSize ;
     private Long messagesSentSize = 0L;
 
     public PartitionDataSend(java.lang.Integer partitionId, FetchResponsePartitionData partitionData) {
         this.partitionId = partitionId;
         this.partitionData = partitionData;
+        messageSize = partitionData.messages.sizeInBytes();
         buffer.putInt(partitionId);
         buffer.putShort(partitionData.error);
         buffer.putLong(partitionData.hw);

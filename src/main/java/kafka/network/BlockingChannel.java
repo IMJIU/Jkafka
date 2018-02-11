@@ -64,7 +64,7 @@ public class BlockingChannel extends Logging {
                             writeBufferSize,
                             connectTimeoutMs));
                 } catch (Throwable e) {
-                    logger.error(e.getMessage(), e);
+//                    logger.error(e.getMessage(), e);
                     disconnect();
                 }
             }
@@ -103,7 +103,7 @@ public class BlockingChannel extends Logging {
         return send.writeCompletely(writeChannel);
     }
 
-    public Receive receive() throws ClosedChannelException {
+    public Receive receive() throws IOException {
         if (!connected)
             throw new ClosedChannelException();
 

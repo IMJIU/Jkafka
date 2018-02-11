@@ -21,7 +21,7 @@ public class TopicDataSend extends Send {
     private Integer size;
 
     private Integer sent = 0;
-    private ByteBuffer buffer = ByteBuffer.allocate(topicData.headerSize);
+    private ByteBuffer buffer ;
     public Send sends;
 
     @Override
@@ -31,6 +31,7 @@ public class TopicDataSend extends Send {
 
     public TopicDataSend(TopicData topicData) {
         this.topicData = topicData;
+        buffer = ByteBuffer.allocate(topicData.headerSize);
         size = topicData.sizeInBytes();
         writeShortString(buffer, topicData.topic);
         buffer.putInt(topicData.partitionData.size());

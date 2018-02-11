@@ -53,10 +53,11 @@ public class ConsumerTopicStats extends Logging {
     public String clientId;
     private Handler<ClientIdAndTopic, ConsumerTopicMetrics> valueFactory = k -> new ConsumerTopicMetrics(k);
     private Pool<ClientIdAndTopic, ConsumerTopicMetrics> stats = new Pool<>(Optional.of(valueFactory));
-    private ConsumerTopicMetrics allTopicStats = new ConsumerTopicMetrics(new ClientIdAllTopics(clientId)); // to differentiate from a topic named AllTopics;
+    private ConsumerTopicMetrics allTopicStats ; // to differentiate from a topic named AllTopics;
 
     public ConsumerTopicStats(String clientId) {
         this.clientId = clientId;
+        allTopicStats = new ConsumerTopicMetrics(new ClientIdAllTopics(clientId));
     }
 
     public ConsumerTopicMetrics getConsumerAllTopicStats() {

@@ -26,6 +26,8 @@ public class ProducerResponse extends RequestOrResponse {
     public ProducerResponse(Integer correlationId, Map<TopicAndPartition, ProducerResponseStatus> status) {
         this.correlationId = correlationId;
         this.status = status;
+        statusGroupedByTopic =Utils.groupByKey(status, k -> k.topic);
+        hasError = status.values().stream().allMatch(e -> e.error != ErrorMapping.NoError);
     }
 
     public void init() {
@@ -56,10 +58,9 @@ public class ProducerResponse extends RequestOrResponse {
     /**
      * Partitions the status map into a map of maps (one for each topic).
      */
-    private Map<String, Map<TopicAndPartition, ProducerResponseStatus>> statusGroupedByTopic =
-            Utils.groupByKey(status, k -> k.topic);
+    private Map<String, Map<TopicAndPartition, ProducerResponseStatus>> statusGroupedByTopic;
 
-    public Boolean hasError = status.values().stream().allMatch(e -> e.error != ErrorMapping.NoError);
+    public Boolean hasError ;
 
     @Override
     public Integer sizeInBytes() {

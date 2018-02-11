@@ -32,30 +32,32 @@ public interface PartitionAssignor {
 
 
 class AssignmentContext {
-    String group;
-    String consumerId;
+    public String group;
+    public String consumerId;
 
     public AssignmentContext(String group, String consumerId, Boolean excludeInternalTopics, ZkClient zkClient) {
         this.group = group;
         this.consumerId = consumerId;
         this.excludeInternalTopics = excludeInternalTopics;
         this.zkClient = zkClient;
+        partitionsForTopic = ZkUtils.getPartitionsForTopics(zkClient, Sc.toList(myTopicThreadIds().keySet()));
+        consumersForTopic = ZkUtils.getConsumersPerTopic(zkClient, group, excludeInternalTopics);
+        consumers = Sc.sorted(ZkUtils.getConsumersInGroup(zkClient, group));
     }
 
-    Boolean excludeInternalTopics;
-    ZkClient zkClient;
+    public Boolean excludeInternalTopics;
+    public ZkClient zkClient;
 
     public Map<String, Set<ConsumerThreadId>> myTopicThreadIds() {
         TopicCount myTopicCount = TopicCount.constructTopicCount(group, consumerId, zkClient, excludeInternalTopics);
         return myTopicCount.getConsumerThreadIdsPerTopic();
     }
 
-    Map<String, List<Integer>> partitionsForTopic = ZkUtils.getPartitionsForTopics(zkClient, Sc.toList(myTopicThreadIds().keySet()));
+    public Map<String, List<Integer>> partitionsForTopic;
 
-    Map<String, List<ConsumerThreadId>> consumersForTopic =
-            ZkUtils.getConsumersPerTopic(zkClient, group, excludeInternalTopics);
+    public Map<String, List<ConsumerThreadId>> consumersForTopic;
 
-    List<String> consumers = Sc.sorted(ZkUtils.getConsumersInGroup(zkClient, group));
+    public List<String> consumers;
 }
 
 /**

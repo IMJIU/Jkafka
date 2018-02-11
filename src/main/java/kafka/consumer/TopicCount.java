@@ -106,8 +106,8 @@ public abstract class TopicCount extends Logging {
 }
 
 class StaticTopicCount extends TopicCount {
-    String consumerIdString;
-    Map<String, Integer> topicCountMap;
+    public String consumerIdString;
+    public Map<String, Integer> topicCountMap;
 
     public StaticTopicCount(String consumerIdString, Map<String, Integer> topicCountMap) {
         this.consumerIdString = consumerIdString;
@@ -138,11 +138,11 @@ class StaticTopicCount extends TopicCount {
 
 
 class WildcardTopicCount extends TopicCount {
-    ZkClient zkClient;
-    String consumerIdString;
-    TopicFilter topicFilter;
-    Integer numStreams;
-    Boolean excludeInternalTopics;
+    public ZkClient zkClient;
+    public String consumerIdString;
+    public TopicFilter topicFilter;
+    public Integer numStreams;
+    public Boolean excludeInternalTopics;
 
     public WildcardTopicCount(ZkClient zkClient, String consumerIdString, TopicFilter topicFilter, Integer numStreams, Boolean excludeInternalTopics) {
         this.zkClient = zkClient;

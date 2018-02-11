@@ -60,8 +60,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 //abstract class RequestPurgatory<T <: DelayedRequest>(Integer brokerId = 0, Integer purgeInterval = 1000);
 //        extends Logging with KafkaMetricsGroup {
-abstract class RequestPurgatory<T extends DelayedRequest>
-        extends KafkaMetricsGroup {
+abstract class RequestPurgatory<T extends DelayedRequest> extends KafkaMetricsGroup {
     public Integer brokerId;
     public Integer purgeInterval;
 

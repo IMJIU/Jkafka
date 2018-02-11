@@ -86,6 +86,7 @@ public class ZookeeperConsumerConnector extends KafkaMetricsGroup implements Con
     public ZookeeperConsumerConnector(ConsumerConfig config, Boolean enableFetcher) {
         this.config = config;
         this.enableFetcher = enableFetcher;
+        init();
     }
     // for testing only;
 
@@ -109,13 +110,15 @@ public class ZookeeperConsumerConnector extends KafkaMetricsGroup implements Con
     private ZookeeperTopicEventWatcher wildcardTopicWatcher = null;
 
     // useful for tracking migration of consumers to store offsets in kafka;
-    private Meter kafkaCommitMeter = newMeter("KafkaCommitsPerSec", "commits", TimeUnit.SECONDS, ImmutableMap.of("clientId", config.clientId));
-    private Meter zkCommitMeter = newMeter("ZooKeeperCommitsPerSec", "commits", TimeUnit.SECONDS, ImmutableMap.of("clientId", config.clientId));
-    private KafkaTimer rebalanceTimer = new KafkaTimer(newTimer("RebalanceRateAndTime", TimeUnit.MILLISECONDS, TimeUnit.SECONDS, ImmutableMap.of("clientId", config.clientId)));
+    private Meter kafkaCommitMeter ;
+    private Meter zkCommitMeter;
+    private KafkaTimer rebalanceTimer;
     public String consumerIdString;
 
     public void init() {
-
+        kafkaCommitMeter = newMeter("KafkaCommitsPerSec", "commits", TimeUnit.SECONDS, ImmutableMap.of("clientId", config.clientId));
+        zkCommitMeter = newMeter("ZooKeeperCommitsPerSec", "commits", TimeUnit.SECONDS, ImmutableMap.of("clientId", config.clientId));
+        rebalanceTimer = new KafkaTimer(newTimer("RebalanceRateAndTime", TimeUnit.MILLISECONDS, TimeUnit.SECONDS, ImmutableMap.of("clientId", config.clientId)));
         String consumerUuid = null;
         if (config.consumerId.isPresent()) {
             consumerUuid = config.consumerId.get();
@@ -148,6 +151,7 @@ public class ZookeeperConsumerConnector extends KafkaMetricsGroup implements Con
 
         KafkaMetricsReporter.startReporters(config.props);
         AppInfo.registerInfo();
+
     }
 
     public ZookeeperConsumerConnector(ConsumerConfig config) {

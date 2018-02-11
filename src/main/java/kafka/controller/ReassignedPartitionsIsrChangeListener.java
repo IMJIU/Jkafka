@@ -23,6 +23,8 @@ public class ReassignedPartitionsIsrChangeListener extends Logging implements IZ
     String topic;
     Integer partition;
     Set<Integer> reassignedReplicas;
+    ZkClient zkClient ;
+    ControllerContext controllerContext ;
 
     public ReassignedPartitionsIsrChangeListener(kafka.controller.KafkaController controller, String topic, Integer partition, Set<Integer> reassignedReplicas) {
         this.controller = controller;
@@ -30,10 +32,11 @@ public class ReassignedPartitionsIsrChangeListener extends Logging implements IZ
         this.partition = partition;
         this.reassignedReplicas = reassignedReplicas;
         this.logIdent = "<ReassignedPartitionsIsrChangeListener on controller " + controller.config.brokerId + ">: ";
+        zkClient = controller.controllerContext.zkClient;
+        controllerContext = controller.controllerContext;
     }
 
-    ZkClient zkClient = controller.controllerContext.zkClient;
-    ControllerContext controllerContext = controller.controllerContext;
+
 
     /**
      * Invoked when some partitions need to move leader to preferred replica

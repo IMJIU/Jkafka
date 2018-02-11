@@ -46,35 +46,31 @@ public class BoundedByteBufferReceive extends Receive {
     /**
      * Read the bytes in this response from the given channel
      */
-    public Integer readFrom(ReadableByteChannel channel) {
+    public Integer readFrom(ReadableByteChannel channel) throws IOException {
         expectIncomplete();
         Integer read = 0;
-        try {
-            // have we read the request size yet?;
-            if (sizeBuffer.remaining() > 0)
-                read += Utils.read(channel, sizeBuffer);
+        // have we read the request size yet?;
+        if (sizeBuffer.remaining() > 0)
+            read += Utils.read(channel, sizeBuffer);
 
-            // have we allocated the request buffer yet?;
-            if (contentBuffer == null && !sizeBuffer.hasRemaining()) {
-                sizeBuffer.rewind();
-                Integer size = sizeBuffer.getInt();
-                if (size <= 0)
-                    throw new InvalidRequestException(String.format("%d is not a valid request size.", size));
-                if (size > maxSize)
-                    throw new InvalidRequestException(String.format("Request of length %d is not valid, it is larger than the maximum size of %d bytes.", size, maxSize));
-                contentBuffer = byteBufferAllocate(size);
+        // have we allocated the request buffer yet?;
+        if (contentBuffer == null && !sizeBuffer.hasRemaining()) {
+            sizeBuffer.rewind();
+            Integer size = sizeBuffer.getInt();
+            if (size <= 0)
+                throw new InvalidRequestException(String.format("%d is not a valid request size.", size));
+            if (size > maxSize)
+                throw new InvalidRequestException(String.format("Request of length %d is not valid, it is larger than the maximum size of %d bytes.", size, maxSize));
+            contentBuffer = byteBufferAllocate(size);
+        }
+        // if we have a buffer read some stuff into it;
+        if (contentBuffer != null) {
+            read = Utils.read(channel, contentBuffer);
+            // did we get everything?;
+            if (!contentBuffer.hasRemaining()) {
+                contentBuffer.rewind();
+                complete = true;
             }
-            // if we have a buffer read some stuff into it;
-            if (contentBuffer != null) {
-                read = Utils.read(channel, contentBuffer);
-                // did we get everything?;
-                if (!contentBuffer.hasRemaining()) {
-                    contentBuffer.rewind();
-                    complete = true;
-                }
-            }
-        } catch (IOException e) {
-           throw new RuntimeException(e);
         }
         return read;
     }

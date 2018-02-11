@@ -35,9 +35,10 @@ class KafkaHealthcheck extends Logging {
         this.advertisedPort = advertisedPort;
         this.zkSessionTimeoutMs = zkSessionTimeoutMs;
         this.zkClient = zkClient;
+        brokerIdPath = ZkUtils.BrokerIdsPath + "/" + brokerId;
     }
 
-    public String brokerIdPath = ZkUtils.BrokerIdsPath + "/" + brokerId;
+    public String brokerIdPath ;
     public SessionExpireListener sessionExpireListener = new SessionExpireListener();
 
     public void startup() {

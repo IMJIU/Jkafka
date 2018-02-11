@@ -184,7 +184,7 @@ public class Processor extends AbstractServerThread {
     /**
      * Process reads from ready sockets
      */
-    public void read(SelectionKey key) {
+    public void read(SelectionKey key) throws IOException {
         lruConnections.put(key, currentTimeNanos);
         SocketChannel socketChannel = channelFor(key);
         Receive receive;

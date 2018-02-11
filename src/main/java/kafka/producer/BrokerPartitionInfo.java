@@ -92,8 +92,8 @@ public class BrokerPartitionInfo extends Logging {
             trace(String.format("Metadata for topic %s is %s", tmd.topic, tmd));
             if (tmd.errorCode == ErrorMapping.NoError) {
                 topicPartitionInfo.put(tmd.topic, tmd);
-            } else ;
-            warn(String.format("Error while fetching metadata <%s] for topic [%s>: %s ", tmd, tmd.topic, ErrorMapping.exceptionFor(tmd.errorCode).getClass()));
+            } else
+                warn(String.format("Error while fetching metadata <%s] for topic [%s>: %s ", tmd, tmd.topic, ErrorMapping.exceptionFor(tmd.errorCode).getClass()));
             tmd.partitionsMetadata.forEach(pmd -> {
                 if (pmd.errorCode != ErrorMapping.NoError && pmd.errorCode == ErrorMapping.LeaderNotAvailableCode) {
                     warn(String.format("Error while fetching metadata %s for topic partition <%s,%d]: [%s>", pmd, tmd.topic, pmd.partitionId,

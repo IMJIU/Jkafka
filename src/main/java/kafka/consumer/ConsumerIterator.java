@@ -26,10 +26,10 @@ import java.util.concurrent.atomic.AtomicReference;
 public class ConsumerIterator<K, V> extends IteratorTemplate<MessageAndMetadata<K, V>> {
     private Logging log = Logging.getLogger(this.getClass().getName());
     private BlockingQueue<FetchedDataChunk> channel;
-    Integer consumerTimeoutMs;
+    public Integer consumerTimeoutMs;
     private Decoder<K> keyDecoder;
     private Decoder<V> valueDecoder;
-    String clientId;
+    public String clientId;
 
     public ConsumerIterator(BlockingQueue<FetchedDataChunk> channel, Integer consumerTimeoutMs, Decoder<K> keyDecoder, Decoder<V> valueDecoder, String clientId) {
         this.channel = channel;
