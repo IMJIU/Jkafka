@@ -244,9 +244,11 @@ public class KafkaApis extends Logging {
         Iterable<ProduceResult> localProduceResults = appendToLocalLog(produceRequest, offsetCommitRequestOpt.isPresent());
         debug(String.format("Produce to local log in %d ms", Time.get().milliseconds() - sTime));
         ProduceResult produceResult = Sc.find(localProduceResults, r -> r.errorCode() != ErrorMapping.NoError);
-         Short firstErrorCode = null;
-        if (produceRequest != null) {
+         Short firstErrorCode;
+        if (produceResult != null) {
             firstErrorCode = produceResult.errorCode();
+        }else{
+            firstErrorCode = ErrorMapping.NoError;
         }
         int numPartitionsInError = Sc.count(localProduceResults, r -> r.error.isPresent());
         if (produceRequest.requiredAcks == 0) {
@@ -351,7 +353,7 @@ public class KafkaApis extends Logging {
                     throw new InvalidTopicException(String.format("Cannot append to internal topic %s", topicAndPartition.topic));
                 }
                 Optional<Partition> partitionOpt = replicaManager.getPartition(topicAndPartition.topic, topicAndPartition.partition);
-                LogAppendInfo info = null;
+                LogAppendInfo info;
                 if (partitionOpt.isPresent()) {
                     info = partitionOpt.get().appendMessagesToLeader(messages, producerRequest.requiredAcks.intValue());
                 } else {

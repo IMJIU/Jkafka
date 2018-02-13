@@ -13,7 +13,9 @@ import kafka.utils.Logging;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Random;
+
 import static org.apache.kafka.common.utils.Utils.*;
+
 /*
  * Send a message set.
  */
@@ -56,11 +58,11 @@ public class SyncProducer extends Logging {
     /**
      * Common functionality for the public send methods
      */
-    private Receive doSend(RequestOrResponse request) {
+    private Receive doSend(RequestOrResponse request) throws IOException {
         return doSend(request, true);
     }
 
-    private Receive doSend(RequestOrResponse request, Boolean readResponse) {
+    private Receive doSend(RequestOrResponse request, Boolean readResponse) throws IOException {
         synchronized (lock) {
             verifyRequest(request);
             getOrMakeConnection();
@@ -75,7 +77,7 @@ public class SyncProducer extends Logging {
             } catch (IOException e) {
                 // no way to tell if write succeeded. Disconnect and re-throw exception to let client handle retry;
                 disconnect();
-                throw new RuntimeException(e);
+                throw new IOException(e);
             } catch (Throwable e) {
                 throw e;
             }
@@ -98,8 +100,12 @@ public class SyncProducer extends Logging {
         KafkaTimer aggregateTimer = producerRequestStats.getProducerRequestAllBrokersStats().requestTimer;
         aggregateTimer.time(() ->
                 specificTimer.time(() -> {
-                    finalObject.set(doSend(producerRequest, (producerRequest.requiredAcks == 0) ? false : true));
-                    return null;
+                    try {
+                        finalObject.set(doSend(producerRequest, (producerRequest.requiredAcks == 0) ? false : true));
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                    return finalObject;
                 })
         );
         response = finalObject.get();
@@ -109,7 +115,7 @@ public class SyncProducer extends Logging {
             return null;
     }
 
-    public TopicMetadataResponse send(TopicMetadataRequest request) {
+    public TopicMetadataResponse send(TopicMetadataRequest request) throws IOException {
         Receive response = doSend(request);
         return TopicMetadataResponse.readFrom(response.buffer());
     }

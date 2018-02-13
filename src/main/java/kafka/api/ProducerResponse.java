@@ -67,7 +67,9 @@ public class ProducerResponse extends RequestOrResponse {
         Map<String, Map<TopicAndPartition, ProducerResponseStatus>> groupedStatus = statusGroupedByTopic;
         AtomicInteger foldedTopics = new AtomicInteger(0);
         groupedStatus.entrySet().stream().forEach(currTopic -> {
-            foldedTopics.set(foldedTopics.intValue() + ApiUtils.shortStringLength(currTopic.getKey()) +
+            foldedTopics.set(foldedTopics.intValue()
+                    + ApiUtils.shortStringLength(currTopic.getKey()) +
+                    4 + /* partition count for this topic */
                     currTopic.getValue().size() * (
                             4 + /* partition id */
                                     2 + /* error code */

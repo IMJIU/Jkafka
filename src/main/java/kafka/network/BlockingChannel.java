@@ -72,7 +72,6 @@ public class BlockingChannel extends Logging {
     }
 
     public void disconnect() {
-
         synchronized (lock) {
             if (channel != null) {
                 swallow(() -> channel.close());

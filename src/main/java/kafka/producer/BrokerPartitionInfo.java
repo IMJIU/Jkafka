@@ -47,13 +47,12 @@ public class BrokerPartitionInfo extends Logging {
     public List<PartitionAndLeader> getBrokerPartitionInfo(String topic, Integer correlationId) {
         debug(String.format("Getting broker partition info for topic %s", topic));
         // check if the cache has metadata for this topic;
-        TopicMetadata topicMetadata = topicPartitionInfo.get(topic);
-        TopicMetadata metadata = null;
-        if (topicMetadata == null) {
+        TopicMetadata metadata = topicPartitionInfo.get(topic);
+        if (metadata == null) {
             // refresh the topic metadata cache;
             updateInfo(Sets.newHashSet(topic), correlationId);
-            topicMetadata = topicPartitionInfo.get(topic);
-            if (topicMetadata == null) {
+            metadata = topicPartitionInfo.get(topic);
+            if (metadata == null) {
                 throw new KafkaException("Failed to fetch topic metadata for topic: " + topic);
             }
         }

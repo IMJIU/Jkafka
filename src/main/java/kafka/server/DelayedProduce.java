@@ -53,7 +53,6 @@ public class DelayedProduce extends DelayedRequest {
         if (errorCode == ErrorMapping.NoError) {
             Utils.foreach(offsetCommitRequestOpt, ocr -> offsetManager.putOffsets(ocr.groupId, ocr.requestInfo));
         }
-        offsetCommitRequestOpt.orElseGet(null);
         Optional<RequestOrResponse> opt = Sc.map(offsetCommitRequestOpt, o -> o.responseFor(errorCode, offsetManager.config.maxMetadataSize));
         if (opt.isPresent()) {
             return opt.get();

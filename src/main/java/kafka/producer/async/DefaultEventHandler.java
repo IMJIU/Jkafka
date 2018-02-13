@@ -70,20 +70,19 @@ public class DefaultEventHandler<K, V> extends Logging implements EventHandler<K
 
     public void handle(List<KeyedMessage<K, V>> events) {
         List<KeyedMessage<K, Message>> serializedData = serialize(events);
-        serializedData.forEach(
-                keyed -> {
-                    Integer dataSize = keyed.message.payloadSize();
-                    producerTopicStats.getProducerTopicStats(keyed.topic).byteRate.mark(dataSize);
-                    producerTopicStats.getProducerAllTopicsStats().byteRate.mark(dataSize);
-                });
+        serializedData.forEach(keyed -> {
+            Integer dataSize = keyed.message.payloadSize();
+            producerTopicStats.getProducerTopicStats(keyed.topic).byteRate.mark(dataSize);
+            producerTopicStats.getProducerAllTopicsStats().byteRate.mark(dataSize);
+        });
         List<KeyedMessage<K, Message>> outstandingProduceRequests = serializedData;
         int remainingRetries = config.messageSendMaxRetries + 1;
         Integer correlationIdStart = correlationId.get();
         debug(String.format("Handling %d events", events.size()));
         while (remainingRetries > 0 && outstandingProduceRequests.size() > 0) {
             topicMetadataToRefresh.addAll(Sc.map(outstandingProduceRequests, r -> r.topic));
-            if (topicMetadataRefreshInterval >= 0 &&
-                    Time.get().milliseconds() - lastTopicMetadataRefreshTime > topicMetadataRefreshInterval) {
+            if (topicMetadataRefreshInterval >= 0
+                    && Time.get().milliseconds() - lastTopicMetadataRefreshTime > topicMetadataRefreshInterval) {
                 Utils.swallowError(() -> brokerPartitionInfo.updateInfo(topicMetadataToRefresh, correlationId.getAndIncrement()));
                 sendPartitionPerTopicCache.clear();
                 topicMetadataToRefresh.clear();

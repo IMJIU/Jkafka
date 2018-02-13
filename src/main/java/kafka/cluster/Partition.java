@@ -410,7 +410,7 @@ public class Partition extends KafkaMetricsGroup {
     }
 
     public LogAppendInfo appendMessagesToLeader(ByteBufferMessageSet messages, Integer requiredAcks) {
-        Utils.inReadLock(leaderIsrUpdateLock, () -> {
+        return Utils.inReadLock(leaderIsrUpdateLock, () -> {
             Optional<Replica> leaderReplicaOpt = leaderReplicaIfLocal();
             if (leaderReplicaOpt.isPresent()) {
                 Replica leaderReplica = leaderReplicaOpt.get();
@@ -435,7 +435,6 @@ public class Partition extends KafkaMetricsGroup {
                         topic, partitionId, localBrokerId));
             }
         });
-        return null;
     }
 
     private void updateIsr(Set<Replica> newIsr) {

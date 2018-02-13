@@ -95,6 +95,9 @@ public class Processor extends AbstractServerThread {
                             } else {
                                 throw new IllegalStateException("Unrecognized key state for processor thread.");
                             }
+                        } catch ( EOFException e) {
+                            info("Closing socket connection to %s.".format(channelFor(key).socket().getInetAddress().toString()));
+                            close(key);
                         } catch (InvalidRequestException e) {
                             info(String.format("Closing socket connection to %s due to invalid request: %s", channelFor(key).socket().getInetAddress(), e.getMessage()));
                             close(key);
