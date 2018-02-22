@@ -653,4 +653,21 @@ class PartitionDataAndOffset {
         this.offset = offset;
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        PartitionDataAndOffset that = (PartitionDataAndOffset) o;
+
+        if (data != null ? !data.equals(that.data) : that.data != null) return false;
+        return offset != null ? offset.equals(that.offset) : that.offset == null;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = data != null ? data.hashCode() : 0;
+        result = 31 * result + (offset != null ? offset.hashCode() : 0);
+        return result;
+    }
 }

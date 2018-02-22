@@ -1,7 +1,11 @@
 package kafka.common;
 
 public class LeaderNotAvailableException extends RuntimeException {
-    public LeaderNotAvailableException(String msg){
+    public LeaderNotAvailableException() {
+        super();
+    }
+
+    public LeaderNotAvailableException(String msg) {
         super(msg);
     }
 

@@ -7,4 +7,5 @@ public class InvalidMessageSizeException extends RuntimeException {
     public InvalidMessageSizeException(String msg) {
         super(msg);
     }
+    public InvalidMessageSizeException(){super();}
 }

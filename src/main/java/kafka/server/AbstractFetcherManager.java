@@ -133,6 +133,24 @@ class BrokerAndFetcherId {
         this.broker = broker;
         this.fetcherId = fetcherId;
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        BrokerAndFetcherId that = (BrokerAndFetcherId) o;
+
+        if (broker != null ? !broker.equals(that.broker) : that.broker != null) return false;
+        return fetcherId != null ? fetcherId.equals(that.fetcherId) : that.fetcherId == null;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = broker != null ? broker.hashCode() : 0;
+        result = 31 * result + (fetcherId != null ? fetcherId.hashCode() : 0);
+        return result;
+    }
 }
 
 

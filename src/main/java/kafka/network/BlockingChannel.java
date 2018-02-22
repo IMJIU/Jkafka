@@ -27,6 +27,7 @@ public class BlockingChannel extends Logging {
         this.writeBufferSize = writeBufferSize;
         this.readTimeoutMs = readTimeoutMs;
         this.connectTimeoutMs = readTimeoutMs;
+        connectTimeoutMs = readTimeoutMs;
     }
 
     private boolean connected = false;
@@ -34,7 +35,7 @@ public class BlockingChannel extends Logging {
     private ReadableByteChannel readChannel = null;
     private GatheringByteChannel writeChannel = null;
     private Object lock = new Object();
-    private Integer connectTimeoutMs = readTimeoutMs;
+    private Integer connectTimeoutMs ;
 
     public void connect() {
         synchronized (lock) {

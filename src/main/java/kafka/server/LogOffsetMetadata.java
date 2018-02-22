@@ -75,4 +75,9 @@ public class LogOffsetMetadata {
 
         return this.segmentBaseOffset == that.segmentBaseOffset;
     }
+
+    @Override
+    public String toString(){
+        return messageOffset.toString() + " [" + segmentBaseOffset + " : " + relativePositionInSegment + "]";
+    }
 }

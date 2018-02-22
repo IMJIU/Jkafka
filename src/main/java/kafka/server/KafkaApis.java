@@ -244,10 +244,10 @@ public class KafkaApis extends Logging {
         Iterable<ProduceResult> localProduceResults = appendToLocalLog(produceRequest, offsetCommitRequestOpt.isPresent());
         debug(String.format("Produce to local log in %d ms", Time.get().milliseconds() - sTime));
         ProduceResult produceResult = Sc.find(localProduceResults, r -> r.errorCode() != ErrorMapping.NoError);
-         Short firstErrorCode;
+        Short firstErrorCode;
         if (produceResult != null) {
             firstErrorCode = produceResult.errorCode();
-        }else{
+        } else {
             firstErrorCode = ErrorMapping.NoError;
         }
         int numPartitionsInError = Sc.count(localProduceResults, r -> r.error.isPresent());
@@ -282,7 +282,7 @@ public class KafkaApis extends Logging {
                 }
             }
             Map<TopicAndPartition, ProducerResponseStatus> statuses = Sc.toMap(Sc.map(localProduceResults, r -> Tuple.of(r.key, new ProducerResponseStatus(r.errorCode(), r.start))));
-           final Short errorCode = firstErrorCode;
+            final Short errorCode = firstErrorCode;
             RequestOrResponse response = Sc.getOrElse(Sc.map(offsetCommitRequestOpt, r -> r.responseFor(errorCode, config.offsetMetadataMaxSize)), new ProducerResponse(produceRequest.correlationId, statuses));
             requestChannel.sendResponse(new RequestChannel.Response(request, new BoundedByteBufferSend(response)));
         } else {
@@ -520,21 +520,21 @@ public class KafkaApis extends Logging {
         if (segsArray[segsArray.length - 1].size() > 0)
             offsetTimeArray = new Tuple[segsArray.length + 1];
         else
-        offsetTimeArray = new Tuple[segsArray.length ];
+            offsetTimeArray = new Tuple[segsArray.length];
 
-        for (int i=0;i<segsArray.length;i++)
-        offsetTimeArray[i] =Tuple.of (segsArray[i].baseOffset, segsArray[i].lastModified());
+        for (int i = 0; i < segsArray.length; i++)
+            offsetTimeArray[i] = Tuple.of(segsArray[i].baseOffset, segsArray[i].lastModified());
         if (segsArray[segsArray.length - 1].size() > 0)
             offsetTimeArray[segsArray.length] = Tuple.of(log.logEndOffset(), Time.get().milliseconds());
 
         int startIndex = -1;
-        if(OffsetRequest.LatestTime.equals(timestamp)){
+        if (OffsetRequest.LatestTime.equals(timestamp)) {
             startIndex = offsetTimeArray.length - 1;
-        }else  if(OffsetRequest.LatestTime.equals(timestamp)){
+        } else if (OffsetRequest.LatestTime.equals(timestamp)) {
             startIndex = 0;
-        }else{
+        } else {
             boolean isFound = false;
-            debug("Offset time array = " + Sc.map(offsetTimeArray,o -> String.format("%d, %d", o.v1, o.v2)));
+            debug("Offset time array = " + Sc.map(offsetTimeArray, o -> String.format("%d, %d", o.v1, o.v2)));
             startIndex = offsetTimeArray.length - 1;
             while (startIndex >= 0 && !isFound) {
                 if (offsetTimeArray[startIndex].v2 <= timestamp)
@@ -545,59 +545,59 @@ public class KafkaApis extends Logging {
         }
 
 
-        int retSize =Math.min(maxNumOffsets,startIndex + 1);
+        int retSize = Math.min(maxNumOffsets, startIndex + 1);
         Long[] ret = new Long[retSize];
-        for (int j=0;j< retSize;j++){
+        for (int j = 0; j < retSize; j++) {
             ret[j] = offsetTimeArray[startIndex].v1;
             startIndex -= 1;
         }
         // ensure that the returned seq is in descending order of offsets;
         List<Long> list = Sc.toList(ret);
-        Collections.sort(list,(a, b)->b.intValue()-a.intValue());
+        Collections.sort(list, (a, b) -> b.intValue() - a.intValue());
         return list;
     }
 
     private List<TopicMetadata> getTopicMetadata(Set<String> topics) {
         List<TopicMetadata> topicResponses = metadataCache.getTopicMetadata(topics);
         if (topics.size() > 0 && topicResponses.size() != topics.size()) {
-            Set<String>  nonExistentTopics= Sc.subtract(topics,Sc.toSet(Sc.map(topicResponses,r->r.topic)));
-            Set<TopicMetadata> responsesForNonExistentTopics = Sc.map(nonExistentTopics, topic ->{
+            Set<String> nonExistentTopics = Sc.subtract(topics, Sc.toSet(Sc.map(topicResponses, r -> r.topic)));
+            Set<TopicMetadata> responsesForNonExistentTopics = Sc.map(nonExistentTopics, topic -> {
                 if (topic == OffsetManager.OffsetsTopicName || config.autoCreateTopicsEnable) {
                     try {
                         if (topic == OffsetManager.OffsetsTopicName) {
                             List<Broker> aliveBrokers = metadataCache.getAliveBrokers();
                             int offsetsTopicReplicationFactor;
                             if (aliveBrokers.size() > 0)
-                                offsetsTopicReplicationFactor=Math.min(config.offsetsTopicReplicationFactor, aliveBrokers.size());
+                                offsetsTopicReplicationFactor = Math.min(config.offsetsTopicReplicationFactor, aliveBrokers.size());
                             else
-                                offsetsTopicReplicationFactor= config.offsetsTopicReplicationFactor;
+                                offsetsTopicReplicationFactor = config.offsetsTopicReplicationFactor;
                             AdminUtils.createTopic(zkClient, topic, config.offsetsTopicPartitions,
                                     offsetsTopicReplicationFactor,
                                     offsetManager.offsetsTopicConfig());
-                            info(String .format("Auto creation of topic %s with %d partitions and replication factor %d is successful!",
-                                   topic, config.offsetsTopicPartitions, offsetsTopicReplicationFactor));
+                            info(String.format("Auto creation of topic %s with %d partitions and replication factor %d is successful!",
+                                    topic, config.offsetsTopicPartitions, offsetsTopicReplicationFactor));
                         } else {
                             AdminUtils.createTopic(zkClient, topic, config.numPartitions, config.defaultReplicationFactor);
                             info(String.format("Auto creation of topic %s with %d partitions and replication factor %d is successful!",
                                     topic, config.numPartitions, config.defaultReplicationFactor));
                         }
-                    } catch ( TopicExistsException e){ // let it go, possibly another broker created this topic;
+                    } catch (TopicExistsException e) { // let it go, possibly another broker created this topic;
                     }
-                   return new TopicMetadata(topic,Lists.newArrayList(), ErrorMapping.LeaderNotAvailableCode);
+                    return new TopicMetadata(topic, Lists.newArrayList(), ErrorMapping.LeaderNotAvailableCode);
                 } else {
-                   return  new TopicMetadata(topic, Lists.newArrayList(), ErrorMapping.UnknownTopicOrPartitionCode);
+                    return new TopicMetadata(topic, Lists.newArrayList(), ErrorMapping.UnknownTopicOrPartitionCode);
                 }
             });
             topicResponses.addAll(responsesForNonExistentTopics);
         }
-       return topicResponses;
+        return topicResponses;
     }
 
     /**
      * Service the topic metadata request API
      */
     public void handleTopicMetadataRequest(RequestChannel.Request request) {
-        TopicMetadataRequest metadataRequest = (TopicMetadataRequest)request.requestObj;
+        TopicMetadataRequest metadataRequest = (TopicMetadataRequest) request.requestObj;
         List<TopicMetadata> topicMetadata = getTopicMetadata(Sc.toSet(metadataRequest.topics));
         List<Broker> brokers = metadataCache.getAliveBrokers();
         trace(String.format("Sending topic metadata %s and brokers %s for correlation id %d to client %s", topicMetadata, brokers, metadataRequest.correlationId, metadataRequest.clientId));
@@ -609,21 +609,21 @@ public class KafkaApis extends Logging {
      * Service the Offset fetch API
      */
     public void handleOffsetFetchRequest(RequestChannel.Request request) {
-        OffsetFetchRequest offsetFetchRequest = (OffsetFetchRequest)request.requestObj;
+        OffsetFetchRequest offsetFetchRequest = (OffsetFetchRequest) request.requestObj;
 
         if (offsetFetchRequest.versionId == 0) {
             // version 0 reads offsets from ZK;
-            List<Tuple<TopicAndPartition,OffsetMetadataAndError>> responseInfo = Sc.map(offsetFetchRequest.requestInfo,t -> {
+            List<Tuple<TopicAndPartition, OffsetMetadataAndError>> responseInfo = Sc.map(offsetFetchRequest.requestInfo, t -> {
                 ZKGroupTopicDirs topicDirs = new ZKGroupTopicDirs(offsetFetchRequest.groupId, t.topic);
                 try {
                     ensureTopicExists(t.topic);
                     Optional<String> payloadOpt = ZkUtils.readDataMaybeNull(zkClient, topicDirs.consumerOffsetDir() + "/" + t.partition).v1;
-                    if(payloadOpt.isPresent()){
-                        return Tuple.of(t, new OffsetMetadataAndError(Long.parseLong(payloadOpt.get()),ErrorMapping.NoError));
+                    if (payloadOpt.isPresent()) {
+                        return Tuple.of(t, new OffsetMetadataAndError(Long.parseLong(payloadOpt.get()), ErrorMapping.NoError));
                     }
-                    return Tuple.of(t,new OffsetMetadataAndError(OffsetAndMetadata.InvalidOffset, OffsetAndMetadata.NoMetadata,
+                    return Tuple.of(t, new OffsetMetadataAndError(OffsetAndMetadata.InvalidOffset, OffsetAndMetadata.NoMetadata,
                             ErrorMapping.UnknownTopicOrPartitionCode));
-                } catch (Throwable e){
+                } catch (Throwable e) {
                     return Tuple.of(t, new OffsetMetadataAndError(OffsetAndMetadata.InvalidOffset, OffsetAndMetadata.NoMetadata,
                             ErrorMapping.codeFor(e.getClass())));
                 }
@@ -632,18 +632,18 @@ public class KafkaApis extends Logging {
             requestChannel.sendResponse(new RequestChannel.Response(request, new BoundedByteBufferSend(response)));
         } else {
             // version 1 reads offsets from Kafka;
-            Tuple<List<TopicAndPartition>,List<TopicAndPartition>> result = Sc.partition( offsetFetchRequest.requestInfo,topicAndPartition ->
+            Tuple<List<TopicAndPartition>, List<TopicAndPartition>> result = Sc.partition(offsetFetchRequest.requestInfo, topicAndPartition ->
                     metadataCache.getPartitionInfo(topicAndPartition.topic, topicAndPartition.partition).isPresent());
             List<TopicAndPartition> knownTopicPartitions = result.v1;
             List<TopicAndPartition> unknownTopicPartitions = result.v2;
-            Map<TopicAndPartition,OffsetMetadataAndError> unknownStatus = Sc.toMap(Sc.map(unknownTopicPartitions,topicAndPartition ->
+            Map<TopicAndPartition, OffsetMetadataAndError> unknownStatus = Sc.toMap(Sc.map(unknownTopicPartitions, topicAndPartition ->
                     Tuple.of(topicAndPartition, OffsetMetadataAndError.UnknownTopicOrPartition)));
-            Map<TopicAndPartition, OffsetMetadataAndError> knownStatus ;
+            Map<TopicAndPartition, OffsetMetadataAndError> knownStatus;
             if (knownTopicPartitions.size() > 0)
-                knownStatus=offsetManager.getOffsets(offsetFetchRequest.groupId, knownTopicPartitions);
+                knownStatus = offsetManager.getOffsets(offsetFetchRequest.groupId, knownTopicPartitions);
             else
                 knownStatus = Maps.newHashMap();
-           Map<TopicAndPartition,OffsetMetadataAndError> status = Sc.add(unknownStatus,knownStatus);
+            Map<TopicAndPartition, OffsetMetadataAndError> status = Sc.add(unknownStatus, knownStatus);
             OffsetFetchResponse response = new OffsetFetchResponse(status, offsetFetchRequest.correlationId);
 
             trace(String.format("Sending offset fetch response %s for correlation id %d to client %s.",
@@ -656,23 +656,23 @@ public class KafkaApis extends Logging {
      * Service the consumer metadata API
      */
     public void handleConsumerMetadataRequest(RequestChannel.Request request) {
-        ConsumerMetadataRequest consumerMetadataRequest = (ConsumerMetadataRequest)request.requestObj;
+        ConsumerMetadataRequest consumerMetadataRequest = (ConsumerMetadataRequest) request.requestObj;
 
-                Integer partition = offsetManager.partitionFor(consumerMetadataRequest.group);
+        Integer partition = offsetManager.partitionFor(consumerMetadataRequest.group);
 
         // get metadata (and create the topic if necessary)
         TopicMetadata offsetsTopicMetadata = Sc.head(getTopicMetadata(Sets.newHashSet(OffsetManager.OffsetsTopicName)));
 
         ConsumerMetadataResponse errorResponse = new ConsumerMetadataResponse(Optional.empty(), ErrorMapping.ConsumerCoordinatorNotAvailableCode, consumerMetadataRequest.correlationId);
-        PartitionMetadata partitionMetadata=Sc.find(offsetsTopicMetadata.partitionsMetadata,p->p.partitionId == partition);
+        PartitionMetadata partitionMetadata = Sc.find(offsetsTopicMetadata.partitionsMetadata, p -> p.partitionId == partition);
         ConsumerMetadataResponse response;
-        if(partitionMetadata!=null){
-            if(partitionMetadata.leader!=null){
-                response= new ConsumerMetadataResponse(Optional.of(partitionMetadata.leader), ErrorMapping.NoError, consumerMetadataRequest.correlationId);
-            }else{
+        if (partitionMetadata != null) {
+            if (partitionMetadata.leader != null) {
+                response = new ConsumerMetadataResponse(Optional.of(partitionMetadata.leader), ErrorMapping.NoError, consumerMetadataRequest.correlationId);
+            } else {
                 response = errorResponse;
             }
-        }else{
+        } else {
             response = errorResponse;
         }
 

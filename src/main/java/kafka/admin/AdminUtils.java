@@ -17,6 +17,7 @@ import kafka.utils.Sc;
 import kafka.utils.ZkUtils;
 import org.I0Itec.zkclient.ZkClient;
 import org.I0Itec.zkclient.exception.ZkNodeExistsException;
+
 import java.util.*;
 
 /**
@@ -24,7 +25,7 @@ import java.util.*;
  * @create 2017-10-23 28 10
  **/
 
-public class AdminUtils  {
+public class AdminUtils {
     public static Logging logging = Logging.getLogger(KafkaController.class.getName());
     public static final Random rand = new Random();
     public static final String TopicConfigChangeZnodePrefix = "config_change_";
@@ -82,12 +83,12 @@ public class AdminUtils  {
     /**
      * Add partitions to existing topic with optional replica assignment
      *
-     * @param zkClient             Zookeeper client
-     * @param topic                Topic for adding partitions to
-     * param numPartitions        Number of partitions to be set
-     * param replicaAssignmentStr Manual replica assignment
-     * param checkBrokerAvailable Ignore checking if assigned replica broker is available. Only used for testing
-     * param config               Pre-existing properties that should be preserved
+     * @param zkClient Zookeeper client
+     * @param topic    Topic for adding partitions to
+     *                 param numPartitions        Number of partitions to be set
+     *                 param replicaAssignmentStr Manual replica assignment
+     *                 param checkBrokerAvailable Ignore checking if assigned replica broker is available. Only used for testing
+     *                 param config               Pre-existing properties that should be preserved
      */
     public static void addPartitions(ZkClient zkClient, String topic) {
         addPartitions(zkClient, topic, 1, "", true, new Properties());
@@ -124,7 +125,7 @@ public class AdminUtils  {
     }
 
     public static Map<Integer, List<Integer>> getManualReplicaAssignment(String replicaAssignmentList, Set<Integer> availableBrokerList, Integer startPartitionId) {
-        return getManualReplicaAssignment(replicaAssignmentList,availableBrokerList,startPartitionId,true);
+        return getManualReplicaAssignment(replicaAssignmentList, availableBrokerList, startPartitionId, true);
     }
 
     public static Map<Integer, List<Integer>> getManualReplicaAssignment(String replicaAssignmentList, Set<Integer> availableBrokerList, Integer startPartitionId, Boolean checkBrokerAvailable) {
@@ -224,11 +225,11 @@ public class AdminUtils  {
 
     /**
      * Update the config for an existing topic and create a change notification so the change will propagate to other brokers
-     *
+     * <p>
      * param The zkClient ZkClient handle used to write the new config to zookeeper
      * param The topic topic for which configs are being changed
      * param The configs final set of configs that will be applied to the topic. If any new configs need to be added or
-     *            existing configs need to be deleted, it should be done prior to invoking this API
+     * existing configs need to be deleted, it should be done prior to invoking this API
      */
     public static void changeTopicConfig(ZkClient zkClient, String topic, Properties configs) {
         if (!topicExists(zkClient, topic))
@@ -342,7 +343,7 @@ public class AdminUtils  {
             return new TopicMetadata(topic, partitionMetadata);
         } else {
             // topic doesn't exist, send appropriate error code;
-           return  new TopicMetadata(topic, Lists.newArrayList(), ErrorMapping.UnknownTopicOrPartitionCode);
+            return new TopicMetadata(topic, Lists.newArrayList(), ErrorMapping.UnknownTopicOrPartitionCode);
         }
     }
 

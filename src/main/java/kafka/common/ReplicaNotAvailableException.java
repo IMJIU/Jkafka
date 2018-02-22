@@ -4,6 +4,11 @@ package kafka.common;
  * Created by Administrator on 2017/4/3.
  */
 public class ReplicaNotAvailableException extends RuntimeException {
+
+    public ReplicaNotAvailableException() {
+        super();
+    }
+
     public ReplicaNotAvailableException(String msg) {
         super(msg);
     }

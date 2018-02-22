@@ -84,7 +84,8 @@ public class TopicMetadataRequest extends RequestOrResponse {// (Some(RequestKey
 
     @Override
     public void handleError(Throwable e, RequestChannel requestChannel, RequestChannel.Request request) {
-        List<TopicMetadata> topicMetadata = Sc.map(topics, topic -> new TopicMetadata(topic, null, ErrorMapping.codeFor(e.getClass())));
+        Class clazz = e.getClass();
+        List<TopicMetadata> topicMetadata = Sc.map(topics, topic -> new TopicMetadata(topic, null, ErrorMapping.codeFor(clazz)));
         TopicMetadataResponse errorResponse = new TopicMetadataResponse(Collections.emptyList(), topicMetadata, correlationId);
         requestChannel.sendResponse(new RequestChannel.Response(request, new BoundedByteBufferSend(errorResponse)));
     }

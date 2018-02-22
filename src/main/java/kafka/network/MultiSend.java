@@ -10,7 +10,7 @@ import java.util.List;
 public abstract class MultiSend<S extends Send> extends Send {
     public abstract Integer expectedBytesToWrite();
     List<S> sends;
-    private List<S> current = sends;
+    private List<S> current;
     int totalWritten = 0;
 
     public MultiSend(List<S> sends) {

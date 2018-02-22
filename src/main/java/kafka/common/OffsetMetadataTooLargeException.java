@@ -4,4 +4,7 @@ public class OffsetMetadataTooLargeException extends RuntimeException {
     public OffsetMetadataTooLargeException(String msg){
         super(msg);
     }
+    public OffsetMetadataTooLargeException() {
+        super();
+    }
 }
