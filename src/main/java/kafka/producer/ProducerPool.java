@@ -16,7 +16,7 @@ import java.util.*;
 
 public class ProducerPool extends Logging {
     ProducerConfig config;
-    private HashMap<Integer, SyncProducer> syncProducers = new HashMap<Integer, SyncProducer>();
+    private HashMap<Integer, SyncProducer> syncProducers = new HashMap<>();
     private Object lock = new Object();
 
     public ProducerPool(ProducerConfig config) {

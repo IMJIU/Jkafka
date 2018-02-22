@@ -31,7 +31,11 @@ public class OffsetRequest extends RequestOrResponse {//RequestOrResponse(Some(R
     public String clientId = OffsetRequest.DefaultClientId;
     public Integer replicaId = Request.OrdinaryConsumerId;
     // TODO: 2017/10/30 lazy
-    private Map<String, Map<TopicAndPartition, PartitionOffsetRequestInfo>> requestInfoGroupedByTopic = Sc.groupByKey(requestInfo, k -> k.topic);
+    private Map<String, Map<TopicAndPartition, PartitionOffsetRequestInfo>> requestInfoGroupedByTopic;
+
+    public OffsetRequest(Map<TopicAndPartition, PartitionOffsetRequestInfo> requestInfo) {
+        this(requestInfo, OffsetRequest.CurrentVersion, 0, OffsetRequest.DefaultClientId, Request.OrdinaryConsumerId);
+    }
 
     public OffsetRequest(Map<TopicAndPartition, PartitionOffsetRequestInfo> requestInfo, Short versionId, Integer correlationId, String clientId, Integer replicaId) {
         super(Optional.of(RequestKeys.OffsetsKey));
@@ -39,11 +43,17 @@ public class OffsetRequest extends RequestOrResponse {//RequestOrResponse(Some(R
         this.versionId = versionId;
         this.correlationId = correlationId;
         this.clientId = clientId;
+        if (clientId == null) {
+            this.clientId = OffsetRequest.DefaultClientId;
+        }
         this.replicaId = replicaId;
+        requestInfoGroupedByTopic = Sc.groupByKey(requestInfo, k -> k.topic);
     }
+
     public OffsetRequest(Map<TopicAndPartition, PartitionOffsetRequestInfo> requestInfo, String clientId, Integer replicaId) {
         this(requestInfo, OffsetRequest.CurrentVersion, 0, clientId, replicaId);
     }
+
     public OffsetRequest(Map<TopicAndPartition, PartitionOffsetRequestInfo> requestInfo, Integer correlationId, Integer replicaId) {
         this(requestInfo, OffsetRequest.CurrentVersion, correlationId, OffsetRequest.DefaultClientId, replicaId);
     }

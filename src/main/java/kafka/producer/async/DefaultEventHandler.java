@@ -122,19 +122,18 @@ public class DefaultEventHandler<K, V> extends Logging implements EventHandler<K
             List<KeyedMessage<K, Message>> failedProduceRequests = Lists.newArrayList();
             try {
                 for (Map.Entry<Integer, Map<TopicAndPartition, List<KeyedMessage<K, Message>>>> entry : partitionedData.entrySet()) {
-                    Integer brokerid = entry.getKey();
+                    Integer brokerId = entry.getKey();
                     Map<TopicAndPartition, List<KeyedMessage<K, Message>>> messagesPerBrokerMap = entry.getValue();
                     if (logger.isTraceEnabled())
                         messagesPerBrokerMap.forEach((k, v) ->
-                                trace(String.format("Handling event for Topic: %s, Broker: %d, Partitions: %s", k, brokerid, v)));
+                                trace(String.format("Handling event for Topic: %s, Broker: %d, Partitions: %s", k, brokerId, v)));
                     Map<TopicAndPartition, ByteBufferMessageSet> messageSetPerBroker = groupMessagesToSet(messagesPerBrokerMap);
 
-                    List<TopicAndPartition> failedTopicPartitions = send(brokerid, messageSetPerBroker);
+                    List<TopicAndPartition> failedTopicPartitions = send(brokerId, messageSetPerBroker);
                     failedTopicPartitions.forEach(topicPartition -> {
                         List<KeyedMessage<K, Message>> data = messagesPerBrokerMap.get(topicPartition);
                         if (data != null) {
                             failedProduceRequests.addAll(data);
-//                            case None -> // nothing;
                         }
                     });
                 }
@@ -148,7 +147,7 @@ public class DefaultEventHandler<K, V> extends Logging implements EventHandler<K
     }
 
     public List<KeyedMessage<K, Message>> serialize(List<KeyedMessage<K, V>> events) {
-        final List<KeyedMessage<K, Message>> serializedMessages = new ArrayList<KeyedMessage<K, Message>>(events.size());
+        final List<KeyedMessage<K, Message>> serializedMessages = new ArrayList<>(events.size());
         events.forEach(e -> {
             try {
                 if (e.hasKey())
@@ -180,7 +179,7 @@ public class DefaultEventHandler<K, V> extends Logging implements EventHandler<K
                 // postpone the failure until the send operation, so that requests for other brokers are handled correctly;
                 Integer leaderBrokerId = brokerPartition.leaderBrokerIdOpt.orElse(-1);
 
-                HashMap<TopicAndPartition, List<KeyedMessage<K, Message>>> dataPerBroker = null;
+                HashMap<TopicAndPartition, List<KeyedMessage<K, Message>>> dataPerBroker ;
                 Map<TopicAndPartition, List<KeyedMessage<K, Message>>> element = ret.get(leaderBrokerId);
                 if (element != null) {
                     dataPerBroker = (HashMap<TopicAndPartition, List<KeyedMessage<K, Message>>>) element;
@@ -190,7 +189,7 @@ public class DefaultEventHandler<K, V> extends Logging implements EventHandler<K
                 }
 
                 TopicAndPartition topicAndPartition = new TopicAndPartition(message.topic, brokerPartition.partitionId);
-                List<KeyedMessage<K, Message>> dataPerTopicPartition = null;
+                List<KeyedMessage<K, Message>> dataPerTopicPartition ;
                 List<KeyedMessage<K, Message>> element2 = dataPerBroker.get(topicAndPartition);
                 if (element2 != null) {
                     dataPerTopicPartition = element2;
@@ -280,7 +279,7 @@ public class DefaultEventHandler<K, V> extends Logging implements EventHandler<K
             int currentCorrelationId = correlationId.getAndIncrement();
             ProducerRequest producerRequest = new ProducerRequest(currentCorrelationId, config.clientId(), config.requestRequiredAcks(),
                     config.requestTimeoutMs(), messagesPerTopic);
-            List<TopicAndPartition> failedTopicPartitions = Lists.newArrayList();
+            List<TopicAndPartition> failedTopicPartitions;
             try {
                 SyncProducer syncProducer = producerPool.getProducer(brokerId);
                 debug(String.format("Producer sending messages with correlation id %d for topics %s to broker %d on %s:%d",

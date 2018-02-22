@@ -1,3 +1,4 @@
+import com.google.common.collect.Lists;
 
 import java.io.*;
 import java.net.*;
@@ -14,7 +15,7 @@ public class ScalaTranslator {
 //        System.out.println("ksdjfkasdf<Int> threadId)".replaceAll("([\\s\\(<])Int([\\s>])", "$1Integer$2"));
 
         List<String> filePaths = Arrays.asList(
-                main + "api/FetchRequestBuilder.java"
+//                main + "api/GenericResponseAndHeader.java"
 //                main + "admin/PreferredReplicaLeaderElectionCommand.java"
 //                main + "cluster/Cluster.java"
 //                main + "controller/TopicDeletionManager.java"
@@ -30,18 +31,24 @@ public class ScalaTranslator {
 //                main + "network/BlockingChannel.java"
 //                main + "producer/ProducerStatsRegistry.java"
 //                main + "producer/async/ProducerPool.java"
+//                test+"log/OffsetMapTest.java"
+                test+"server/ServerShutdownTest.java"
 //                main + "server/DelayedFetch.java"
 //                main + "serializer/Decoder.java"
 //                main + "server/TopicConfigManager.java"
 //                main + "utils/Mx4jLoader.java"
         );
-//        List<String> filePaths = Arrays.asList(main + "log/Log.java");
         for (String p : filePaths) {
             convertToJava(p, true);
         }
 //        loopAction(new File(main + "javaapi"), f -> convertToJava(f, true));
     }
-
+    public interface  ActionP<T>{
+        void invoke(T t);
+    }
+    public interface  Action{
+        void invoke();
+    }
     public static void loopAction(File dir, ActionP<String> action) {
         for (File f : dir.listFiles()) {
             if (f.isFile()) {
@@ -54,16 +61,16 @@ public class ScalaTranslator {
             }
         }
     }
-    public interface ActionP<T>{
-        void invoke(T t);
-    }
+
 
     public static void convertToJava(String filePath, boolean write) {
         try {
-            List<Character> lastList = Arrays.asList('[', '(', '}', '{', ';', '*', '/', ',', '>', '=', '+');
+            List<Character> lastList = Lists.newArrayList('[', '(', '}', '{', ';', '*', '/', ',', '>', '=', '+');
             String[] ps = new String[]{
                     "= >", "->",
                     "=>", "->",
+                    " Map\\(", " ImmutableMap.of\\(",
+                    " Seq\\(", " Lists.newArrayList\\(",
                     " List\\(", " Lists.newArrayList\\(",
                     "Any", "Object",
                     " Int ", " Integer ",
@@ -185,12 +192,11 @@ public class ScalaTranslator {
     static {
         String ip = getMyIp();
         if (ip.equals("10.8.74.190")) {
-            main = "e:/github/Monitor_test/src/main/java/kafka/";
-            test = "e:/github/Monitor_test/src/test/java/kafka/";
+            main = "e:/github/wcs_test/src/main/java/kafka/";
+            test = "e:/github/wcs_test/src/test/java/kafka/";
         }
-//        main = "e:/github/Monitor_test/src/main/java/kafka/";
-//        test = "e:/github/Monitor_test/src/test/java/kafka/";
+        main = "e:/github/wcs_test/src/main/java/kafka/";
+        test = "e:/github/wcs_test/src/test/java/kafka/";
     }
 }
-
 

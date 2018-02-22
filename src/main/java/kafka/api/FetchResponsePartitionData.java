@@ -32,6 +32,7 @@ public class FetchResponsePartitionData {
         }
         this.error = error;
         this.hw = hw;
+        this.messages = messages;
         sizeInBytes = FetchResponsePartitionData.headerSize + messages.sizeInBytes();
     }
 

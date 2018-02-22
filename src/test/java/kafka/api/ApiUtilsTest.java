@@ -20,7 +20,7 @@ public class ApiUtilsTest {
         // Random-length strings;
         for (int i = 0; i <= 100; i++) {
             // Since we're using UTF-8 encoding, each encoded byte will be one to four bytes long;
-            String s = TestUtils.randomString(Math.abs(ApiUtilsTest.rnd.nextInt()) % (Short.MAX_VALUE / 4));
+            String s = TestUtils.nextString(Math.abs(ApiUtilsTest.rnd.nextInt()) % (Short.MAX_VALUE / 4));
             ByteBuffer bb = ByteBuffer.allocate(ApiUtils.shortStringLength(s));
             ApiUtils.writeShortString(bb, s);
             bb.rewind();
@@ -32,7 +32,7 @@ public class ApiUtilsTest {
     public void testShortStringASCII() {
         // Random-length strings;
         for (int i = 0; i <= 100; i++) {
-            String s = TestUtils.randomString(Math.abs(ApiUtilsTest.rnd.nextInt()) % Short.MAX_VALUE);
+            String s = TestUtils.nextString(Math.abs(ApiUtilsTest.rnd.nextInt()) % Short.MAX_VALUE);
             ByteBuffer bb = ByteBuffer.allocate(ApiUtils.shortStringLength(s));
             ApiUtils.writeShortString(bb, s);
             bb.rewind();
@@ -40,14 +40,14 @@ public class ApiUtilsTest {
         }
 
         // Max size string;
-        String s1 = TestUtils.randomString(new Short(Short.MAX_VALUE).intValue());
+        String s1 = TestUtils.nextString(new Short(Short.MAX_VALUE).intValue());
         ByteBuffer bb = ByteBuffer.allocate(ApiUtils.shortStringLength(s1));
         ApiUtils.writeShortString(bb, s1);
         bb.rewind();
         Assert.assertEquals(s1, ApiUtils.readShortString(bb));
 
         // One byte too big;
-        String s2 = TestUtils.randomString(Short.MAX_VALUE + 1);
+        String s2 = TestUtils.nextString(Short.MAX_VALUE + 1);
         try {
             ApiUtils.shortStringLength(s2);
             throw new RuntimeException("fail");

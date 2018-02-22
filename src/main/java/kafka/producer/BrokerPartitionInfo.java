@@ -83,7 +83,7 @@ public class BrokerPartitionInfo extends Logging {
      * @param topics the topics for which the metadata is to be fetched
      */
     public void updateInfo(Set<String> topics, Integer correlationId) {
-        List<TopicMetadata> topicsMetadata = null;
+        List<TopicMetadata> topicsMetadata;
         TopicMetadataResponse topicMetadataResponse = ClientUtils.fetchTopicMetadata(topics, brokers, producerConfig, correlationId);
         topicsMetadata = topicMetadataResponse.topicsMetadata;
         // throw partition specific exception;

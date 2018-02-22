@@ -66,7 +66,7 @@ public class OffsetResponse extends RequestOrResponse {
                     intCount.add(4 + /* partition id */
                             2 + /* partition error */
                             4 + /* offset array length */
-                            response.offsets.size() * 8 /* offset */));
+                            (response.offsets == null ? 0 : response.offsets.size()) * 8 /* offset */));
         });
         return intCount.get();
     }
@@ -76,14 +76,14 @@ public class OffsetResponse extends RequestOrResponse {
         buffer.putInt(correlationId);
         buffer.putInt(offsetsGroupedByTopic().size()); // topic count;
 
-        offsetsGroupedByTopic().forEach((topic,errorAndOffsetsMap)->{
-                writeShortString(buffer, topic);
-                buffer.putInt(errorAndOffsetsMap.size()); // partition count;
-                errorAndOffsetsMap.forEach ((topicAndPartition,errorAndOffsets)->{
-                    buffer.putInt(topicAndPartition.partition);
-                    buffer.putShort(errorAndOffsets.error);
-                    buffer.putInt(errorAndOffsets.offsets.size()); // offset array length;
-                    errorAndOffsets.offsets.forEach(f->buffer.putLong(f));
+        offsetsGroupedByTopic().forEach((topic, errorAndOffsetsMap) -> {
+            writeShortString(buffer, topic);
+            buffer.putInt(errorAndOffsetsMap.size()); // partition count;
+            errorAndOffsetsMap.forEach((topicAndPartition, errorAndOffsets) -> {
+                buffer.putInt(topicAndPartition.partition);
+                buffer.putShort(errorAndOffsets.error);
+                buffer.putInt(errorAndOffsets.offsets.size()); // offset array length;
+                errorAndOffsets.offsets.forEach(f -> buffer.putLong(f));
             });
         });
     }

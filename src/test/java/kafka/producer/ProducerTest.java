@@ -123,7 +123,7 @@ public class ProducerTest extends ZooKeeperTestHarness {
                 , null);
 
         try {
-            producer2.send(new KeyedMessage<String,String>(topic, "test", "test1"));
+            producer2.send(new KeyedMessage<>(topic, "test", "test1"));
         } catch (Throwable e) {
             e.printStackTrace();
             Assert.fail("Should succeed sending the message");

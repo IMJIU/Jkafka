@@ -493,14 +493,14 @@ public class KafkaApis extends Logging {
 
                 warn(String.format("Offset request with correlation id %d from client %s on partition %s failed due to %s",
                         offsetRequest.correlationId, offsetRequest.clientId, topicAndPartition, utpe.getMessage()));
-                return Tuple.of(topicAndPartition, new PartitionOffsetsResponse(ErrorMapping.codeFor(utpe.getClass()), null));
+                return Tuple.of(topicAndPartition, new PartitionOffsetsResponse(ErrorMapping.codeFor(utpe.getClass()), Collections.emptyList()));
             } catch (NotLeaderForPartitionException nle) {
                 warn(String.format("Offset request with correlation id %d from client %s on partition %s failed due to %s",
                         offsetRequest.correlationId, offsetRequest.clientId, topicAndPartition, nle.getMessage()));
-                return Tuple.of(topicAndPartition, new PartitionOffsetsResponse(ErrorMapping.codeFor(nle.getClass()), null));
+                return Tuple.of(topicAndPartition, new PartitionOffsetsResponse(ErrorMapping.codeFor(nle.getClass()), Collections.emptyList()));
             } catch (Throwable e) {
                 warn("Error while responding to offset request", e);
-                return Tuple.of(topicAndPartition, new PartitionOffsetsResponse(ErrorMapping.codeFor(e.getClass()), null));
+                return Tuple.of(topicAndPartition, new PartitionOffsetsResponse(ErrorMapping.codeFor(e.getClass()), Collections.emptyList()));
             }
         }));
         OffsetResponse response = new OffsetResponse(offsetRequest.correlationId, responseMap);
@@ -516,7 +516,7 @@ public class KafkaApis extends Logging {
 
     public List<Long> fetchOffsetsBefore(Log log, Long timestamp, Integer maxNumOffsets) {
         LogSegment[] segsArray = log.logSegments().toArray(new LogSegment[log.logSegments().size()]);
-        Tuple<Long, Long>[] offsetTimeArray = null;
+        Tuple<Long, Long>[] offsetTimeArray ;
         if (segsArray[segsArray.length - 1].size() > 0)
             offsetTimeArray = new Tuple[segsArray.length + 1];
         else
@@ -527,10 +527,10 @@ public class KafkaApis extends Logging {
         if (segsArray[segsArray.length - 1].size() > 0)
             offsetTimeArray[segsArray.length] = Tuple.of(log.logEndOffset(), Time.get().milliseconds());
 
-        int startIndex = -1;
+        int startIndex;
         if (OffsetRequest.LatestTime.equals(timestamp)) {
             startIndex = offsetTimeArray.length - 1;
-        } else if (OffsetRequest.LatestTime.equals(timestamp)) {
+        } else if (OffsetRequest.EarliestTime.equals(timestamp)) {
             startIndex = 0;
         } else {
             boolean isFound = false;
@@ -539,8 +539,8 @@ public class KafkaApis extends Logging {
             while (startIndex >= 0 && !isFound) {
                 if (offsetTimeArray[startIndex].v2 <= timestamp)
                     isFound = true;
-                else ;
-                startIndex -= 1;
+                else
+                    startIndex -= 1;
             }
         }
 

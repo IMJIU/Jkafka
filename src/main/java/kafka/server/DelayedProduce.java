@@ -68,7 +68,8 @@ public class DelayedProduce extends DelayedRequest {
             // skip those partitions that have already been satisfied;
             if (fetchPartitionStatus.acksPending) {
                 Optional<Partition> partitionOpt = replicaManager.getPartition(topicAndPartition.topic, topicAndPartition.partition);
-                Tuple<Boolean, Short> result = Utils.match(partitionOpt, partition -> partition.checkEnoughReplicasReachOffset(fetchPartitionStatus.requiredOffset, produce.requiredAcks.intValue())
+                Tuple<Boolean, Short> result = Utils.match(partitionOpt,
+                        partition -> partition.checkEnoughReplicasReachOffset(fetchPartitionStatus.requiredOffset, produce.requiredAcks.intValue())
                         , () -> Tuple.of(false, ErrorMapping.UnknownTopicOrPartitionCode));
                 Boolean hasEnough = result.v1;
                 Short errorCode = result.v2;

@@ -80,6 +80,10 @@ public class TestUtils {
         checkEquals(expected, actual);
     }
 
+    public static void assertEquals(Iterable expected, Iterable actual) {
+        checkEquals(expected.iterator(), actual.iterator());
+    }
+
     /**
      * Throw an exception if the two iterators are of differing lengths or contain
      * different messages on their Nth element
@@ -382,7 +386,7 @@ public class TestUtils {
      * @param len The length of the string
      * @return The random string
      */
-    public static String randomString(Integer len) {
+    public static String nextString(Integer len) {
         StringBuilder b = new StringBuilder();
         for (int i = 0; i < len; i++)
             b.append(LettersAndDigits.charAt(seededRandom.nextInt(LettersAndDigits.length())));
@@ -612,21 +616,21 @@ public class TestUtils {
      * Create a wired format request based on simple basic information
      */
     public static ProducerRequest produceRequest(String topic,
-                                          Integer partition,
-                                          ByteBufferMessageSet message) {
+                                                 Integer partition,
+                                                 ByteBufferMessageSet message) {
         return produceRequest(topic, partition, message,
                 SyncProducerConfig.DefaultRequiredAcks.intValue(),
                 SyncProducerConfig.DefaultAckTimeoutMs, 0,
                 SyncProducerConfig.DefaultClientId);
     }
 
-    public  static ProducerRequest produceRequest(String topic,
-                                          Integer partition,
-                                          ByteBufferMessageSet message,
-                                          Integer acks,
-                                          Integer timeout,
-                                          Integer correlationId,
-                                          String clientId) {
+    public static ProducerRequest produceRequest(String topic,
+                                                 Integer partition,
+                                                 ByteBufferMessageSet message,
+                                                 Integer acks,
+                                                 Integer timeout,
+                                                 Integer correlationId,
+                                                 String clientId) {
         return produceRequestWithAcks(Lists.newArrayList(topic), Lists.newArrayList(partition), message, acks, timeout, correlationId, clientId);
     }
 
@@ -638,12 +642,12 @@ public class TestUtils {
     }
 
     public static ProducerRequest produceRequestWithAcks(List<String> topics,
-                                                  List<Integer> partitions,
-                                                  ByteBufferMessageSet message,
-                                                  Integer acks,
-                                                  Integer timeout,
-                                                  Integer correlationId,
-                                                  String clientId) {
+                                                         List<Integer> partitions,
+                                                         ByteBufferMessageSet message,
+                                                         Integer acks,
+                                                         Integer timeout,
+                                                         Integer correlationId,
+                                                         String clientId) {
         List<Tuple<TopicAndPartition, ByteBufferMessageSet>> list = Lists.newArrayList();
         for (String topic : topics) {
             list.addAll(Sc.map(partitions, partition -> Tuple.of(new TopicAndPartition(topic, partition), message)));
@@ -652,9 +656,9 @@ public class TestUtils {
         return new ProducerRequest(correlationId, clientId, acks.shortValue(), timeout, data);
     }
 
-    public  static void makeLeaderForPartition(ZkClient zkClient, String topic,
-                                       Map<Integer, Integer> leaderPerPartitionMap,
-                                       Integer controllerEpoch) {
+    public static void makeLeaderForPartition(ZkClient zkClient, String topic,
+                                              Map<Integer, Integer> leaderPerPartitionMap,
+                                              Integer controllerEpoch) {
         leaderPerPartitionMap.forEach((partition, leader) -> {
             try {
                 Optional<LeaderAndIsr> currentLeaderAndIsrOpt = ZkUtils.getLeaderAndIsrForPartition(zkClient, topic, partition);
@@ -791,7 +795,7 @@ public class TestUtils {
     }
 
     //
-    public Boolean isLeaderLocalOnBroker(String topic, Integer partitionId, KafkaServer server) {
+    public static Boolean isLeaderLocalOnBroker(String topic, Integer partitionId, KafkaServer server) {
         Optional<Partition> partitionOpt = server.replicaManager.getPartition(topic, partitionId);
         if (partitionOpt.isPresent()) {
             Optional<Replica> replicaOpt = partitionOpt.get().leaderReplicaIfLocal();
@@ -1019,18 +1023,7 @@ public class TestUtils {
 //        val zookeeperConnect = "127.0.0.1:" + TestUtils.choosePort();
 //        }
 //
-class IntEncoder implements Encoder<Integer> {
-    public VerifiableProperties props = null;
 
-    public IntEncoder(VerifiableProperties props) {
-        this.props = props;
-    }
-
-    public byte[] toBytes(Integer n) {
-        return n.toString().getBytes();
-    }
-
-}
 
 //
 //class StaticPartitioner(VerifiableProperties props = null) extends Partitioner{

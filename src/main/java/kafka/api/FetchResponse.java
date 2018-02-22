@@ -112,6 +112,7 @@ class TopicData {
     public TopicData(String topic, Map<Integer, FetchResponsePartitionData> partitionData) {
         this.topic = topic;
         this.partitionData = partitionData;
+        headerSize = TopicData.headerSize(topic);
     }
 
     public static TopicData readFrom(ByteBuffer buffer) {
@@ -138,6 +139,6 @@ class TopicData {
         return count.get();
     }
 
-    public int headerSize = TopicData.headerSize(topic);
+    public int headerSize ;
 }
 

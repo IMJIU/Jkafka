@@ -219,7 +219,7 @@ public class KafkaServer extends KafkaMetricsGroup {
 
                     // 2. issue a controlled shutdown to the controller;
                     if (channel != null) {
-                        Receive response = null;
+                        Receive response;
                         try {
                             // send the controlled shutdown request;
                             ControlledShutdownRequest request = new ControlledShutdownRequest(correlationId.getAndIncrement(), config.brokerId);

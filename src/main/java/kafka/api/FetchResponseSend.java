@@ -19,6 +19,7 @@ public class FetchResponseSend extends Send {
     public FetchResponseSend(FetchResponse fetchResponse) {
         this.fetchResponse = fetchResponse;
         size = fetchResponse.sizeInBytes();
+        sendSize = 4 /* for size */ + size;
         buffer.putInt(size);
         buffer.putInt(fetchResponse.correlationId);
         buffer.putInt(fetchResponse.dataGroupedByTopic.size()); // topic count
@@ -35,7 +36,7 @@ public class FetchResponseSend extends Send {
 
     private int sent = 0;
 
-    private Integer sendSize = 4 /* for size */ + size;
+    private Integer sendSize;
 
 
     private ByteBuffer buffer = ByteBuffer.allocate(4 /* for size */ + FetchResponse.headerSize);

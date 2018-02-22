@@ -43,6 +43,10 @@ public class OffsetFetchRequest extends RequestOrResponse {//(Some(RequestKeys.O
         return requestInfoGroupedByTopic;
     }
 
+    public OffsetFetchRequest(java.lang.String groupId, List<TopicAndPartition> requestInfo) {
+        this(groupId, requestInfo, OffsetFetchRequest.CurrentVersion, 0, OffsetFetchRequest.DefaultClientId);
+    }
+
     public OffsetFetchRequest(java.lang.String groupId, List<TopicAndPartition> requestInfo, java.lang.String clientId) {
         this(groupId, requestInfo, OffsetFetchRequest.CurrentVersion, 0, clientId);
     }

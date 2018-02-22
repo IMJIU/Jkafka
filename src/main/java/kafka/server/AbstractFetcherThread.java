@@ -100,17 +100,15 @@ public abstract class AbstractFetcherThread extends ShutdownableThread {
     @Override
     public void doWork() {
         Utils.inLock(partitionMapLock, () -> {
-            if (partitionMap.isEmpty())
+            if (partitionMap.isEmpty()) {
                 try {
                     partitionMapCond.await(200L, TimeUnit.MILLISECONDS);
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 }
-            partitionMap.entrySet().forEach(e -> {
-                TopicAndPartition topicAndPartition = e.getKey();
-                Long offset = e.getValue();
-                fetchRequestBuilder.addFetch(topicAndPartition.topic, topicAndPartition.partition, offset, fetchSize);
-            });
+            }
+            partitionMap.forEach((topicAndPartition, offset) ->
+                    fetchRequestBuilder.addFetch(topicAndPartition.topic, topicAndPartition.partition, offset, fetchSize));
         });
 
         FetchRequest fetchRequest = fetchRequestBuilder.build();

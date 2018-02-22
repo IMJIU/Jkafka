@@ -55,7 +55,7 @@ public class ProducerRequestPurgatory extends RequestPurgatory<DelayedProduce> {
 
     private Pool<TopicAndPartition, DelayedProducerRequestMetrics> producerRequestMetricsForKey() {
         Handler<TopicAndPartition, DelayedProducerRequestMetrics> valueFactory = k -> new DelayedProducerRequestMetrics(Optional.of(k));
-        return new Pool<TopicAndPartition, DelayedProducerRequestMetrics>(Optional.of(valueFactory));
+        return new Pool<>(Optional.of(valueFactory));
     }
 
     private DelayedProducerRequestMetrics aggregateProduceRequestMetrics = new DelayedProducerRequestMetrics(Optional.empty());

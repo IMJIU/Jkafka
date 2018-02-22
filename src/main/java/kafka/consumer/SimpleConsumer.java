@@ -75,7 +75,7 @@ public class SimpleConsumer extends Logging {
 
     private Receive sendRequest(RequestOrResponse request) {
         synchronized (lock) {
-            Receive response = null;
+            Receive response;
             try {
                 getOrMakeConnection();
                 blockingChannel.send(request);

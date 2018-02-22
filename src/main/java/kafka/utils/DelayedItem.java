@@ -47,8 +47,8 @@ public class DelayedItem<T> extends Logging implements Delayed {
     }
 
     public int compareTo(Delayed d) {
-        DelayedItem<T> delayed = (DelayedItem)d;
-                long myEnd = createdMs + delayMs;
+        DelayedItem<T> delayed = (DelayedItem) d;
+        long myEnd = createdMs + delayMs;
         long yourEnd = delayed.createdMs + delayed.delayMs;
 
         if (myEnd < yourEnd) return -1;
