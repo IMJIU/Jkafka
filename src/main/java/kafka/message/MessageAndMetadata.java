@@ -39,4 +39,30 @@ public class MessageAndMetadata<K, V> {
         if (rawMessage.isNull()) return null;
         else return valueDecoder.fromBytes(Utils.readBytes(rawMessage.payload()));
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        MessageAndMetadata<?, ?> that = (MessageAndMetadata<?, ?>) o;
+
+        if (topic != null ? !topic.equals(that.topic) : that.topic != null) return false;
+        if (partition != null ? !partition.equals(that.partition) : that.partition != null) return false;
+        if (rawMessage != null ? !rawMessage.equals(that.rawMessage) : that.rawMessage != null) return false;
+        if (offset != null ? !offset.equals(that.offset) : that.offset != null) return false;
+        if (keyDecoder != null ? !keyDecoder.equals(that.keyDecoder) : that.keyDecoder != null) return false;
+        return valueDecoder != null ? valueDecoder.equals(that.valueDecoder) : that.valueDecoder == null;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = topic != null ? topic.hashCode() : 0;
+        result = 31 * result + (partition != null ? partition.hashCode() : 0);
+        result = 31 * result + (rawMessage != null ? rawMessage.hashCode() : 0);
+        result = 31 * result + (offset != null ? offset.hashCode() : 0);
+        result = 31 * result + (keyDecoder != null ? keyDecoder.hashCode() : 0);
+        result = 31 * result + (valueDecoder != null ? valueDecoder.hashCode() : 0);
+        return result;
+    }
 }

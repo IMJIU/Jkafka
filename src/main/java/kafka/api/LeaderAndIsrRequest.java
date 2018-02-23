@@ -138,4 +138,35 @@ public class LeaderAndIsrRequest extends RequestOrResponse {
             leaderAndIsrRequest.append(";PartitionState:" + partitionStateInfos);
         return leaderAndIsrRequest.toString();
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        LeaderAndIsrRequest that = (LeaderAndIsrRequest) o;
+
+        if (versionId != null ? !versionId.equals(that.versionId) : that.versionId != null) return false;
+        if (correlationId != null ? !correlationId.equals(that.correlationId) : that.correlationId != null)
+            return false;
+        if (clientId != null ? !clientId.equals(that.clientId) : that.clientId != null) return false;
+        if (controllerId != null ? !controllerId.equals(that.controllerId) : that.controllerId != null) return false;
+        if (controllerEpoch != null ? !controllerEpoch.equals(that.controllerEpoch) : that.controllerEpoch != null)
+            return false;
+        if (partitionStateInfos != null ? !partitionStateInfos.equals(that.partitionStateInfos) : that.partitionStateInfos != null)
+            return false;
+        return leaders != null ? leaders.equals(that.leaders) : that.leaders == null;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = versionId != null ? versionId.hashCode() : 0;
+        result = 31 * result + (correlationId != null ? correlationId.hashCode() : 0);
+        result = 31 * result + (clientId != null ? clientId.hashCode() : 0);
+        result = 31 * result + (controllerId != null ? controllerId.hashCode() : 0);
+        result = 31 * result + (controllerEpoch != null ? controllerEpoch.hashCode() : 0);
+        result = 31 * result + (partitionStateInfos != null ? partitionStateInfos.hashCode() : 0);
+        result = 31 * result + (leaders != null ? leaders.hashCode() : 0);
+        return result;
+    }
 }

@@ -47,6 +47,26 @@ public class OffsetMetadataAndError {
     public String toString() {
         return String.format("OffsetMetadataAndError<%d,%s,%d>", offset, metadata, error);
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        OffsetMetadataAndError that = (OffsetMetadataAndError) o;
+
+        if (offset != null ? !offset.equals(that.offset) : that.offset != null) return false;
+        if (metadata != null ? !metadata.equals(that.metadata) : that.metadata != null) return false;
+        return error != null ? error.equals(that.error) : that.error == null;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = offset != null ? offset.hashCode() : 0;
+        result = 31 * result + (metadata != null ? metadata.hashCode() : 0);
+        result = 31 * result + (error != null ? error.hashCode() : 0);
+        return result;
+    }
 }
 
 

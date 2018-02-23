@@ -36,4 +36,24 @@ public class OffsetAndMetadata {
                 metadata != null && metadata.length() > 0 ? metadata : "NO_METADATA",
                 timestamp == -1 ? "" : "," + timestamp.toString());
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        OffsetAndMetadata that = (OffsetAndMetadata) o;
+
+        if (offset != null ? !offset.equals(that.offset) : that.offset != null) return false;
+        if (metadata != null ? !metadata.equals(that.metadata) : that.metadata != null) return false;
+        return timestamp != null ? timestamp.equals(that.timestamp) : that.timestamp == null;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = offset != null ? offset.hashCode() : 0;
+        result = 31 * result + (metadata != null ? metadata.hashCode() : 0);
+        result = 31 * result + (timestamp != null ? timestamp.hashCode() : 0);
+        return result;
+    }
 }

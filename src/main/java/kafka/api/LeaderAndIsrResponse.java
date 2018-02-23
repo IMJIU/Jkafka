@@ -75,4 +75,24 @@ public class LeaderAndIsrResponse extends RequestOrResponse {
         return this.toString();
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        LeaderAndIsrResponse that = (LeaderAndIsrResponse) o;
+
+        if (correlationId != null ? !correlationId.equals(that.correlationId) : that.correlationId != null)
+            return false;
+        if (responseMap != null ? !responseMap.equals(that.responseMap) : that.responseMap != null) return false;
+        return errorCode != null ? errorCode.equals(that.errorCode) : that.errorCode == null;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = correlationId != null ? correlationId.hashCode() : 0;
+        result = 31 * result + (responseMap != null ? responseMap.hashCode() : 0);
+        result = 31 * result + (errorCode != null ? errorCode.hashCode() : 0);
+        return result;
+    }
 }

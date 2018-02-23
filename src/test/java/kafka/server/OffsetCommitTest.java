@@ -1,26 +1,28 @@
 package kafka.server;
 
-import kafka.common.OffsetAndMetadata;
-import kafka.common.OffsetMetadataAndError;
-import kafka.zk.ZooKeeperTestHarness;
-
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import kafka.admin.AdminUtils;
 import kafka.api.*;
 import kafka.common.ErrorMapping;
+import kafka.common.OffsetAndMetadata;
+import kafka.common.OffsetMetadataAndError;
 import kafka.consumer.SimpleConsumer;
-import kafka.log.*;
-import kafka.message.*;
-import kafka.utils.*;
+import kafka.log.TopicAndPartition;
+import kafka.utils.MockTime;
+import kafka.utils.Sc;
+import kafka.utils.TestUtils;
+import kafka.utils.Time;
 import kafka.zk.ZooKeeperTestHarness;
-import org.junit.*;
-
-import java.io.*;
-import java.util.*;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
+import java.io.File;
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.Random;
 
 import static kafka.utils.TestUtils.*;
-import static org.junit.Assert.assertFalse;
 
 public class OffsetCommitTest extends ZooKeeperTestHarness {
     Random random = new Random();

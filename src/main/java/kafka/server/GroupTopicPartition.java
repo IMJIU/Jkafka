@@ -20,6 +20,23 @@ public class GroupTopicPartition {
 
     public String toString() {
         return String.format("[%s,%s,%d]", group, topicPartition.topic, topicPartition.partition);
+    }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        GroupTopicPartition that = (GroupTopicPartition) o;
+
+        if (group != null ? !group.equals(that.group) : that.group != null) return false;
+        return topicPartition != null ? topicPartition.equals(that.topicPartition) : that.topicPartition == null;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = group != null ? group.hashCode() : 0;
+        result = 31 * result + (topicPartition != null ? topicPartition.hashCode() : 0);
+        return result;
     }
 }

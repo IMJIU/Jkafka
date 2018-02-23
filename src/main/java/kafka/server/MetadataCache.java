@@ -27,12 +27,12 @@ import java.util.stream.Collectors;
  * A cache for the state (e.g., current leader) of each partition. This cache is updated through
  * UpdateMetadataRequest from the controller. Every broker maintains the same cache, asynchronously.
  */
-public class MetadataCache extends Logging{
+public class MetadataCache extends Logging {
     private Map<String, Map<Integer, PartitionStateInfo>> cache = Maps.newHashMap();
     private Map<Integer, Broker> aliveBrokers = Maps.newHashMap();
     private ReentrantReadWriteLock partitionMetadataLock = new ReentrantReadWriteLock();
 
-    public  List<TopicMetadata> getTopicMetadata(Set<String> topics) {
+    public List<TopicMetadata> getTopicMetadata(Set<String> topics) {
         boolean isAllTopics = topics.isEmpty();
         Set<String> topicsRequested = isAllTopics ? cache.keySet() : topics;
         List<TopicMetadata> topicResponses = Lists.newArrayList();
@@ -40,32 +40,32 @@ public class MetadataCache extends Logging{
             for (String topic : topicsRequested) {
                 if (isAllTopics || cache.containsKey(topic)) {
                     Map<Integer, PartitionStateInfo> partitionStateInfos = cache.get(topic);
-                    List<PartitionMetadata> partitionMetadata= Utils.map(partitionStateInfos, (partitionId, partitionState) -> {
+                    List<PartitionMetadata> partitionMetadata = Utils.map(partitionStateInfos, (partitionId, partitionState) -> {
                         Set<Integer> replicas = partitionState.allReplicas;
                         List<Broker> replicaInfo = Sc.map(replicas, r -> aliveBrokers.getOrDefault(r, null)).stream().filter(b -> b != null).collect(Collectors.toList());
-                        Broker leaderInfo =null;
-                        List<Broker> isrInfo =null;
+                        Broker leaderInfo = null;
+                        List<Broker> isrInfo = null;
                         LeaderIsrAndControllerEpoch leaderIsrAndEpoch = partitionState.leaderIsrAndControllerEpoch;
                         Integer leader = leaderIsrAndEpoch.leaderAndIsr.leader;
                         List<Integer> isr = leaderIsrAndEpoch.leaderAndIsr.isr;
                         TopicAndPartition topicPartition = new TopicAndPartition(topic, partitionId);
                         try {
                             leaderInfo = aliveBrokers.get(leader);
-                            if (leaderInfo==null)
+                            if (leaderInfo == null)
                                 throw new LeaderNotAvailableException(String.format("Leader not available for %s", topicPartition));
-                             isrInfo = Sc.map(isr, r -> aliveBrokers.getOrDefault(r, null)).stream().filter(b -> b != null).collect(Collectors.toList());
+                            isrInfo = Sc.map(isr, r -> aliveBrokers.getOrDefault(r, null)).stream().filter(b -> b != null).collect(Collectors.toList());
                             if (replicaInfo.size() < replicas.size())
                                 throw new ReplicaNotAvailableException("Replica information not available for following brokers: " +
-                                        Sc.filterNot(replicas,r-> Sc.map(replicaInfo, r2->r2.id).contains(r)));
+                                        Sc.filterNot(replicas, r -> Sc.map(replicaInfo, r2 -> r2.id).contains(r)));
                             if (isrInfo.size() < isr.size()) {
                                 List<Broker> isrInfo2 = isrInfo;
                                 throw new ReplicaNotAvailableException("In Sync Replica information not available for following brokers: " +
                                         Sc.filterNot(isr, i -> Sc.map(isrInfo2, s -> s.id).contains(i)));
                             }
                             return new PartitionMetadata(partitionId, leaderInfo, replicaInfo, isrInfo, ErrorMapping.NoError);
-                        } catch (Throwable e){
-                                debug(String.format("Error while fetching metadata for %s. Possible cause: %s", topicPartition, e.getMessage()));
-                                return   new PartitionMetadata(partitionId, leaderInfo, replicaInfo, isrInfo, ErrorMapping.codeFor(e.getClass()));
+                        } catch (Throwable e) {
+                            debug(String.format("Error while fetching metadata for %s. Possible cause: %s", topicPartition, e.getMessage()));
+                            return new PartitionMetadata(partitionId, leaderInfo, replicaInfo, isrInfo, ErrorMapping.codeFor(e.getClass()));
                         }
                     });
                     topicResponses.add(new TopicMetadata(topic, partitionMetadata));
@@ -89,7 +89,7 @@ public class MetadataCache extends Logging{
             Map<Integer, PartitionStateInfo> infos = cache.get(topic);
             if (infos != null) {
                 infos.put(partitionId, stateInfo);
-            }else{
+            } else {
                 infos = Maps.newHashMap();
                 cache.put(topic, infos);
                 infos.put(partitionId, stateInfo);
@@ -104,7 +104,7 @@ public class MetadataCache extends Logging{
             if (partitionInfos == null) {
                 return Optional.empty();
             }
-            return Optional.of(partitionInfos.get(partitionId));
+            return Optional.ofNullable(partitionInfos.get(partitionId));
         });
     }
 

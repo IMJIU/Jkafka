@@ -809,7 +809,7 @@ public class TestUtils {
     }
 
     //
-    public ByteBuffer createRequestByteBuffer(RequestOrResponse request) {
+    public static ByteBuffer createRequestByteBuffer(RequestOrResponse request) {
         ByteBuffer byteBuffer = ByteBuffer.allocate(request.sizeInBytes() + 2);
         byteBuffer.putShort(request.requestId.get());
         request.writeTo(byteBuffer);

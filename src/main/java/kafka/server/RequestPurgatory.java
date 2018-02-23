@@ -18,8 +18,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * The associated keys are used for bookeeping, and represent the "trigger" that causes this request to check if it is satisfied,
  * for example a key could be a (topic, partition) pair.
  */
- class DelayedRequest extends DelayedItem<RequestChannel.Request> {
-    public List  keys;
+class DelayedRequest extends DelayedItem<RequestChannel.Request> {
+    public List keys;
     public RequestChannel.Request request;
     public Long delayMs;
     public AtomicBoolean satisfied = new AtomicBoolean(false);
@@ -66,6 +66,10 @@ public abstract class RequestPurgatory<T extends DelayedRequest> extends KafkaMe
 
     public RequestPurgatory() {
         this(0, 100);
+    }
+
+    public RequestPurgatory(Integer purgeInterval) {
+        this(0, purgeInterval);
     }
 
     public RequestPurgatory(Integer brokerId, Integer purgeInterval) {

@@ -37,4 +37,11 @@ public class MessageAndOffset {
     public String toString() {
         return String.format("MessageAndOffset [offset=%s, message=%s]", offset, message);
     }
+
+    @Override
+    public int hashCode() {
+        int result = message != null ? message.hashCode() : 0;
+        result = 31 * result + (offset != null ? offset.hashCode() : 0);
+        return result;
+    }
 }
