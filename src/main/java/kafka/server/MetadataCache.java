@@ -89,11 +89,12 @@ public class MetadataCache extends Logging{
             Map<Integer, PartitionStateInfo> infos = cache.get(topic);
             if (infos != null) {
                 infos.put(partitionId, stateInfo);
+            }else{
+                infos = Maps.newHashMap();
+                cache.put(topic, infos);
+                infos.put(partitionId, stateInfo);
             }
-            Map<Integer, PartitionStateInfo> newInfos = Maps.newHashMap();
-            cache.put(topic, newInfos);
-            newInfos.put(partitionId, stateInfo);
-            return newInfos;
+            return null;
         });
     }
 

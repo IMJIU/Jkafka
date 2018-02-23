@@ -105,6 +105,7 @@ public class KafkaApis extends Logging {
                     throw new KafkaException("Unknown api code " + request.requestId);
             }
         } catch (Throwable e) {
+            e.printStackTrace();
             request.requestObj.handleError(e, requestChannel, request);
             error(String.format("error when handling request %s", request.requestObj), e);
         } finally {
@@ -202,7 +203,7 @@ public class KafkaApis extends Logging {
                     OffsetManager.offsetCommitKey(offsetCommitRequest.groupId, topicAndPartition.topic, topicAndPartition.partition));
         }).collect(Collectors.toList());
 
-        Map<TopicAndPartition, ByteBufferMessageSet> producerData = ImmutableMap.of(
+        Map<TopicAndPartition, ByteBufferMessageSet> producerData = Sc.toMap(
                 new TopicAndPartition(OffsetManager.OffsetsTopicName, offsetManager.partitionFor(offsetCommitRequest.groupId)),
                 new ByteBufferMessageSet(config.offsetsTopicCompressionCodec, msgs)
         );

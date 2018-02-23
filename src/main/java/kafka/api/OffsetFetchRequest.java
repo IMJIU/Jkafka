@@ -89,8 +89,8 @@ public class OffsetFetchRequest extends RequestOrResponse {//(Some(RequestKeys.O
 
         // Write OffsetFetchRequest;
         writeShortString(buffer, groupId);        // consumer group;
-        buffer.putInt(requestInfoGroupedByTopic.size()); // number of topics;
-        requestInfoGroupedByTopic.forEach((topic, list) -> { // (topic, Seq<TopicAndPartition>)
+        buffer.putInt(requestInfoGroupedByTopic().size()); // number of topics;
+        requestInfoGroupedByTopic().forEach((topic, list) -> { // (topic, Seq<TopicAndPartition>)
             writeShortString(buffer, topic); // topic;
             buffer.putInt(list.size());      // number of partitions for this topic;
             list.forEach(t2 -> buffer.putInt(t2.partition));
@@ -105,7 +105,7 @@ public class OffsetFetchRequest extends RequestOrResponse {//(Some(RequestKeys.O
                         shortStringLength(clientId) +
                         shortStringLength(groupId) +
                         4 /* topic count */);
-        requestInfoGroupedByTopic.forEach((topic, list) ->
+        requestInfoGroupedByTopic().forEach((topic, list) ->
                 size.add(shortStringLength(topic) + /* topic */
                         4 + /* number of partitions */
                         list.size() * 4 /* partition */)

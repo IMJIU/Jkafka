@@ -21,7 +21,7 @@ public class OffsetFetchResponse extends RequestOrResponse {
     public Map<TopicAndPartition, OffsetMetadataAndError> requestInfo;
     public Integer correlationId;
     // TODO: 2017/10/30 lazy
-    private Map<String, Map<TopicAndPartition, OffsetMetadataAndError>> requestInfoGroupedByTopic = Sc.groupByKey(requestInfo, r -> r.topic);
+    private Map<String, Map<TopicAndPartition, OffsetMetadataAndError>> requestInfoGroupedByTopic;
 
     public Map<String, Map<TopicAndPartition, OffsetMetadataAndError>> requestInfoGroupedByTopic() {
         if (requestInfoGroupedByTopic == null) {
@@ -59,8 +59,8 @@ public class OffsetFetchResponse extends RequestOrResponse {
 
     public void writeTo(ByteBuffer buffer) {
         buffer.putInt(correlationId);
-        buffer.putInt(requestInfoGroupedByTopic.size()); // number of topics;
-        requestInfoGroupedByTopic.forEach((topic, map) -> { // topic -> Map<TopicAndPartition, OffsetMetadataAndError>
+        buffer.putInt(requestInfoGroupedByTopic().size()); // number of topics;
+        requestInfoGroupedByTopic().forEach((topic, map) -> { // topic -> Map<TopicAndPartition, OffsetMetadataAndError>
             writeShortString(buffer, topic); // topic;
             buffer.putInt(map.size());       // number of partitions for this topic;
             map.forEach((topicAndPartition, offsetMetadataAndError) -> { // TopicAndPartition -> OffsetMetadataAndError;
@@ -77,7 +77,7 @@ public class OffsetFetchResponse extends RequestOrResponse {
         IntCount size = IntCount.of(
                 4 + /* correlationId */
                         4 /* topic count */);
-        requestInfoGroupedByTopic.forEach((topic, offsets) -> {
+        requestInfoGroupedByTopic().forEach((topic, offsets) -> {
             size.add(shortStringLength(topic) + /* topic */ 4 /* number of partitions */);
             offsets.forEach((t, offsetsAndMetadata) ->
                     size.add(4 /* partition */ +

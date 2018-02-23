@@ -77,11 +77,11 @@ public class OffsetCommitTest extends ZooKeeperTestHarness {
 
         // Commit an offset;
         TopicAndPartition topicAndPartition = new TopicAndPartition(topic, 0);
-        Map<Integer, List<Integer>> expectedReplicaAssignment = ImmutableMap.of(Integer.valueOf("0"), Lists.newArrayList(1));
+        Map<Integer, List<Integer>> expectedReplicaAssignment = Sc.toMap(Integer.valueOf("0"), Lists.newArrayList(1));
         // create the topic;
         createTopic(zkClient, topic, expectedReplicaAssignment, Lists.newArrayList(server));
 
-        OffsetCommitRequest commitRequest = new OffsetCommitRequest(group, ImmutableMap.of(topicAndPartition, new OffsetAndMetadata(42L)));
+        OffsetCommitRequest commitRequest = new OffsetCommitRequest(group, Sc.toMap(topicAndPartition, new OffsetAndMetadata(42L)));
         OffsetCommitResponse commitResponse = simpleConsumer.commitOffsets(commitRequest);
 
         Assert.assertEquals(ErrorMapping.NoError, commitResponse.commitStatus.get(topicAndPartition));
@@ -95,7 +95,7 @@ public class OffsetCommitTest extends ZooKeeperTestHarness {
         Assert.assertEquals(new Long(42L), fetchResponse.requestInfo.get(topicAndPartition).offset);
 
         // Commit a new offset;
-        OffsetCommitRequest commitRequest1 = new OffsetCommitRequest(group, ImmutableMap.of(topicAndPartition, new OffsetAndMetadata(
+        OffsetCommitRequest commitRequest1 = new OffsetCommitRequest(group, Sc.toMap(topicAndPartition, new OffsetAndMetadata(
                 100L,
                 "some metadata"
         )));
@@ -133,7 +133,7 @@ public class OffsetCommitTest extends ZooKeeperTestHarness {
         createTopic(zkClient, topic3, 1, null, Lists.newArrayList(server), null);
         createTopic(zkClient, topic4, 1, null, Lists.newArrayList(server), null);
 
-        OffsetCommitRequest commitRequest = new OffsetCommitRequest("test-group", ImmutableMap.of(
+        OffsetCommitRequest commitRequest = new OffsetCommitRequest("test-group", Sc.toMap(
                 new TopicAndPartition(topic1, 0), new OffsetAndMetadata(42L, "metadata one"),
                 new TopicAndPartition(topic2, 0), new OffsetAndMetadata(43L, "metadata two"),
                 new TopicAndPartition(topic3, 0), new OffsetAndMetadata(44L, "metadata three"),
@@ -187,10 +187,10 @@ public class OffsetCommitTest extends ZooKeeperTestHarness {
     @Test
     public void testLargeMetadataPayload() {
         TopicAndPartition topicAndPartition = new TopicAndPartition("large-metadata", 0);
-        Map<Integer, List<Integer>> expectedReplicaAssignment = ImmutableMap.of(new Integer(0), Lists.newArrayList(1));
+        Map<Integer, List<Integer>> expectedReplicaAssignment = Sc.toMap(new Integer(0), Lists.newArrayList(1));
         createTopic(zkClient, topicAndPartition.topic, expectedReplicaAssignment, Lists.newArrayList(server));
 
-        OffsetCommitRequest commitRequest = new OffsetCommitRequest("test-group", ImmutableMap.of(topicAndPartition, new OffsetAndMetadata(
+        OffsetCommitRequest commitRequest = new OffsetCommitRequest("test-group", Sc.toMap(topicAndPartition, new OffsetAndMetadata(
                 42L,
                 nextString(server.config.offsetMetadataMaxSize)
         )));
@@ -198,7 +198,7 @@ public class OffsetCommitTest extends ZooKeeperTestHarness {
 
         Assert.assertEquals(ErrorMapping.NoError, commitResponse.commitStatus.get(topicAndPartition));
 
-        OffsetCommitRequest commitRequest1 = new OffsetCommitRequest(group, ImmutableMap.of(topicAndPartition, new OffsetAndMetadata(
+        OffsetCommitRequest commitRequest1 = new OffsetCommitRequest(group, Sc.toMap(topicAndPartition, new OffsetAndMetadata(
                 42L,
                 nextString(server.config.offsetMetadataMaxSize + 1)
         )));

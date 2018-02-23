@@ -795,4 +795,18 @@ public class Sc {
         }
         return value;
     }
+
+    public static <K, V> Map<K, V> toMap(Object... objs) {
+        Map<K, V> ret = Maps.newHashMap();
+        if (objs.length == 0) {
+            return ret;
+        }
+        if (objs.length % 2 != 0) {
+            throw new RuntimeException("Sc.toMap parameters must be 2*n");
+        }
+        for (int i = 0; i < objs.length; i += 2) {
+            ret.put((K) objs[i], (V) objs[i + 1]);
+        }
+        return ret;
+    }
 }
