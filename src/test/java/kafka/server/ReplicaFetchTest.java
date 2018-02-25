@@ -91,5 +91,48 @@ public class ReplicaFetchTest extends ZooKeeperTestHarness {
         waitUntilTrue(logsMatch, "Broker logs should be identical");
     }
 
+    @Test
+    public void test_onetopic_fetcher() {
+        Integer partition = 0;
+        List<String> testMessageList1 = Lists.newArrayList("test1", "test2", "test3", "test4");
 
+        // create a topic and partition and await leadership;
+//        for (String topic : Lists.newArrayList(topic1, topic2)) {
+        for (String topic : Lists.newArrayList(topic1)) {
+            createTopic(zkClient, topic, 1, 2, brokers, null);
+        }
+
+        // send test messages to leader;
+        Producer<String, String> producer = TestUtils.createProducer(TestUtils.getBrokerListStrFromConfigs(configs),
+                StringEncoder.class.getName(),
+                StringEncoder.class.getName(),
+                DefaultPartitioner.class.getName(), null);
+        List<KeyedMessage<String, String>> messages = Sc.map(testMessageList1, m -> new KeyedMessage(topic1, m, m));
+        producer.send(messages);
+        producer.close();
+        try {
+            Thread.sleep(100000000L);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+//        Fun<Boolean> logsMatch = () -> {
+//            boolean result = true;
+//            for (String topic : Lists.newArrayList(topic1)) {
+//                TopicAndPartition topicAndPart = new TopicAndPartition(topic, partition);
+//                Long expectedOffset = brokers.get(0).getLogManager().getLog(topicAndPart).get().logEndOffset();
+//                if (result && expectedOffset > 0) {
+//                    boolean b = true;
+//                    for (KafkaServer item : brokers) {
+//                        b = b && (expectedOffset == item.getLogManager().getLog(topicAndPart).get().logEndOffset());
+//                    }
+//                    result = b;
+//                } else {
+//                    result = false;
+//                }
+//            }
+//            return result;
+//        };
+//        waitUntilTrue(logsMatch, "Broker logs should be identical");
+    }
 }

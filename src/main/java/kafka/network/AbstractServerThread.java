@@ -159,7 +159,7 @@ class ConnectionQuotas extends Logging{
     public void dec(InetAddress addr) {
         synchronized (counts) {
             Integer count = counts.get(addr);
-            if (count == 1)
+            if (count!=null && count == 1)
                 counts.remove(addr);
             else
                 counts.put(addr, count - 1);

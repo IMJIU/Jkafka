@@ -69,15 +69,21 @@ public class SyncProducer extends Logging {
 
             Receive response = null;
             try {
+                logger.info("send..." + request + " :" + readResponse);
                 blockingChannel.send(request);
-                if (readResponse)
+                if (readResponse) {
+                    logger.info("response...");
                     response = blockingChannel.receive();
-                else
+                    logger.info("over...");
+                } else {
+                    logger.info("Skipping reading response");
                     trace("Skipping reading response");
+                }
             } catch (IOException e) {
+                System.out.println(String.format("error connect to %s:%s:%s", blockingChannel.host, blockingChannel.port, blockingChannel.isConnected()));
                 // no way to tell if write succeeded. Disconnect and re-throw exception to let client handle retry;
                 disconnect();
-                throw new IOException(e);
+                throw e;
             } catch (Throwable e) {
                 throw e;
             }
@@ -109,7 +115,7 @@ public class SyncProducer extends Logging {
                 })
         );
         response = finalObject.get();
-        if (producerRequest.requiredAcks != 0)
+        if (response != null && producerRequest.requiredAcks != 0)
             return ProducerResponse.readFrom.handle(response.buffer());
         else
             return null;

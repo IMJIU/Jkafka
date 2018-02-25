@@ -771,7 +771,7 @@ public class TestUtils {
     }
 
     public static Boolean waitUntilTrue(Fun<Boolean> condition, String msg) {
-        return waitUntilTrue(condition, msg, 5000L);
+        return waitUntilTrue(condition, msg, 500000L);
     }
 
     /**
