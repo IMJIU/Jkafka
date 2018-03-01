@@ -80,7 +80,15 @@ public class SyncProducer extends Logging {
                     trace("Skipping reading response");
                 }
             } catch (IOException e) {
-                System.out.println(String.format("error connect to %s:%s:%s", blockingChannel.host, blockingChannel.port, blockingChannel.isConnected()));
+                System.out.println(String.format("error connect to %s:%s:%s [msg:%s]", blockingChannel.host, blockingChannel.port, blockingChannel.isConnected(), e.getMessage()));
+                if(blockingChannel.isConnected()){
+                    try {
+                        response = blockingChannel.receive();
+                        return response;
+                    } catch (Exception e2) {
+                        System.out.println(String.format("error22222 connect to %s:%s:%s [msg:%s]", blockingChannel.host, blockingChannel.port, blockingChannel.isConnected(), e2.getMessage()));
+                    }
+                }
                 // no way to tell if write succeeded. Disconnect and re-throw exception to let client handle retry;
                 disconnect();
                 throw e;
