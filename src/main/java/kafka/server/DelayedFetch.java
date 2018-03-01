@@ -65,7 +65,6 @@ public class DelayedFetch extends DelayedRequest {
         partitionFetchOffsets.forEach((topicAndPartition, fetchOffset) -> {
             if (error.get() == 0) {
                 try {
-
                     if (fetchOffset != LogOffsetMetadata.UnknownOffsetMetadata) {
                         Replica replica = replicaManager.getLeaderReplicaIfLocal(topicAndPartition.topic, topicAndPartition.partition);
                         LogOffsetMetadata endOffset;

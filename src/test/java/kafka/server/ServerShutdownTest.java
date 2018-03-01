@@ -102,7 +102,7 @@ public class ServerShutdownTest extends ZooKeeperTestHarness {
     @Test
     public void testCleanShutdownAfterFailedStartup() {
         Properties newProps = TestUtils.createBrokerConfig(0, port, null);
-        newProps.setProperty("zookeeper.connect", "65535 fakehostthatwontresolve");
+        newProps.setProperty("zookeeper.connect", "fakehostthatwontresolve:65535");
         KafkaConfig newConfig = new KafkaConfig(newProps);
         KafkaServer server = new KafkaServer(newConfig, Time.get());
         try {
@@ -116,8 +116,15 @@ public class ServerShutdownTest extends ZooKeeperTestHarness {
             if (server.brokerState.currentState != BrokerStates.NotRunning.state)
                 server.shutdown();
         } catch (Throwable e) {
-            Assert.fail("Expected KafkaServer setup to fail with connection exception but caught a different exception.");
-            server.shutdown();
+            if(e.getCause().getClass()==ZkException.class){
+                Assert.assertEquals(server.brokerState.currentState, BrokerStates.NotRunning.state);
+                if (server.brokerState.currentState != BrokerStates.NotRunning.state)
+                    server.shutdown();
+            }else{
+                Assert.fail("Expected KafkaServer setup to fail with connection exception but caught a different exception.");
+                server.shutdown();
+            }
+
         }
         server.awaitShutdown();
         Utils.rm(server.config.logDirs);

@@ -75,7 +75,7 @@ public class Producer<K, V> extends Logging {
                 throw new ProducerClosedException();
             recordStats(messages);
             if (sync)
-                eventHandler.handle(Lists.newArrayList(messages));
+                eventHandler.handle(messages);
             else
                 asyncSend(messages);
         }
