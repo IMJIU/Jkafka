@@ -44,7 +44,7 @@ public class PreferredReplicaLeaderElectionCommand extends Logging {
 //        val partitionsForPreferredReplicaElection =
 //        if (!options.has(jsonFileOpt))
 //        ZkUtils.getAllPartitions(zkClient);
-//        else;
+//        else
 //        parsePreferredReplicaElectionData(Utils.readFileAsString(options.valueOf(jsonFileOpt)));
 //        val preferredReplicaElectionCommand = new PreferredReplicaLeaderElectionCommand(zkClient, partitionsForPreferredReplicaElection);
 //

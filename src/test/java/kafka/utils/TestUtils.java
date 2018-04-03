@@ -468,7 +468,7 @@ public class TestUtils {
 //                if (cur == null) {
 //                    if (topIterator.hasNext)
 //                        cur = topIterator.next;
-//                    else;
+//                    else
 //                        return false;
 //                }
 //                if (cur.hasNext)
@@ -586,7 +586,7 @@ public class TestUtils {
 //            override public void  makeNext(): Message = {
 //            if (iter.hasNext)
 //                return iter.next.message;
-//            else;
+//            else
 //                return allDone();
 //            }
 //        }

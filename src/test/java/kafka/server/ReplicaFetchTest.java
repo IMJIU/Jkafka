@@ -116,23 +116,23 @@ public class ReplicaFetchTest extends ZooKeeperTestHarness {
             e.printStackTrace();
         }
 
-//        Fun<Boolean> logsMatch = () -> {
-//            boolean result = true;
-//            for (String topic : Lists.newArrayList(topic1)) {
-//                TopicAndPartition topicAndPart = new TopicAndPartition(topic, partition);
-//                Long expectedOffset = brokers.get(0).getLogManager().getLog(topicAndPart).get().logEndOffset();
-//                if (result && expectedOffset > 0) {
-//                    boolean b = true;
-//                    for (KafkaServer item : brokers) {
-//                        b = b && (expectedOffset == item.getLogManager().getLog(topicAndPart).get().logEndOffset());
-//                    }
-//                    result = b;
-//                } else {
-//                    result = false;
-//                }
-//            }
-//            return result;
-//        };
-//        waitUntilTrue(logsMatch, "Broker logs should be identical");
+        Fun<Boolean> logsMatch = () -> {
+            boolean result = true;
+            for (String topic : Lists.newArrayList(topic1)) {
+                TopicAndPartition topicAndPart = new TopicAndPartition(topic, partition);
+                Long expectedOffset = brokers.get(0).getLogManager().getLog(topicAndPart).get().logEndOffset();
+                if (result && expectedOffset > 0) {
+                    boolean b = true;
+                    for (KafkaServer item : brokers) {
+                        b = b && (expectedOffset == item.getLogManager().getLog(topicAndPart).get().logEndOffset());
+                    }
+                    result = b;
+                } else {
+                    result = false;
+                }
+            }
+            return result;
+        };
+        waitUntilTrue(logsMatch, "Broker logs should be identical");
     }
 }

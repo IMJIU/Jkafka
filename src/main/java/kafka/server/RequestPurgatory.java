@@ -108,8 +108,8 @@ public abstract class RequestPurgatory<T extends DelayedRequest> extends KafkaMe
     private Boolean isSatisfiedByMe(T delayedRequest) {
         if (delayedRequest.satisfied.compareAndSet(false, true))
             return true;
-        else ;
-        return false;
+        else
+            return false;
     }
 
     /**

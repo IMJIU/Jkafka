@@ -447,7 +447,7 @@ public class Utils {
 //    {
 //        if (v == null);
 //            throw new KafkaException("Value cannot be null.");
-//        else;
+//        else
 //            v;
 //    }
 //

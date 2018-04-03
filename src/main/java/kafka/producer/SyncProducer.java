@@ -33,7 +33,7 @@ public class SyncProducer extends Logging {
     public SyncProducer(SyncProducerConfig config) {
         this.config = config;
         blockingChannel = new BlockingChannel(config.host, config.port, BlockingChannel.UseDefaultBufferSize,
-                config.sendBufferBytes(), config.requestTimeoutMs());
+                config.sendBufferBytes(), config.requestTimeoutMs()*100);
         producerRequestStats = ProducerRequestStatsRegistry.getProducerRequestStats(config.clientId());
         trace(String.format("Instantiating Scala Sync Producer with properties: %s", config.props));
     }
