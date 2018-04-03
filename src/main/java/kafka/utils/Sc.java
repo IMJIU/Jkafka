@@ -496,10 +496,19 @@ public class Sc {
         return Optional.empty();
     }
 
-    public static <T> T last(Iterator<T> it) {
+    public static <T> T last(Iterator<T> itor) {
         T last = null;
-        while (it.hasNext()) {
-            last = it.next();
+        while (itor.hasNext()) {
+            last = itor.next();
+        }
+        return last;
+    }
+
+    public static <T> T last(Iterable<T> it) {
+        T last = null;
+        Iterator<T> itor = it.iterator();
+        while (itor.hasNext()) {
+            last = itor.next();
         }
         return last;
     }
