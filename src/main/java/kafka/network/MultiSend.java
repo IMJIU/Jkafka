@@ -26,7 +26,7 @@ public abstract class MultiSend<S extends Send> extends Send {
     public Integer writeTo(GatheringByteChannel channel) throws IOException {
         expectIncomplete();
         int totalWrittenPerCall = 0;
-        Boolean sendComplete = false;
+        Boolean sendComplete ;
         do {
             int written = current.get(0).writeTo(channel);
             totalWritten += written;

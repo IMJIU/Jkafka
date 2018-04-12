@@ -301,6 +301,7 @@ public class KafkaApis extends Logging {
 
             // add the produce request for watch if it's not satisfied, otherwise send the response back;
             Boolean satisfiedByMe = producerRequestPurgatory.checkAndMaybeWatch(delayedRequest);
+            System.out.println("============satisfied:" + satisfiedByMe);
             if (satisfiedByMe)
                 producerRequestPurgatory.respond(delayedRequest);
         }
@@ -517,7 +518,7 @@ public class KafkaApis extends Logging {
 
     public List<Long> fetchOffsetsBefore(Log log, Long timestamp, Integer maxNumOffsets) {
         LogSegment[] segsArray = log.logSegments().toArray(new LogSegment[log.logSegments().size()]);
-        Tuple<Long, Long>[] offsetTimeArray ;
+        Tuple<Long, Long>[] offsetTimeArray;
         if (segsArray[segsArray.length - 1].size() > 0)
             offsetTimeArray = new Tuple[segsArray.length + 1];
         else

@@ -26,7 +26,6 @@ public class ProducerResponse extends RequestOrResponse {
     public ProducerResponse(Integer correlationId, Map<TopicAndPartition, ProducerResponseStatus> status) {
         this.correlationId = correlationId;
         this.status = status;
-        statusGroupedByTopic =Utils.groupByKey(status, k -> k.topic);
         hasError = status.values().stream().allMatch(e -> e.error != ErrorMapping.NoError);
     }
 
@@ -58,13 +57,15 @@ public class ProducerResponse extends RequestOrResponse {
     /**
      * Partitions the status map into a map of maps (one for each topic).
      */
-    private Map<String, Map<TopicAndPartition, ProducerResponseStatus>> statusGroupedByTopic;
+    public Map<String, Map<TopicAndPartition, ProducerResponseStatus>> statusGroupedByTopic() {
+        return Utils.groupByKey(status, k -> k.topic);
+    }
 
-    public Boolean hasError ;
+    public Boolean hasError;
 
     @Override
     public Integer sizeInBytes() {
-        Map<String, Map<TopicAndPartition, ProducerResponseStatus>> groupedStatus = statusGroupedByTopic;
+        Map<String, Map<TopicAndPartition, ProducerResponseStatus>> groupedStatus = statusGroupedByTopic();
         AtomicInteger foldedTopics = new AtomicInteger(0);
         groupedStatus.entrySet().stream().forEach(currTopic -> {
             foldedTopics.set(foldedTopics.intValue()
@@ -82,7 +83,7 @@ public class ProducerResponse extends RequestOrResponse {
     }
 
     public void writeTo(ByteBuffer buffer) {
-        Map<String, Map<TopicAndPartition, ProducerResponseStatus>> groupedStatus = statusGroupedByTopic;
+        Map<String, Map<TopicAndPartition, ProducerResponseStatus>> groupedStatus = statusGroupedByTopic();
         buffer.putInt(correlationId);
         buffer.putInt(groupedStatus.size()); // topic count;
         for (Map.Entry<String, Map<TopicAndPartition, ProducerResponseStatus>> topicStatus : groupedStatus.entrySet()) {

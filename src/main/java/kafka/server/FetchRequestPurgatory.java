@@ -37,7 +37,7 @@ public class FetchRequestPurgatory extends RequestPurgatory<DelayedFetch> {
             this.forFollower = forFollower;
             if (forFollower) metricPrefix = "Follower";
             else metricPrefix = "Consumer";
-            Meter expiredRequestMeter = newMeter(metricPrefix + "ExpiresPerSecond", "requests", TimeUnit.SECONDS);
+            expiredRequestMeter = newMeter(metricPrefix + "ExpiresPerSecond", "requests", TimeUnit.SECONDS);
         }
 
     }

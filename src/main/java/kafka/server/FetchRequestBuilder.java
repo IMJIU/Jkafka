@@ -50,7 +50,7 @@ class FetchRequestBuilder {
     }
 
     public FetchRequest build() {
-        FetchRequest fetchRequest = new FetchRequest(versionId, correlationId.getAndIncrement(), clientId, replicaId, maxWait, minBytes, requestMap);
+        FetchRequest fetchRequest = new FetchRequest(versionId, correlationId.getAndIncrement(), clientId, replicaId, maxWait, minBytes, Maps.newHashMap(requestMap));
         requestMap.clear();
         return fetchRequest;
     }
