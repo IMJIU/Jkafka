@@ -125,8 +125,7 @@ public class DefaultEventHandler<K, V> extends Logging implements EventHandler<K
                     Integer brokerId = entry.getKey();
                     Map<TopicAndPartition, List<KeyedMessage<K, Message>>> messagesPerBrokerMap = entry.getValue();
                     if (logger.isTraceEnabled())
-                        messagesPerBrokerMap.forEach((k, v) ->
-                                trace(String.format("Handling event for Topic: %s, Broker: %d, Partitions: %s", k, brokerId, v)));
+                        messagesPerBrokerMap.forEach((k, v) -> trace(String.format("Handling event for Topic: %s, Broker: %d, Partitions: %s", k, brokerId, v)));
                     Map<TopicAndPartition, ByteBufferMessageSet> messageSetPerBroker = groupMessagesToSet(messagesPerBrokerMap);
 
                     List<TopicAndPartition> failedTopicPartitions = send(brokerId, messageSetPerBroker);
@@ -179,7 +178,7 @@ public class DefaultEventHandler<K, V> extends Logging implements EventHandler<K
                 // postpone the failure until the send operation, so that requests for other brokers are handled correctly;
                 Integer leaderBrokerId = brokerPartition.leaderBrokerIdOpt.orElse(-1);
 
-                HashMap<TopicAndPartition, List<KeyedMessage<K, Message>>> dataPerBroker ;
+                HashMap<TopicAndPartition, List<KeyedMessage<K, Message>>> dataPerBroker;
                 Map<TopicAndPartition, List<KeyedMessage<K, Message>>> element = ret.get(leaderBrokerId);
                 if (element != null) {
                     dataPerBroker = (HashMap<TopicAndPartition, List<KeyedMessage<K, Message>>>) element;
@@ -189,7 +188,7 @@ public class DefaultEventHandler<K, V> extends Logging implements EventHandler<K
                 }
 
                 TopicAndPartition topicAndPartition = new TopicAndPartition(message.topic, brokerPartition.partitionId);
-                List<KeyedMessage<K, Message>> dataPerTopicPartition ;
+                List<KeyedMessage<K, Message>> dataPerTopicPartition;
                 List<KeyedMessage<K, Message>> element2 = dataPerBroker.get(topicAndPartition);
                 if (element2 != null) {
                     dataPerTopicPartition = element2;

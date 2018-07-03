@@ -173,7 +173,7 @@ public class Log extends KafkaMetricsGroup {
             // sanity check the index file of every segment to ensure we don't proceed with a corrupt segment;
             for (LogSegment s : logSegments())
                 s.index.sanityCheck();
-        } catch (Exception e) {
+        } catch (Throwable e) {
             throw new RuntimeException(e);
         }
     }
@@ -278,7 +278,7 @@ public class Log extends KafkaMetricsGroup {
                     AtomicLong offset = new AtomicLong(nextOffsetMetadata.messageOffset);
                     try {
                         validMessages = validMessages.assignOffsets(offset, appendInfo.codec);
-                    } catch (Exception e) {
+                    } catch (Throwable e) {
                         throw new KafkaException(String.format("Error in validating messages while appending to log '%s'", name), e);
                     }
                     appendInfo.lastOffset = offset.get() - 1;
@@ -305,7 +305,7 @@ public class Log extends KafkaMetricsGroup {
                     throw new MessageSetSizeTooLargeException(String.format("Message set size is %d bytes which exceeds the maximum configured segment size of %d.",
                             validMessages.sizeInBytes(), config.segmentSize));
                 }
-
+                System.out.println("APPEND======"+appendInfo);
                 // maybe roll the log if this segment is full;
                 LogSegment segment = maybeRoll(validMessages.sizeInBytes());
 

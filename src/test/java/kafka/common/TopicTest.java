@@ -41,7 +41,7 @@ public class TopicTest extends Logging {
         for (int i = 0; i < validTopicNames.size(); i++) {
             try {
                 Topic.validate(validTopicNames.get(i));
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 error("Should not throw exception.");
             }
         }

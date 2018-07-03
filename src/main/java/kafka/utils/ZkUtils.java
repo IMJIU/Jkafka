@@ -392,7 +392,7 @@ public class ZkUtils {
             log.warn(String.format("Conditional update of path %s with data %s and expected version %d failed due to %s", path, data,
                     expectVersion, e1.getMessage()));
             return Tuple.of(false, -1);
-        } catch (Exception e2) {
+        } catch (Throwable e2) {
             log.warn(String.format("Conditional update of path %s with data %s and expected version %d failed due to %s", path, data,
                     expectVersion, e2.getMessage()));
             return Tuple.of(false, -1);
@@ -411,7 +411,7 @@ public class ZkUtils {
             return Tuple.of(true, stat.getVersion());
         } catch (ZkNoNodeException nne) {
             throw nne;
-        } catch (Exception e) {
+        } catch (Throwable e) {
             log.error(String.format("Conditional update of path %s with data %s and expected version %d failed due to %s", path, data,
                     expectVersion, e.getMessage()));
             return Tuple.of(false, -1);

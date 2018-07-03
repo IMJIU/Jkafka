@@ -85,7 +85,7 @@ public class SyncProducer extends Logging {
                     try {
                         response = blockingChannel.receive();
                         return response;
-                    } catch (Exception e2) {
+                    } catch (Throwable e2) {
                         System.out.println(String.format("error22222 connect to %s:%s:%s [msg:%s]", blockingChannel.host, blockingChannel.port, blockingChannel.isConnected(), e2.getMessage()));
                     }
                 }
@@ -149,7 +149,7 @@ public class SyncProducer extends Logging {
         try {
             info("Disconnecting from " + formatAddress(config.host, config.port));
             blockingChannel.disconnect();
-        } catch (Exception e) {
+        } catch (Throwable e) {
             error("Error on disconnect: ", e);
         }
     }
@@ -159,7 +159,7 @@ public class SyncProducer extends Logging {
             try {
                 blockingChannel.connect();
                 info("Connected to " + formatAddress(config.host, config.port) + " for producing");
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 disconnect();
                 error("Producer connection to " + formatAddress(config.host, config.port) + " unsuccessful", e);
                 throw e;

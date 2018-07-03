@@ -82,7 +82,7 @@ public class BoundedByteBufferReceive extends Receive {
         } catch (OutOfMemoryError e) {
             error("OOME with size " + size, e);
             throw e;
-        } catch (Exception e) {
+        } catch (Throwable e) {
             throw e;
         }
         return buffer;

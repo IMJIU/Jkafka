@@ -68,7 +68,7 @@ public class OffsetCheckpoint extends Logging {
                         throw new IOException(String.format("File rename from %s to %s failed.", temp.getAbsolutePath(), file.getAbsolutePath()));
                 }
             }
-        } catch (Exception e) {
+        } catch (Throwable e) {
             throw new RuntimeException(e);
         }
     }
@@ -109,7 +109,7 @@ public class OffsetCheckpoint extends Logging {
                     reader.close();
                 }
             }
-        } catch (Exception e) {
+        } catch (Throwable e) {
             throw new RuntimeException(e);
         }
     }

@@ -150,7 +150,7 @@ public class ProducerRequest extends RequestOrResponse {
     }
 
 
-    public void handleError(Exception e, RequestChannel requestChannel, RequestChannel.Request request) {
+    public void handleError(Throwable e, RequestChannel requestChannel, RequestChannel.Request request) {
         if (((ProducerRequest) request.requestObj).requiredAcks == 0) {
             requestChannel.closeConnection(request.processor, request);
         } else {

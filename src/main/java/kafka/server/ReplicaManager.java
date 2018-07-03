@@ -629,7 +629,7 @@ public class ReplicaManager extends KafkaMetricsGroup {
             Map<TopicAndPartition, Long> hwms = Sc.toMap(Sc.map(reps, r -> Tuple.of(new TopicAndPartition(r), r.highWatermark().messageOffset)));
             try {
                 highWatermarkCheckpoints.get(dir).write(hwms);
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 error("Error writing to highwatermark file: ", e);
                 Runtime.getRuntime().halt(1);
             }

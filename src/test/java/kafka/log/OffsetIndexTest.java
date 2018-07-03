@@ -177,7 +177,7 @@ public class OffsetIndexTest {
             idx.append(offset.longValue(), 1);
             System.out.println("can not be there!");
             throw new Exception(message);
-        } catch (Exception e) {
+        } catch (Throwable e) {
             Assert.assertEquals("Got an unexpected exception.", klass, e.getClass());
         }
     }

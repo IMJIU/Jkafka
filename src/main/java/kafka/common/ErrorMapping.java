@@ -76,7 +76,7 @@ public class ErrorMapping {
         if (code != 0)
             try {
                 throw codeToException.get(code).newInstance();
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 throw new RuntimeException(e);
             }
     }

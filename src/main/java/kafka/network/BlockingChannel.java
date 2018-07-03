@@ -87,7 +87,7 @@ public class BlockingChannel extends Logging {
                 readChannel = null;
             }
             connected = false;
-            logger.error("=============why close!!!");
+//            logger.error("=============why close!!!");
         }
     }
 
