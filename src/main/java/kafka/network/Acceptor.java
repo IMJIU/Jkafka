@@ -69,7 +69,7 @@ public class Acceptor extends AbstractServerThread {
 
                             // round robin to the next processor thread;
                             currentProcessor = (currentProcessor + 1) % processors.length;
-                        } catch (Exception e) {
+                        } catch (Throwable e) {
                             error("Error while accepting connection", e);
                         }
                     }

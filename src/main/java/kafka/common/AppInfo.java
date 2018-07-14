@@ -50,7 +50,7 @@ public class AppInfo  {
             synchronized (lock) {
                 isRegistered = true;
             }
-        } catch (Exception e) {
+        } catch (Throwable e) {
             log.warn(String.format("Can't read Kafka version from MANIFEST.MF. Possible cause: %s", e));
         }
     }

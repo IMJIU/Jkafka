@@ -445,7 +445,7 @@ public class ZookeeperConsumerConnector extends KafkaMetricsGroup implements Con
                             } else
                                 offsetFetchResponseOpt = Optional.of(offsetFetchResponse);
                         }
-                    } catch (Exception e) {
+                    } catch (Throwable e) {
                         warn(String.format("Error while fetching offsets from %s:%d. Possible cause: %s", offsetsChannel.host, offsetsChannel.port, e.getMessage()));
                         offsetsChannel.disconnect();
                         offsetFetchResponseOpt = Optional.empty(); // retry;

@@ -561,7 +561,7 @@ public class LogManager extends Logging {
                         " last flushed " + log.lastFlushTime() + " time since last flush: " + timeSinceLastFlush);
                 if (timeSinceLastFlush >= log.config.flushMs)
                     log.flush();
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 error("Error flushing topic " + topicAndPartition.topic, e);
             }
         }

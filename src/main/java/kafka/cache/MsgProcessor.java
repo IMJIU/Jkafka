@@ -118,7 +118,7 @@ public class MsgProcessor {
                     } catch (IOException e1) {
                         e1.printStackTrace();
                     }
-                }catch (Exception e2){
+                }catch (Throwable e2){
                     e2.printStackTrace();
                 }
                 requestChannel.sendResponse(new RequestChannel.Response(request, msgBufferSend));

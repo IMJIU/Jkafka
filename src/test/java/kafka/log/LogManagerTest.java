@@ -214,7 +214,7 @@ public class LogManagerTest {
         } catch (KafkaException e) {
             System.out.println(" this is good;");
             e.printStackTrace();
-        } catch (Exception e) {
+        } catch (Throwable e) {
             e.printStackTrace();
         }
     }

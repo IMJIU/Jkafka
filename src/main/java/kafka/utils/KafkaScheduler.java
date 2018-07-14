@@ -81,7 +81,7 @@ public class KafkaScheduler extends Logging implements Scheduler {
             try {
                 trace(String.format("Begining execution of scheduled task '%s'.", name));
                 action.invoke();
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 error("Uncaught exception in scheduled task '" + name + "'", e);
             } finally {
                 trace(String.format("Completed execution of scheduled task '%s'.", name));

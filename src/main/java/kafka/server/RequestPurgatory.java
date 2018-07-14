@@ -326,7 +326,7 @@ public abstract class RequestPurgatory<T extends DelayedRequest> extends KafkaMe
                         int purged = purgeSatisfied();
                         debug(String.format("Purged %d requests from delayed queue.", purged));
                     }
-                } catch (Exception e) {
+                } catch (Throwable e) {
                     error("Error in long poll expiry thread: ", e);
                 }
             }

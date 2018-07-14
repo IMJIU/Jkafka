@@ -10,4 +10,4 @@ just for fun , for study kafka
 may be 2018 complete
 
 # me #
-a coder in china amony 
+a coder in china amoy 

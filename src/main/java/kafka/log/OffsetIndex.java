@@ -327,7 +327,7 @@ public class OffsetIndex extends Logging {
         try {
             if (m instanceof sun.nio.ch.DirectBuffer)
                 ((DirectBuffer) m).cleaner().clean();
-        } catch (Exception e) {
+        } catch (Throwable e) {
             warn("Error when freeing index buffer", e);
         }
     }

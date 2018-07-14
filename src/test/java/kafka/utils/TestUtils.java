@@ -186,7 +186,7 @@ public class TestUtils {
                 s.close();
             }
             return ports;
-        } catch (Exception e) {
+        } catch (Throwable e) {
             throw new RuntimeException(e);
         }
     }

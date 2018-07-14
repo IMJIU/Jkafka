@@ -101,7 +101,7 @@ public class Processor extends AbstractServerThread {
                         } catch (InvalidRequestException e) {
                             info(String.format("Closing socket connection to %s due to invalid request: %s", channelFor(key).socket().getInetAddress(), e.getMessage()));
                             close(key);
-                        } catch (Exception e) {
+                        } catch (Throwable e) {
                             error("Closing socket for " + channelFor(key).socket().getInetAddress() + " because of error", e);
                             close(key);
                         }

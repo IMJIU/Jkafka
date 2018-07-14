@@ -21,7 +21,7 @@ public class ZKEphemeralTest extends ZooKeeperTestHarness {
 
         try {
             ZkUtils.createEphemeralPathExpectConflict(zkClient, "/tmp/zktest", "node created");
-        } catch (Exception e) {
+        } catch (Throwable e) {
         }
 
         String testData = null;

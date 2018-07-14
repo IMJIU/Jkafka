@@ -125,7 +125,7 @@ public class ClientUtils {
                         channel.connect();
                         log.debug(String.format("Created channel to broker %s:%d.", channel.host, channel.port));
                         find = true;
-                    } catch (Exception e) {
+                    } catch (Throwable e) {
                         if (channel != null) channel.disconnect();
                         channel = null;
                         log.info(String.format("Error while creating channel to %s:%d.", broker.host, broker.port));
@@ -190,7 +190,7 @@ public class ClientUtils {
                     offsetManagerChannel.connect();
                     offsetManagerChannelOpt = Optional.of(offsetManagerChannel);
                     queryChannel.disconnect();
-                } catch (Exception ioe) { // offsets manager may have moved;
+                } catch (Throwable ioe) { // offsets manager may have moved;
                     log.info(String.format("Error while connecting to %s.", connectString));
                     if (offsetManagerChannel != null) offsetManagerChannel.disconnect();
                     try {

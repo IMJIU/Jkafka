@@ -208,7 +208,7 @@ public class VerifiableProperties extends Logging {
                     throw new IllegalArgumentException(String.format("Invalid entry '%s' = '%s' for property '%s'", key, value, name));
             });
             return m;
-        } catch (Exception e) {
+        } catch (Throwable e) {
             throw new IllegalArgumentException(String.format("Error parsing configuration property '%s': %s", name, e.getMessage()));
         }
     }

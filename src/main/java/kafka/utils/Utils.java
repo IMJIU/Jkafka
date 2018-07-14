@@ -300,7 +300,7 @@ public class Utils {
                 mbs.registerMBean(mbean, objName);
                 return true;
             }
-        } catch (Exception e) {
+        } catch (Throwable e) {
             logger.error("Failed to register Mbean " + name, e);
             return false;
         }
@@ -502,7 +502,7 @@ public class Utils {
             Class klass = Class.forName(className);
             Constructor<T> constructor = klass.getConstructor(Sc.map(args, a -> a.getClass()).toArray(new Class[args.length]));
             return constructor.newInstance(args);
-        } catch (Exception e) {
+        } catch (Throwable e) {
             throw new RuntimeException(e);
         }
     }

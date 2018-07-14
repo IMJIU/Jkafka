@@ -31,4 +31,16 @@ public class LogAppendInfo {
         this.validBytes = validBytes;
         this.offsetsMonotonic = offsetsMonotonic;
     }
+
+    @Override
+    public String toString() {
+        return "LogAppendInfo{" +
+                "firstOffset=" + firstOffset +
+                ", lastOffset=" + lastOffset +
+                ", codec=" + codec +
+                ", shallowCount=" + shallowCount +
+                ", validBytes=" + validBytes +
+                ", offsetsMonotonic=" + offsetsMonotonic +
+                '}';
+    }
 }

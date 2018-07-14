@@ -32,7 +32,7 @@ public class ConfigTest extends Logging {
         for (int i = 0; i < validClientIds.size(); i++) {
             try {
                 ProducerConfig.validateClientId(validClientIds.get(i));
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 error("Should not throw exception.");
             }
         }
@@ -58,7 +58,7 @@ public class ConfigTest extends Logging {
         for (int i = 0; i < validGroupIds.size(); i++) {
             try {
                 ConsumerConfig.validateGroupId(validGroupIds.get(i));
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 error("Should not throw exception.");
             }
         }

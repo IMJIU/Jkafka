@@ -157,7 +157,7 @@ class TopicConfigManager extends Logging {
         public void handleChildChange(String path, List<String> chillins) {
             try {
                 processConfigChanges(chillins);
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 error("Error processing config change:", e);
             }
         }
