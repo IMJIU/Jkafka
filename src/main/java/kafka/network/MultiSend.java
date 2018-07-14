@@ -33,7 +33,7 @@ public abstract class MultiSend<S extends Send> extends Send {
             totalWrittenPerCall += written;
             sendComplete = current.get(0).complete();
             if (sendComplete)
-                current = current.subList(1,current.size());
+                current.remove(0);
         } while (!complete() && sendComplete);
         trace("Bytes written as part of multisend call : " + totalWrittenPerCall + "Total bytes written so far : " + totalWritten + "Expected bytes to write : " + expectedBytesToWrite());
         return totalWrittenPerCall;

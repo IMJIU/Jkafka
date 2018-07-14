@@ -41,4 +41,11 @@ public class IntCount {
     public int get(){
         return value;
     }
+
+    @Override
+    public String toString() {
+        return "IntCount{" +
+                "n=" + value +
+                '}';
+    }
 }

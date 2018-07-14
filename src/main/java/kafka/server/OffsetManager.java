@@ -50,6 +50,7 @@ public class OffsetManager extends KafkaMetricsGroup {
         this.replicaManager = replicaManager;
         this.zkClient = zkClient;
         this.scheduler = scheduler;
+        init();
     }
 
     /* offsets and metadata cache */

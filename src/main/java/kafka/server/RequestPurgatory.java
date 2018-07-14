@@ -252,12 +252,12 @@ public abstract class RequestPurgatory<T extends DelayedRequest> extends KafkaMe
         public List<T> collectSatisfiedRequests() {
             List<T> response = Lists.newArrayList();
             synchronized (this) {
-                Iterator<T> iter = requests.iterator();
-                while (iter.hasNext()) {
-                    T curr = iter.next();
+                Iterator<T> it = requests.iterator();
+                while (it.hasNext()) {
+                    T curr = it.next();
                     if (curr.satisfied.get()) {
                         // another thread has satisfied this request, remove it;
-                        iter.remove();
+                        it.remove();
                     } else {
                         // synchronize on curr to avoid any race condition with expire;
                         // on client-side.;
@@ -266,7 +266,7 @@ public abstract class RequestPurgatory<T extends DelayedRequest> extends KafkaMe
                             satisfied = checkSatisfied(curr);
                         }
                         if (satisfied) {
-                            iter.remove();
+                            it.remove();
                             boolean updated = curr.satisfied.compareAndSet(false, true);
                             if (updated == true) {
                                 response.add(curr);
@@ -288,7 +288,11 @@ public abstract class RequestPurgatory<T extends DelayedRequest> extends KafkaMe
         private AtomicBoolean running = new AtomicBoolean(true);
         private CountDownLatch shutdownLatch = new CountDownLatch(1);
 
-        private DelayQueue<T> delayedQueue = new DelayQueue<T>();
+        private DelayQueue<T> delayedQueue = new DelayQueue<>();
+
+        public ExpiredRequestReaper() {
+            init();
+        }
 
         public void init() {
             this.logIdent = String.format("ExpiredRequestReaper-%d ", brokerId);

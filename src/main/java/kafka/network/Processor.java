@@ -77,7 +77,7 @@ public class Processor extends AbstractServerThread {
                 // time should be discounted by # threads.;
                 aggregateIdleMeter.mark(idleTime / totalProcessorThreads);
 
-                trace("Processor id " + id + " selection time = " + idleTime + " ns");
+//                trace("Processor id " + id + " selection time = " + idleTime + " ns");
                 if (ready > 0) {
                     Set<SelectionKey> keys = selector.selectedKeys();
                     Iterator<SelectionKey> iter = keys.iterator();

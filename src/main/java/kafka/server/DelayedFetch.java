@@ -12,10 +12,12 @@ import kafka.func.IntCount;
 import kafka.func.Tuple;
 import kafka.log.TopicAndPartition;
 import kafka.network.RequestChannel;
+import kafka.utils.Sc;
 import kafka.utils.Utils;
 import org.apache.kafka.common.errors.NotLeaderForPartitionException;
 import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
 
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -35,11 +37,11 @@ import java.util.Map;
 public class DelayedFetch extends DelayedRequest {
     // TODO: 2017/10/25 @Overrive属性？？？
 //@Override
-    public List<TopicAndPartition> keys;
+//    public List<TopicAndPartition> keys;
     //@Override
-    public RequestChannel.Request request;
+//    public RequestChannel.Request request;
     //@Override
-    public Long delayMs;
+//    public Long delayMs;
     public FetchRequest fetch;
     private Map<TopicAndPartition, LogOffsetMetadata> partitionFetchOffsets;
 
@@ -57,45 +59,42 @@ public class DelayedFetch extends DelayedRequest {
     }
 
 
-
     public Boolean isSatisfied(ReplicaManager replicaManager) {
         IntCount accumulatedSize = IntCount.of(0);
         boolean fromFollower = fetch.isFromFollower();
-        IntCount error = IntCount.of(0);
-        partitionFetchOffsets.forEach((topicAndPartition, fetchOffset) -> {
-            if (error.get() == 0) {
-                try {
-                    if (fetchOffset != LogOffsetMetadata.UnknownOffsetMetadata) {
-                        Replica replica = replicaManager.getLeaderReplicaIfLocal(topicAndPartition.topic, topicAndPartition.partition);
-                        LogOffsetMetadata endOffset;
-                        if (fromFollower)
-                            endOffset = replica.logEndOffset();
-                        else
-                            endOffset = replica.highWatermark();
+        Iterator<Map.Entry<TopicAndPartition, LogOffsetMetadata>> iterator = partitionFetchOffsets.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<TopicAndPartition, LogOffsetMetadata> entry = iterator.next();
+            TopicAndPartition topicAndPartition = entry.getKey();
+            LogOffsetMetadata fetchOffset = entry.getValue();
+            try {
+                if (fetchOffset != LogOffsetMetadata.UnknownOffsetMetadata) {
+                    Replica replica = replicaManager.getLeaderReplicaIfLocal(topicAndPartition.topic, topicAndPartition.partition);
+                    LogOffsetMetadata endOffset;
+                    if (fromFollower)
+                        endOffset = replica.logEndOffset();
+                    else
+                        endOffset = replica.highWatermark();
 
-                        if (endOffset.offsetOnOlderSegment(fetchOffset)) {
-                            // Case C, this can happen when the new follower replica fetching on a truncated leader;
-                            debug(String.format("Satisfying fetch request %s since it is fetching later segments of partition %s.", fetch, topicAndPartition));
-                            error.set(1);
-                        } else if (fetchOffset.offsetOnOlderSegment(endOffset)) {
-                            // Case C, this can happen when the folloer replica is lagging too much;
-                            debug(String.format("Satisfying fetch request %s immediately since it is fetching older segments.", fetch));
-                            error.set(1);
-                        } else if (fetchOffset.precedes(endOffset)) {
-                            accumulatedSize.add(endOffset.positionDiff(fetchOffset));
-                        }
+                    if (endOffset.offsetOnOlderSegment(fetchOffset)) {
+                        // Case C, this can happen when the new follower replica fetching on a truncated leader;
+                        debug(String.format("Satisfying fetch request %s since it is fetching later segments of partition %s.", fetch, topicAndPartition));
+                        return true;
+                    } else if (fetchOffset.offsetOnOlderSegment(endOffset)) {
+                        // Case C, this can happen when the folloer replica is lagging too much;
+                        debug(String.format("Satisfying fetch request %s immediately since it is fetching older segments.", fetch));
+                        return true;
+                    } else if (fetchOffset.precedes(endOffset)) {
+                        accumulatedSize.add(endOffset.positionDiff(fetchOffset));
                     }
-                } catch (UnknownTopicOrPartitionException utpe) { // Case A;
-                    debug(String.format("Broker no longer know of %s, satisfy %s immediately", topicAndPartition, fetch));
-                    error.set(1);
-                } catch (NotLeaderForPartitionException nle) {  // Case B;
-                    debug(String.format("Broker is no longer the leader of %s, satisfy %s immediately", topicAndPartition, fetch));
-                    error.set(1);
                 }
+            } catch (UnknownTopicOrPartitionException utpe) { // Case A;
+                debug(String.format("Broker no longer know of %s, satisfy %s immediately", topicAndPartition, fetch));
+                return true;
+            } catch (NotLeaderForPartitionException nle) {  // Case B;
+                debug(String.format("Broker is no longer the leader of %s, satisfy %s immediately", topicAndPartition, fetch));
+                return true;
             }
-        });
-        if (error.get() == 1) {
-            return true;
         }
         // Case D;
         return accumulatedSize.get() >= fetch.minBytes;

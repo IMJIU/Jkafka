@@ -110,7 +110,7 @@ public class ReplicaManager extends KafkaMetricsGroup {
 
     public void startHighWaterMarksCheckPointThread() {
         if (highWatermarkCheckPointThreadStarted.compareAndSet(false, true))
-            scheduler.schedule("highwatermark-checkpoint", () -> checkpointHighWatermarks(), config.replicaHighWatermarkCheckpointIntervalMs);
+            scheduler.schedule("highwatermark-checkpoint", () -> checkpointHighWatermarks(),0L, config.replicaHighWatermarkCheckpointIntervalMs,TimeUnit.MICROSECONDS);
     }
 
     /**
@@ -148,7 +148,7 @@ public class ReplicaManager extends KafkaMetricsGroup {
 
     public void startup() {
         // start ISR expiration thread;
-        scheduler.schedule("isr-expiration", () -> maybeShrinkIsr(), config.replicaLagTimeMaxMs);
+        scheduler.schedule("isr-expiration", () -> maybeShrinkIsr(), 0L, config.replicaLagTimeMaxMs, TimeUnit.MILLISECONDS);
     }
 
     public Short stopReplica(String topic, Integer partitionId, Boolean deletePartition) {

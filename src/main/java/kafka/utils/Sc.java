@@ -73,6 +73,16 @@ public class Sc {
         }
     }
 
+    public static <K, V> boolean foreach(Map<K, V> map, Handler2<K, V, Boolean> action) {
+        for (Map.Entry<K, V> entry : map.entrySet()) {
+            boolean isStop = action.handle(entry.getKey(), entry.getValue());
+            if (isStop) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static <V> void foreach(Optional<V> opt, ActionP<V> action) {
         if (opt.isPresent()) {
             action.invoke(opt.get());
