@@ -1,5 +1,7 @@
 package kafka.network;
 
+import org.apache.commons.collections.CollectionUtils;
+
 import java.io.IOException;
 import java.nio.channels.GatheringByteChannel;
 import java.util.List;
@@ -26,10 +28,7 @@ public abstract class MultiSend<S extends Send> extends Send {
         int totalWrittenPerCall = 0;
         Boolean sendComplete;
         do {
-            if(current.size()==0){
-                return 0;
-            }
-            int written  = current.get(0).writeTo(channel);
+            int written = current.get(0).writeTo(channel);
             totalWritten += written;
             totalWrittenPerCall += written;
             sendComplete = current.get(0).complete();
@@ -41,7 +40,7 @@ public abstract class MultiSend<S extends Send> extends Send {
     }
 
     public boolean complete() {
-        if (current == null) {
+        if (CollectionUtils.isEmpty(current)) {
             if (totalWritten != expectedBytesToWrite())
                 error("mismatch in sending bytes over socket; expected: " + expectedBytesToWrite() + " actual: " + totalWritten);
             return true;

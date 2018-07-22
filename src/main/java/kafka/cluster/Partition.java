@@ -341,6 +341,10 @@ public class Partition extends KafkaMetricsGroup {
         LogOffsetMetadata newHighWatermark = allLogEndOffsets.stream().min(LogOffsetMetadata::compare).get();
         LogOffsetMetadata oldHighWatermark = leaderReplica.highWatermark();
         if (oldHighWatermark.precedes(newHighWatermark)) {
+            StringBuilder s = new StringBuilder();
+            inSyncReplicas.forEach(r -> s.append(String.format("id%s.logEnd=%s", r.brokerId, r.logEndOffset())));
+            logger.info(String.format("=== maybeIncrementLeaderHW.id%s.highWatermark =%s log[%s]", leaderReplica.brokerId, newHighWatermark, s));
+            Utils.printStack();
             leaderReplica.highWatermark_(newHighWatermark);
             debug(String.format("High watermark for partition <%s,%d> updated to %s", topic, partitionId, newHighWatermark));
             // some delayed requests may be unblocked after HW changed;

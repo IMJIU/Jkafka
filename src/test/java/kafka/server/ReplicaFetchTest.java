@@ -39,7 +39,7 @@ public class ReplicaFetchTest extends ZooKeeperTestHarness {
         configs.forEach(c -> {
             c.zkConnectionTimeoutMs = 70000;
             c.zkSessionTimeoutMs = 700000;
-            c.replicaSocketTimeoutMs = 1000000000;
+//            c.replicaSocketTimeoutMs = 1000000000;
         });
         brokers = Sc.map(configs, config -> TestUtils.createServer(config));
     }
@@ -57,8 +57,8 @@ public class ReplicaFetchTest extends ZooKeeperTestHarness {
         List<String> testMessageList2 = Lists.newArrayList("test5", "test6", "test7", "test8");
 
         // create a topic and partition and await leadership;
-//        for (String topic : Lists.newArrayList(topic1, topic2)) {
-        for (String topic : Lists.newArrayList(topic1)) {
+        for (String topic : Lists.newArrayList(topic1, topic2)) {
+//        for (String topic : Lists.newArrayList(topic1)) {
             createTopic(zkClient, topic, 1, 2, brokers, null);
         }
 
@@ -68,13 +68,14 @@ public class ReplicaFetchTest extends ZooKeeperTestHarness {
                 StringEncoder.class.getName(),
                 DefaultPartitioner.class.getName(), null);
         List<KeyedMessage<String, String>> messages = Sc.map(testMessageList1, m -> new KeyedMessage(topic1, m, m));
-//        messages.addAll(Sc.map(testMessageList2, (m -> new KeyedMessage(topic2, m, m))));
+        messages.addAll(Sc.map(testMessageList2, (m -> new KeyedMessage(topic2, m, m))));
         producer.send(messages);
         producer.close();
 
         Fun<Boolean> logsMatch = () -> {
             boolean result = true;
-            for (String topic : Lists.newArrayList(topic1)) {
+//            for (String topic : Lists.newArrayList(topic1)) {
+            for (String topic : Lists.newArrayList(topic1, topic2)) {
                 TopicAndPartition topicAndPart = new TopicAndPartition(topic, partition);
                 Long expectedOffset = brokers.get(0).getLogManager().getLog(topicAndPart).get().logEndOffset();
                 if (result && expectedOffset > 0) {

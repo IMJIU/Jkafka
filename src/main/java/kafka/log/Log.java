@@ -305,7 +305,7 @@ public class Log extends KafkaMetricsGroup {
                     throw new MessageSetSizeTooLargeException(String.format("Message set size is %d bytes which exceeds the maximum configured segment size of %d.",
                             validMessages.sizeInBytes(), config.segmentSize));
                 }
-                System.out.println("APPEND======"+appendInfo);
+                System.out.println("===APPEND"+appendInfo);
                 // maybe roll the log if this segment is full;
                 LogSegment segment = maybeRoll(validMessages.sizeInBytes());
 

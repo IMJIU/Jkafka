@@ -301,7 +301,7 @@ public class KafkaApis extends Logging {
 
             // add the produce request for watch if it's not satisfied, otherwise send the response back;
             Boolean satisfiedByMe = producerRequestPurgatory.checkAndMaybeWatch(delayedRequest);
-           logger.info("============satisfied:" + satisfiedByMe);
+           logger.info("===satisfied:" + satisfiedByMe);
             if (satisfiedByMe)
                 producerRequestPurgatory.respond(delayedRequest);
         }

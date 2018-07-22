@@ -1047,4 +1047,11 @@ public class Utils {
         }
         return fun.invoke();
     }
+
+    public static void printStack() {
+        StackTraceElement[] trace = Thread.currentThread().getStackTrace();
+        for (StackTraceElement traceElement : trace) {
+            logger.info("\tat " + traceElement);
+        }
+    }
 }
