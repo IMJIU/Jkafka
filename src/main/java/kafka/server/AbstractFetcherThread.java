@@ -47,7 +47,6 @@ public abstract class AbstractFetcherThread extends ShutdownableThread {
     public Integer fetcherBrokerId = -1;
     public Integer maxWait = 0;
     public Integer minBytes = 1;
-
     public AbstractFetcherThread(String name, Boolean isInterruptible, String clientId, Broker sourceBroker, Integer socketTimeout, Integer socketBufferSize, Integer fetchSize, Integer fetcherBrokerId, Integer maxWait, Integer minBytes) {
         super(name, isInterruptible);
         this.name = name;
@@ -70,7 +69,7 @@ public abstract class AbstractFetcherThread extends ShutdownableThread {
                 minBytes(minBytes);
     }
 
-    Boolean isInterruptible = true;
+
     private Map<TopicAndPartition, Long> partitionMap = Maps.newHashMap(); // a (topic, partition) -> offset map;
     private ReentrantLock partitionMapLock = new ReentrantLock();
     private Condition partitionMapCond = partitionMapLock.newCondition();

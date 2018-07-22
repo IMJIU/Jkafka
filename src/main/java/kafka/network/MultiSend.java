@@ -9,12 +9,10 @@ import java.util.List;
  */
 public abstract class MultiSend<S extends Send> extends Send {
     public abstract Integer expectedBytesToWrite();
-    List<S> sends;
     private List<S> current;
     int totalWritten = 0;
 
     public MultiSend(List<S> sends) {
-        this.sends = sends;
         this.current = sends;
     }
 
@@ -26,9 +24,12 @@ public abstract class MultiSend<S extends Send> extends Send {
     public Integer writeTo(GatheringByteChannel channel) throws IOException {
         expectIncomplete();
         int totalWrittenPerCall = 0;
-        Boolean sendComplete ;
+        Boolean sendComplete;
         do {
-            int written = current.get(0).writeTo(channel);
+            if(current.size()==0){
+                return 0;
+            }
+            int written  = current.get(0).writeTo(channel);
             totalWritten += written;
             totalWrittenPerCall += written;
             sendComplete = current.get(0).complete();

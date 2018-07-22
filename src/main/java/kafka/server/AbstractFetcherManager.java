@@ -151,6 +151,14 @@ class BrokerAndFetcherId {
         result = 31 * result + (fetcherId != null ? fetcherId.hashCode() : 0);
         return result;
     }
+
+    @Override
+    public String toString() {
+        return "BrokerAndFetcherId{" +
+                "broker=" + broker +
+                ", fetcherId=" + fetcherId +
+                '}';
+    }
 }
 
 

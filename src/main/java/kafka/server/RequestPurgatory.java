@@ -113,7 +113,7 @@ public abstract class RequestPurgatory<T extends DelayedRequest> extends KafkaMe
     }
 
     /**
-     * Try to add the request for watch on all keys. Return true iff the request is
+     * Try to add the request for watch on all keys. Return true if the request is
      * satisfied and the satisfaction is done by the caller.
      */
     public Boolean checkAndMaybeWatch(T delayedRequest) {
@@ -235,12 +235,12 @@ public abstract class RequestPurgatory<T extends DelayedRequest> extends KafkaMe
         // traverse the list and purge satisfied elements;
         public Integer purgeSatisfied() {
             synchronized (this) {
-                Iterator<T> iter = requests.iterator();
+                Iterator<T> it = requests.iterator();
                 int purged = 0;
-                while (iter.hasNext()) {
-                    T curr = iter.next();
+                while (it.hasNext()) {
+                    T curr = it.next();
                     if (curr.satisfied.get()) {
-                        iter.remove();
+                        it.remove();
                         purged += 1;
                     }
                 }
@@ -283,11 +283,9 @@ public abstract class RequestPurgatory<T extends DelayedRequest> extends KafkaMe
      * Runnable to expire requests that have sat unfullfilled past their deadline
      */
     private class ExpiredRequestReaper extends Logging implements Runnable {
-
         public String logIdent;
         private AtomicBoolean running = new AtomicBoolean(true);
         private CountDownLatch shutdownLatch = new CountDownLatch(1);
-
         private DelayQueue<T> delayedQueue = new DelayQueue<>();
 
         public ExpiredRequestReaper() {
@@ -359,7 +357,7 @@ public abstract class RequestPurgatory<T extends DelayedRequest> extends KafkaMe
          */
         private T pollExpired() {
             while (true) {
-                T curr = null;
+                T curr;
                 try {
                     curr = delayedQueue.poll(200L, TimeUnit.MILLISECONDS);
                 } catch (InterruptedException e) {

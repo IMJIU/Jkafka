@@ -39,6 +39,7 @@ public class ReplicaFetchTest extends ZooKeeperTestHarness {
         configs.forEach(c -> {
             c.zkConnectionTimeoutMs = 70000;
             c.zkSessionTimeoutMs = 700000;
+            c.replicaSocketTimeoutMs = 1000000000;
         });
         brokers = Sc.map(configs, config -> TestUtils.createServer(config));
     }

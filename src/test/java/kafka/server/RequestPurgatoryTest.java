@@ -48,7 +48,7 @@ public class RequestPurgatoryTest {
 
     @Test
     public void testRequestExpiry() {
-        Long expiration = 20L;
+        Long expiration = 5000L;
         DelayedRequest r1 = new DelayedRequest(Lists.newArrayList("test1"), null, expiration);
         DelayedRequest r2 = new DelayedRequest(Lists.newArrayList("test1"), null, 200000L);
         Long start = System.currentTimeMillis();

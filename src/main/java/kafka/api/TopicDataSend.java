@@ -41,6 +41,7 @@ public class TopicDataSend extends Send {
                 return topicData.sizeInBytes() - topicData.headerSize;
             }
         };
+        System.out.println(sends);
     }
 
 

@@ -45,4 +45,14 @@ public class KeyedMessage<K, V> {
     public boolean hasKey() {
         return key != null;
     }
+
+    @Override
+    public String toString() {
+        return "KeyedMessage{" +
+                "topic='" + topic + '\'' +
+                ", key=" + key +
+                ", partKey=" + partKey +
+                ", message=" + message +
+                '}';
+    }
 }

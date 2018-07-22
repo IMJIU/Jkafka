@@ -1,5 +1,6 @@
 package kafka.server;
 
+import com.google.common.collect.ImmutableMap;
 import kafka.api.*;
 import kafka.cluster.Partition;
 import kafka.cluster.Replica;
@@ -78,10 +79,14 @@ public class SimpleFetchTest {
         EasyMock.replay(logManager);
 
         ReplicaManager replicaManager = EasyMock.createMock(kafka.server.ReplicaManager.class);
-        EasyMock.expect(replicaManager.config).andReturn(Sc.head(configs));
-        EasyMock.expect(replicaManager.logManager).andReturn(logManager);
-        EasyMock.expect(replicaManager.replicaFetcherManager).andReturn(EasyMock.createMock(ReplicaFetcherManager.class));
-        EasyMock.expect(replicaManager.zkClient).andReturn(zkClient);
+        replicaManager.config = Sc.head(configs);
+        replicaManager.logManager = logManager;
+        replicaManager.replicaFetcherManager = EasyMock.createMock(ReplicaFetcherManager.class);
+        replicaManager.zkClient = zkClient;
+//        EasyMock.expect(replicaManager.config).andReturn(Sc.head(configs));
+//        EasyMock.expect(replicaManager.logManager).andReturn(logManager);
+//        EasyMock.expect(replicaManager.replicaFetcherManager).andReturn(EasyMock.createMock(ReplicaFetcherManager.class));
+//        EasyMock.expect(replicaManager.zkClient).andReturn(zkClient);
         FetchDataInfo fetchInfo = log.read(0L, fetchSize, Optional.of(hw));
         FetchResponsePartitionData partitionData = new FetchResponsePartitionData(ErrorMapping.NoError, hw, fetchInfo.messageSet);
         EasyMock.expect(replicaManager.readMessageSets(EasyMock.anyObject())).andReturn(
@@ -93,7 +98,7 @@ public class SimpleFetchTest {
         partition.getReplica(configs.get(1).brokerId).get().logEndOffset_(new LogOffsetMetadata(leo - 5L, 0L, leo.intValue() - 5));
 
         EasyMock.reset(replicaManager);
-        EasyMock.expect(replicaManager.config).andReturn(Sc.head(configs)).anyTimes();
+//        EasyMock.expect(replicaManager.config).andReturn(Sc.head(configs)).anyTimes();
         EasyMock.expect(replicaManager.getLeaderReplicaIfLocal(topic, partitionId)).andReturn(partition.leaderReplicaIfLocal().get()).anyTimes();
         replicaManager.initWithRequestPurgatory(EasyMock.anyObject(), EasyMock.anyObject());
         fetchInfo = log.read(0L, fetchSize, Optional.of(hw));
@@ -139,95 +144,102 @@ public class SimpleFetchTest {
      * <p>
      * When the follower from broker "1" fetches data, it should see data upto the log end offset ("20")
      */
-//    public void testReplicaSeesLeoWhenFetching() {
-//    /* setup */
-//        val time = new MockTime;
-//        val leo = 20;
-//        val hw = 5;
-//
-//        val messages = new Message("test-message".getBytes());
-//
-//        val followerReplicaId = configs(1).brokerId;
-//        val followerLEO = 15;
-//
-//        val zkClient = EasyMock.createNiceMock(classOf < ZkClient >);
-//        EasyMock.expect(zkClient.exists(ZkUtils.ControllerEpochPath)).andReturn(false);
-//        EasyMock.replay(zkClient);
-//
-//        val log = EasyMock.createMock(classOf < kafka.log.Log >);
-//        EasyMock.expect(log.logEndOffset).andReturn(leo).anyTimes();
-//        EasyMock.expect(log.read(followerLEO, Integer.MAX_VALUE, Optional.empty())).andReturn(
-//                new FetchDataInfo(
-//                        new LogOffsetMetadata(followerLEO, 0L, followerLEO),
-//                        new ByteBufferMessageSet(messages);
-//      )).anyTimes();
-//        EasyMock.replay(log);
-//
-//        val logManager = EasyMock.createMock(classOf < kafka.log.LogManager >);
-//        EasyMock.expect(logManager.getLog(TopicAndPartition(topic, 0))).andReturn(Optional.of(log)).anyTimes();
-//        EasyMock.replay(logManager);
-//
-//        val replicaManager = EasyMock.createMock(classOf < kafka.server.ReplicaManager >);
-//        EasyMock.expect(replicaManager.config).andReturn(configs.head);
+    @Test
+    public void testReplicaSeesLeoWhenFetching() {
+    /* setup */
+        MockTime time = new MockTime();
+        long leo = 20L;
+        long hw = 5L;
+
+        Message messages = new Message("test-message".getBytes());
+
+        Integer followerReplicaId = configs.get(1).brokerId;
+        Long followerLEO = 15L;
+
+        ZkClient zkClient = EasyMock.createNiceMock(ZkClient.class);
+        EasyMock.expect(zkClient.exists(ZkUtils.ControllerEpochPath)).andReturn(false);
+        EasyMock.replay(zkClient);
+
+        Log log = EasyMock.createMock(Log.class);
+        EasyMock.expect(log.logEndOffset()).andReturn(leo).anyTimes();
+        EasyMock.expect(log.read(followerLEO, Integer.MAX_VALUE, Optional.empty())).andReturn(
+                new FetchDataInfo(new LogOffsetMetadata(followerLEO, 0L, followerLEO.intValue()),new ByteBufferMessageSet(messages)
+                )).anyTimes();
+        EasyMock.replay(log);
+
+        LogManager logManager = EasyMock.createMock(LogManager.class);
+        EasyMock.expect(logManager.getLog(new TopicAndPartition(topic, 0))).andReturn(Optional.of(log)).anyTimes();
+        EasyMock.replay(logManager);
+
+        ReplicaManager replicaManager = EasyMock.createMock(ReplicaManager.class);
+        replicaManager.config = Sc.head(configs);
+        replicaManager.logManager = logManager;
+        replicaManager.replicaFetcherManager = EasyMock.createMock(ReplicaFetcherManager.class);
+        replicaManager.zkClient = zkClient;
+//        EasyMock.expect(replicaManager.config).andReturn(configs.get(0));
 //        EasyMock.expect(replicaManager.logManager).andReturn(logManager);
-//        EasyMock.expect(replicaManager.replicaFetcherManager).andReturn(EasyMock.createMock(classOf < ReplicaFetcherManager >));
+//        EasyMock.expect(replicaManager.replicaFetcherManager).andReturn(EasyMock.createMock(ReplicaFetcherManager.class));
 //        EasyMock.expect(replicaManager.zkClient).andReturn(zkClient);
-//        EasyMock.expect(replicaManager.readMessageSets(EasyMock.anyObject())).andReturn({
-//                val fetchInfo = log.read(followerLEO, Integer.MAX_VALUE, Optional.empty());
-//        val partitionData = new FetchResponsePartitionData(ErrorMapping.NoError, hw.toLong, fetchInfo.messageSet);
-//        ImmutableMap.of(TopicAndPartition(topic, partitionId) ->
-//        new PartitionDataAndOffset(partitionData, fetchInfo.fetchOffset));
-//    }).anyTimes();
-//        EasyMock.replay(replicaManager);
-//
-//        val partition = getPartitionWithAllReplicasInISR(topic, partitionId, time, configs.head.brokerId, log, hw, replicaManager);
-//        partition.getReplica(followerReplicaId).get.logEndOffset = new LogOffsetMetadata(followerLEO.asInstanceOf < Long >, 0L, followerLEO);
-//
-//        EasyMock.reset(replicaManager);
-//        EasyMock.expect(replicaManager.config).andReturn(configs.head).anyTimes();
-//        EasyMock.expect(replicaManager.updateReplicaLEOAndPartitionHW(topic, partitionId, followerReplicaId, new LogOffsetMetadata(followerLEO.asInstanceOf < Long >, 0L, followerLEO)));
-//        EasyMock.expect(replicaManager.getReplica(topic, partitionId, followerReplicaId)).andReturn(partition.inSyncReplicas.find(_.brokerId == configs(1).brokerId));
-//        EasyMock.expect(replicaManager.getLeaderReplicaIfLocal(topic, partitionId)).andReturn(partition.leaderReplicaIfLocal().get).anyTimes();
+
+        FetchDataInfo fetchInfo = log.read(followerLEO, Integer.MAX_VALUE, Optional.empty());
+        FetchResponsePartitionData partitionData = new FetchResponsePartitionData(ErrorMapping.NoError, hw, fetchInfo.messageSet);
+        EasyMock.expect(replicaManager.readMessageSets(EasyMock.anyObject())).andReturn(
+                ImmutableMap.of(new TopicAndPartition(topic, partitionId),
+                        new PartitionDataAndOffset(partitionData, fetchInfo.fetchOffset))
+        ).anyTimes();
+        EasyMock.replay(replicaManager);
+
+        Partition partition = getPartitionWithAllReplicasInISR(topic, partitionId, time, configs.get(0).brokerId, log, hw, replicaManager);
+        partition.getReplica(followerReplicaId).get().logEndOffset_(new LogOffsetMetadata(followerLEO, 0L, followerLEO.intValue()));
+
+        EasyMock.reset(replicaManager);
+//        EasyMock.expect(replicaManager.config).andReturn(configs.get(0)).anyTimes();
+        replicaManager.updateReplicaLEOAndPartitionHW(topic, partitionId, followerReplicaId, new LogOffsetMetadata(followerLEO, 0L, followerLEO.intValue()));
+//        EasyMock.expect(replicaManager.updateReplicaLEOAndPartitionHW(topic, partitionId, followerReplicaId, new LogOffsetMetadata(followerLEO, 0L, followerLEO.intValue())));
+        Replica replica = Sc.find(partition.inSyncReplicas, r -> r.brokerId == configs.get(1).brokerId);
+        EasyMock.expect(replicaManager.getReplica(topic, partitionId, followerReplicaId)).andReturn(Optional.of(replica));
+        EasyMock.expect(replicaManager.getLeaderReplicaIfLocal(topic, partitionId)).andReturn(partition.leaderReplicaIfLocal().get()).anyTimes();
+        replicaManager.initWithRequestPurgatory(EasyMock.anyObject(), EasyMock.anyObject());
 //        EasyMock.expect(replicaManager.initWithRequestPurgatory(EasyMock.anyObject(), EasyMock.anyObject()));
-//        EasyMock.expect(replicaManager.readMessageSets(EasyMock.anyObject())).andReturn({
-//                val fetchInfo = log.read(followerLEO, Integer.MAX_VALUE, Optional.empty());
-//        val partitionData = new FetchResponsePartitionData(ErrorMapping.NoError, hw.toLong, fetchInfo.messageSet);
-//        ImmutableMap.of(TopicAndPartition(topic, partitionId) ->
-//        new PartitionDataAndOffset(partitionData, fetchInfo.fetchOffset));
-//    }).anyTimes();
+        fetchInfo = log.read(followerLEO, Integer.MAX_VALUE, Optional.empty());
+        partitionData = new FetchResponsePartitionData(ErrorMapping.NoError, hw, fetchInfo.messageSet);
+        EasyMock.expect(replicaManager.readMessageSets(EasyMock.anyObject())).andReturn(
+                ImmutableMap.of(new TopicAndPartition(topic, partitionId),
+                        new PartitionDataAndOffset(partitionData, fetchInfo.fetchOffset))
+        ).anyTimes();
 //        EasyMock.expect(replicaManager.unblockDelayedProduceRequests(EasyMock.anyObject())).anyTimes();
-//        EasyMock.replay(replicaManager);
-//
-//        val offsetManager = EasyMock.createMock(classOf < kafka.server.OffsetManager >);
-//
-//        val controller = EasyMock.createMock(classOf < kafka.controller.KafkaController >);
-//
-//        val requestChannel = new RequestChannel(2, 5);
-//        val apis = new KafkaApis(requestChannel, replicaManager, offsetManager, zkClient, configs.head.brokerId, configs.head, controller);
-//        val partitionStateInfo = EasyMock.createNiceMock(classOf < PartitionStateInfo >);
-//        apis.metadataCache.addOrUpdatePartitionInfo(topic, partitionId, partitionStateInfo);
-//        EasyMock.replay(partitionStateInfo);
-//
-//        /**
-//         * This fetch, coming from a replica, requests all data at offset "15".  Because the request is coming
-//         * from a follower, the leader should oblige and read beyond the HW.
-//         */
-//        val bigFetch = new FetchRequestBuilder();
-//      .replicaId(followerReplicaId);
-//      .addFetch(topic, partitionId, followerLEO, Integer.MAX_VALUE);
-//      .build();
-//
-//        val fetchRequestBB = TestUtils.createRequestByteBuffer(bigFetch);
-//
-//        // send the request;
-//        apis.handleFetchRequest(new RequestChannel.Request(processor = 0, requestKey = 5, buffer = fetchRequestBB, startTimeMs = 1));
-//
-//        /**
-//         * Make sure the log satisfies the fetch from a follower by reading data beyond the HW, mainly all bytes after
-//         * an offset of 15
-//         */
-//        EasyMock.verify(log)
-//    }
+        replicaManager.unblockDelayedProduceRequests(EasyMock.anyObject());
+        EasyMock.replay(replicaManager);
+
+        OffsetManager offsetManager = EasyMock.createMock(OffsetManager.class);
+
+        KafkaController controller = EasyMock.createMock(KafkaController.class);
+
+        RequestChannel requestChannel = new RequestChannel(2, 5);
+        KafkaApis apis = new KafkaApis(requestChannel, replicaManager, offsetManager, zkClient, configs.get(0).brokerId, configs.get(0), controller);
+        PartitionStateInfo partitionStateInfo = EasyMock.createNiceMock(PartitionStateInfo.class);
+        apis.metadataCache.addOrUpdatePartitionInfo(topic, partitionId, partitionStateInfo);
+        EasyMock.replay(partitionStateInfo);
+
+        /**
+         * This fetch, coming from a replica, requests all data at offset "15".  Because the request is coming
+         * from a follower, the leader should oblige and read beyond the HW.
+         */
+        FetchRequest bigFetch = new FetchRequestBuilder()
+                .replicaId(followerReplicaId)
+                .addFetch(topic, partitionId, followerLEO, Integer.MAX_VALUE)
+                .build();
+
+        ByteBuffer fetchRequestBB = TestUtils.createRequestByteBuffer(bigFetch);
+        // send the request;
+        apis.handleFetchRequest(new RequestChannel.Request(0, 5, fetchRequestBB, 1L));
+        /**
+         * Make sure the log satisfies the fetch from a follower by reading data beyond the HW, mainly all bytes after
+         * an offset of 15
+         */
+        EasyMock.verify(log);
+    }
+
     private Partition getPartitionWithAllReplicasInISR(String topic, Integer partitionId, Time time, Integer leaderId,
                                                        Log localLog, Long leaderHW, ReplicaManager replicaManager) {
         Partition partition = new Partition(topic, partitionId, time, replicaManager);
@@ -249,4 +261,9 @@ public class SimpleFetchTest {
                 config -> new Replica(config.brokerId, partition, time));
     }
 
+    @Test
+    public void t_mock() {
+        ReplicaManager replicaManager = EasyMock.createMock(ReplicaManager.class);
+        replicaManager.checkpointHighWatermarks();
+    }
 }

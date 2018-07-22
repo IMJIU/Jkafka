@@ -2,6 +2,7 @@ package kafka.network;
 
 import kafka.annotation.nonthreadsafe;
 import kafka.api.RequestOrResponse;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.GatheringByteChannel;
@@ -57,7 +58,7 @@ public class BoundedByteBufferSend extends Send {
     public Integer writeTo(GatheringByteChannel channel) {
         expectIncomplete();
         ByteBuffer[] bs = new ByteBuffer[]{sizeBuffer, buffer};
-        long written = 0;
+        long written;
         try {
             written = channel.write(bs);
         } catch (IOException e) {
@@ -66,7 +67,7 @@ public class BoundedByteBufferSend extends Send {
         // if we are done, mark it off;
         if (!buffer.hasRemaining())
             complete = true;
-        return (int)written;
+        return (int) written;
     }
 
 }

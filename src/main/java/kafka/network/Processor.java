@@ -138,18 +138,18 @@ public class Processor extends AbstractServerThread {
                         // There is no response to send to the client, we need to read more pipelined requests;
                         // that are sitting in the server's socket buffer;
                         curr.request.updateRequestMetrics();
-                        trace("Socket server received empty response to send, registering for read: " + curr);
+//                        trace("Socket server received empty response to send, registering for read: " + curr);
                         key.interestOps(SelectionKey.OP_READ);
                         key.attach(null);
                         break;
                     case SendAction:
-                        trace("Socket server received response to send, registering for write: " + curr);
+//                        trace("Socket server received response to send, registering for write: " + curr);
                         key.interestOps(SelectionKey.OP_WRITE);
                         key.attach(curr);
                         break;
                     case CloseConnectionAction:
                         curr.request.updateRequestMetrics();
-                        trace("Closing socket connection actively according to the response code.");
+//                        trace("Closing socket connection actively according to the response code.");
                         close(key);
                         break;
                     default:
@@ -199,7 +199,7 @@ public class Processor extends AbstractServerThread {
         }
         Integer read = receive.readFrom(socketChannel);
         SocketAddress address = socketChannel.socket().getRemoteSocketAddress();
-        trace(read + " bytes read from " + address);
+//        trace(read + " bytes read from " + address);
         if (read < 0) {
             close(key);
         } else if (receive.complete()) {
@@ -210,7 +210,7 @@ public class Processor extends AbstractServerThread {
             key.interestOps(key.interestOps() & (~SelectionKey.OP_READ));
         } else {
             // more reading to be done;
-            trace("Did not finish reading, registering for read again on connection " + socketChannel.socket().getRemoteSocketAddress());
+//            trace("Did not finish reading, registering for read again on connection " + socketChannel.socket().getRemoteSocketAddress());
             key.interestOps(SelectionKey.OP_READ);
             wakeup();
         }
@@ -227,14 +227,14 @@ public class Processor extends AbstractServerThread {
         if (responseSend == null)
             throw new IllegalStateException("Registered for write interest but no response attached to key.");
         Integer written = responseSend.writeTo(socketChannel);
-        trace(written + " bytes written to " + socketChannel.socket().getRemoteSocketAddress() + " using key " + key);
+//        trace(written + " bytes written to " + socketChannel.socket().getRemoteSocketAddress() + " using key " + key);
         if (responseSend.complete()) {
             response.request.updateRequestMetrics();
             key.attach(null);
-            trace("Finished writing, registering for read on connection " + socketChannel.socket().getRemoteSocketAddress());
+//            trace("Finished writing, registering for read on connection " + socketChannel.socket().getRemoteSocketAddress());
             key.interestOps(SelectionKey.OP_READ);
         } else {
-            trace("Did not finish writing, registering for write again on connection " + socketChannel.socket().getRemoteSocketAddress());
+//            trace("Did not finish writing, registering for write again on connection " + socketChannel.socket().getRemoteSocketAddress());
             key.interestOps(SelectionKey.OP_WRITE);
             wakeup();
         }
@@ -254,8 +254,8 @@ public class Processor extends AbstractServerThread {
                 nextIdleCloseCheckTime = connectionLastActiveTime + connectionsMaxIdleNanos;
                 if (currentTimeNanos > nextIdleCloseCheckTime) {
                     SelectionKey key = oldestConnectionEntry.getKey();
-                    trace("About to close the idle connection from " + ((SocketChannel) key.channel()).socket().getRemoteSocketAddress()
-                            + " due to being idle for " + (currentTimeNanos - connectionLastActiveTime) / 1000 / 1000 + " millis");
+//                    trace("About to close the idle connection from " + ((SocketChannel) key.channel()).socket().getRemoteSocketAddress()
+//                            + " due to being idle for " + (currentTimeNanos - connectionLastActiveTime) / 1000 / 1000 + " millis");
                     close(key);
                 }
             }

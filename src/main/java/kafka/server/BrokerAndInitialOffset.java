@@ -29,4 +29,12 @@ public class BrokerAndInitialOffset {
         result = 31 * result + (initOffset != null ? initOffset.hashCode() : 0);
         return result;
     }
+
+    @Override
+    public String toString() {
+        return "BrokerAndInitialOffset{" +
+                "broker=" + broker +
+                ", initOffset=" + initOffset +
+                '}';
+    }
 }

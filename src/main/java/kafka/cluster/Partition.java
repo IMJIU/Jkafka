@@ -56,9 +56,9 @@ public class Partition extends KafkaMetricsGroup {
         );
     }
 
-    private Integer localBrokerId ;
-    private LogManager logManager ;
-    private ZkClient zkClient ;
+    private Integer localBrokerId;
+    private LogManager logManager;
+    private ZkClient zkClient;
     private Pool<Integer, Replica> assignedReplicaMap = new Pool<>();
     //        // The read lock is only required when multiple reads are executed and needs to be in a consistent manner;
     private ReentrantReadWriteLock leaderIsrUpdateLock = new ReentrantReadWriteLock();

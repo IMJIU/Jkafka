@@ -984,7 +984,7 @@ public class Utils {
             last = it.next();
         }
         if (last != null) {
-            Optional.of(last);
+            return Optional.of(last);
         }
         return Optional.empty();
     }

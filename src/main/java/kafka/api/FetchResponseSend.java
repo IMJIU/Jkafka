@@ -7,6 +7,7 @@ import kafka.utils.Utils;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.GatheringByteChannel;
+import java.util.List;
 
 /**
  * @author zhoulf
@@ -24,8 +25,9 @@ public class FetchResponseSend extends Send {
         buffer.putInt(fetchResponse.correlationId);
         buffer.putInt(fetchResponse.dataGroupedByTopic.size()); // topic count
         buffer.rewind();
-        sends = new MultiSend(Utils.map(fetchResponse.dataGroupedByTopic, (topic, topicAndData) ->
-                new TopicDataSend(new TopicData(topic, Utils.mapKey(topicAndData, k -> k.partition))))) {
+        List<TopicDataSend> list = Utils.map(fetchResponse.dataGroupedByTopic, (topic, topicAndData) ->
+                new TopicDataSend(new TopicData(topic, Utils.mapKey(topicAndData, k -> k.partition))));
+        sends = new MultiSend(list) {
             public Integer expectedBytesToWrite() {
                 return fetchResponse.sizeInBytes() - FetchResponse.headerSize;
             }
