@@ -81,6 +81,7 @@ public class ReplicaFetchTest extends ZooKeeperTestHarness {
                 if (result && expectedOffset > 0) {
                     boolean b = true;
                     for (KafkaServer item : brokers) {
+                        System.out.println(String.format("offset:%s vs %s", expectedOffset, item.getLogManager().getLog(topicAndPart).get().logEndOffset()));
                         b = b && (expectedOffset == item.getLogManager().getLog(topicAndPart).get().logEndOffset());
                     }
                     result = b;
