@@ -230,6 +230,16 @@ public class Sc {
         return result;
     }
 
+    public static <V, V2> Set<V2> mapToSet(Collection<V> list, Handler<V, V2> handler) {
+        Set<V2> set = Sets.newHashSet();
+        if (set != null) {
+            for (V entry : list) {
+                set.add(handler.handle(entry));
+            }
+        }
+        return set;
+    }
+
     public static <V, RESULT> Set<RESULT> map(Set<V> set, Handler<V, RESULT> handler) {
         Set<RESULT> list = Sets.newHashSet();
         if (set != null) {

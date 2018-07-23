@@ -2,19 +2,23 @@ package kafka.server;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import kafka.utils.Logging;
-import kafka.utils.TestUtils;
-import kafka.utils.Utils;
-import kafka.utils.ZkUtils;
+import com.google.common.collect.Sets;
+import kafka.api.*;
+import kafka.cluster.Broker;
+import kafka.common.ErrorMapping;
+import kafka.controller.ControllerChannelManager;
+import kafka.controller.ctrl.ControllerContext;
+import kafka.controller.ctrl.LeaderIsrAndControllerEpoch;
+import kafka.func.ActionP;
+import kafka.log.TopicAndPartition;
+import kafka.utils.*;
 import kafka.zk.ZooKeeperTestHarness;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.util.List;
-import java.util.Optional;
-import java.util.Properties;
+import java.util.*;
 
 /**
  * @author zhoulf
@@ -85,7 +89,7 @@ public class LeaderElectionTest extends ZooKeeperTestHarness {
         if (leader1.get() == leader2.get())
             Assert.assertEquals("Second epoch value should be " + leaderEpoch1 + 1, new Integer(leaderEpoch1 + 1), leaderEpoch2);
         else
-        Assert.assertEquals(String.format("Second epoch value should be %d", leaderEpoch1 + 1), new Integer(leaderEpoch1 + 1), leaderEpoch2);
+            Assert.assertEquals(String.format("Second epoch value should be %d", leaderEpoch1 + 1), new Integer(leaderEpoch1 + 1), leaderEpoch2);
 
         servers.get(1).startup();
         servers.get(0).shutdown();
@@ -103,54 +107,53 @@ public class LeaderElectionTest extends ZooKeeperTestHarness {
         if (leader2.get() == leader3.get())
             Assert.assertEquals("Second epoch value should be " + leaderEpoch2, leaderEpoch2, leaderEpoch3);
         else
-        Assert.assertEquals(String.format("Second epoch value should be %d", leaderEpoch2 + 1), new Integer(leaderEpoch2 + 1), leaderEpoch3);
+            Assert.assertEquals(String.format("Second epoch value should be %d", leaderEpoch2 + 1), new Integer(leaderEpoch2 + 1), leaderEpoch3);
     }
-//
-//   public void testLeaderElectionWithStaleControllerEpoch() {
-//        // start 2 brokers;
-//        val topic = "new-topic";
-//        val partitionId = 0;
-//
-//        // create topic with 1 partition, 2 replicas, one on each broker;
-//        val leader1 = createTopic(zkClient, topic, partitionReplicaAssignment = Map(0 -> Seq(0, 1)), servers = servers)(0);
-//
-//        val leaderEpoch1 = ZkUtils.getEpochForPartition(zkClient, topic, partitionId);
-//        debug("leader Epoc: " + leaderEpoch1);
-//        debug(String.format("Leader is elected to be: %s",leader1.getOrElse(-1)))
-//        Assert.assertTrue("Leader should get elected", leader1.isDefined);
-//        // this NOTE is to avoid transient test failures;
-//        Assert.assertTrue("Leader could be broker 0 or broker 1", (leader1.getOrElse(-1) == 0) || (leader1.getOrElse(-1) == 1));
-//       Assert.assertEquals("First epoch value should be 0", 0, leaderEpoch1);
-//
-//        // start another controller;
-//        val controllerId = 2;
-//        val controllerConfig = new KafkaConfig(TestUtils.createBrokerConfig(controllerId, TestUtils.choosePort()));
-//        val brokers = servers.map(s -> new Broker(s.config.brokerId, "localhost", s.config.port));
-//        val controllerContext = new ControllerContext(zkClient, 6000);
-//        controllerContext.liveBrokers = brokers.toSet;
-//        val controllerChannelManager = new ControllerChannelManager(controllerContext, controllerConfig);
-//        controllerChannelManager.startup();
-//        val staleControllerEpoch = 0;
-//        val leaderAndIsr = new collection.mutable.HashMap<(String, Int), LeaderIsrAndControllerEpoch>
-//        leaderAndIsr.put((topic, partitionId),
-//                new LeaderIsrAndControllerEpoch(new LeaderAndIsr(brokerId2, Lists.newArrayList(brokerId1, brokerId2)), 2));
-//        val partitionStateInfo = leaderAndIsr.mapValues(l -> new PartitionStateInfo(l, Set(0,1))).toMap;
-//        val leaderAndIsrRequest = new LeaderAndIsrRequest(partitionStateInfo, brokers.toSet, controllerId,
-//                staleControllerEpoch, 0, "");
-//
-//        controllerChannelManager.sendRequest(brokerId2, leaderAndIsrRequest, staleControllerEpochCallback);
-//        TestUtils.waitUntilTrue(() -> staleControllerEpochDetected == true,
-//                "Controller epoch should be stale");
-//        Assert.assertTrue("Stale controller epoch not detected by the broker", staleControllerEpochDetected);
-//
-//        controllerChannelManager.shutdown();
-//    }
 
-//    privatepublic Unit  void staleControllerEpochCallback(RequestOrResponse response) {
-//        val leaderAndIsrResponse = response.asInstanceOf<LeaderAndIsrResponse>
-//        staleControllerEpochDetected = leaderAndIsrResponse.errorCode match {
-//            case ErrorMapping.StaleControllerEpochCode -> true;
-//            case _ -> false;
-//        }
-//    }
+    @Test
+    public void testLeaderElectionWithStaleControllerEpoch() throws Throwable {
+        // start 2 brokers;
+        String topic = "new-topic";
+        Integer partitionId = 0;
+
+        // create topic with 1 partition, 2 replicas, one on each broker;
+        Optional<Integer> leader1 = TestUtils.createTopic(zkClient, topic, ImmutableMap.of(0, Lists.newArrayList(0, 1)), servers).get(0);
+
+        Integer leaderEpoch1 = ZkUtils.getEpochForPartition(zkClient, topic, partitionId);
+        System.out.println("leader Epoc: " + leaderEpoch1);
+        System.out.println(String.format("Leader is elected to be: %s", leader1.orElse(-1)));
+        Assert.assertTrue("Leader should get elected", leader1.isPresent());
+        // this NOTE is to avoid transient test failures;
+        Assert.assertTrue("Leader could be broker 0 or broker 1", (leader1.orElse(-1) == 0) || (leader1.orElse(-1) == 1));
+        Assert.assertEquals("First epoch value should be 0", 0L, leaderEpoch1.longValue());
+
+        // start another controller;
+        Integer controllerId = 2;
+        KafkaConfig controllerConfig = new KafkaConfig(TestUtils.createBrokerConfig(controllerId, TestUtils.choosePort(), true));
+        Set<Broker> brokers = Sc.mapToSet(servers, s -> new Broker(s.config.brokerId, "localhost", s.config.port));
+        ControllerContext controllerContext = new ControllerContext(zkClient, 6000);
+        controllerContext.liveBrokers_(brokers);
+        ControllerChannelManager controllerChannelManager = new ControllerChannelManager(controllerContext, controllerConfig);
+        controllerChannelManager.startup();
+        Integer staleControllerEpoch = 0;
+        HashMap<TopicAndPartition, LeaderIsrAndControllerEpoch> leaderAndIsr = new HashMap<>();
+        leaderAndIsr.put(new TopicAndPartition(topic, partitionId),
+                new LeaderIsrAndControllerEpoch(new LeaderAndIsr(brokerId2, Lists.newArrayList(brokerId1, brokerId2)), 2));
+        Map partitionStateInfo = Sc.mapValue(leaderAndIsr, l -> new PartitionStateInfo(l, Sets.newHashSet(0, 1)));
+        LeaderAndIsrRequest leaderAndIsrRequest = new LeaderAndIsrRequest(partitionStateInfo, brokers, controllerId,
+                staleControllerEpoch, 0, "");
+
+        controllerChannelManager.sendRequest(brokerId2, leaderAndIsrRequest, staleControllerEpochCallback);
+        TestUtils.waitUntilTrue(() -> staleControllerEpochDetected == true,"Controller epoch should be stale");
+        Assert.assertTrue("Stale controller epoch not detected by the broker", staleControllerEpochDetected);
+
+        controllerChannelManager.shutdown();
+    }
+
+    ActionP<RequestOrResponse> staleControllerEpochCallback = (RequestOrResponse response) -> {
+        LeaderAndIsrResponse leaderAndIsrResponse = (LeaderAndIsrResponse) response;
+        if (leaderAndIsrResponse.errorCode == ErrorMapping.StaleControllerEpochCode) {
+            staleControllerEpochDetected = true;
+        }
+    };
 }

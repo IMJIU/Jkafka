@@ -77,7 +77,7 @@ public class ReplicaFetchTest extends ZooKeeperTestHarness {
 //            for (String topic : Lists.newArrayList(topic1)) {
             for (String topic : Lists.newArrayList(topic1, topic2)) {
                 TopicAndPartition topicAndPart = new TopicAndPartition(topic, partition);
-                Long expectedOffset = brokers.get(0).getLogManager().getLog(topicAndPart).get().logEndOffset();
+                Long expectedOffset = brokers.get(1).getLogManager().getLog(topicAndPart).get().logEndOffset();
                 if (result && expectedOffset > 0) {
                     boolean b = true;
                     for (KafkaServer item : brokers) {
